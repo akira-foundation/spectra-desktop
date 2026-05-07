@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light'
-import {Button} from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 
 interface ResponsePanelProps {
   responseData: any
@@ -14,68 +14,75 @@ export function ResponsePanel({ responseData }: ResponsePanelProps) {
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDark(document.documentElement.classList.contains('dark'))
-    }
-    
-    checkDarkMode()
-    
-    const observer = new MutationObserver(checkDarkMode)
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'))
+    check()
+    const observer = new MutationObserver(check)
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    
     return () => observer.disconnect()
   }, [])
 
   return (
-    <div className="flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2  border-border/50">
-        <div className="flex items-center gap-2">
-          <Download className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Response</h3>
+    <div className="flex flex-col min-w-0 bg-background">
+      <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
+        <div className="flex items-center gap-1.5">
+          <Download className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Response
+          </h3>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 p-1 hover:bg-muted rounded transition-colors">
-          <Copy className="w-4 h-4 text-muted-foreground" />
+        <Button variant="ghost" size="icon-sm" className="h-6 w-6">
+          <Copy className="w-3 h-3 text-muted-foreground" />
         </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="json" className="flex-1 flex flex-col">
-        <TabsList className="w-full justify-start border-b border-border/50 rounded-none bg-transparent px-4 h-auto py-1">
-          <TabsTrigger value="json" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">JSON</TabsTrigger>
-          <TabsTrigger value="raw" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Raw</TabsTrigger>
-          <TabsTrigger value="headers" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Headers</TabsTrigger>
-          <TabsTrigger value="history" className="text-xs py-2 px-3 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">History (1)</TabsTrigger>
+      <Tabs defaultValue="json" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
+          {[
+            { v: 'json', label: 'JSON' },
+            { v: 'raw', label: 'Raw' },
+            { v: 'headers', label: 'Headers' },
+            { v: 'history', label: 'History' },
+          ].map((t) => (
+            <TabsTrigger
+              key={t.v}
+              value={t.v}
+              className="text-[11.5px] px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* Response Content */}
-        <TabsContent value="json" className="flex-1 p-4 overflow-auto">
-          <SyntaxHighlighter
-            language="json"
-            style={isDark ? vscDarkPlus : materialLight}
-            customStyle={{
-              background: 'transparent',
-              margin: 0,
-              fontSize: '0.75rem',
-              padding: 0,
-            }}
-            showLineNumbers={false}
-            wrapLines={true}
-          >
+        <TabsContent value="json" className="flex-1 p-3 overflow-auto mt-0">
+          <div className="rounded-md border border-border/40 bg-muted/20 p-2">
+            <SyntaxHighlighter
+              language="json"
+              style={isDark ? vscDarkPlus : materialLight}
+              customStyle={{
+                background: 'transparent',
+                margin: 0,
+                fontSize: '11.5px',
+                padding: 0,
+                fontFamily: 'var(--font-mono)',
+              }}
+              showLineNumbers={false}
+              wrapLines
+            >
+              {JSON.stringify(responseData, null, 2)}
+            </SyntaxHighlighter>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="raw" className="flex-1 p-3 overflow-auto mt-0">
+          <pre className="text-[11.5px] text-foreground font-mono whitespace-pre-wrap">
             {JSON.stringify(responseData, null, 2)}
-          </SyntaxHighlighter>
+          </pre>
         </TabsContent>
-
-        <TabsContent value="raw" className="flex-1 p-4 overflow-auto">
-          <pre className="text-xs text-foreground font-mono">{JSON.stringify(responseData, null, 2)}</pre>
+        <TabsContent value="headers" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
+          No headers
         </TabsContent>
-
-        <TabsContent value="headers" className="flex-1 p-4 overflow-auto">
-          <div className="text-center py-8 text-sm text-muted-foreground">No headers</div>
-        </TabsContent>
-
-        <TabsContent value="history" className="flex-1 p-4 overflow-auto">
-          <div className="text-center py-8 text-sm text-muted-foreground">No history</div>
+        <TabsContent value="history" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
+          No history
         </TabsContent>
       </Tabs>
     </div>

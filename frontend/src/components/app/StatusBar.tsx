@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 
 interface StatusBarProps {
   sdkStatus?: 'connected' | 'disconnected' | 'syncing' | 'error'
@@ -24,23 +24,23 @@ export function StatusBar({
     return `${days}d ago`
   }
 
-  const getSdkIcon = () => {
+  const sdkIcon = () => {
     switch (sdkStatus) {
       case 'syncing':
-        return <Loader2 className="w-3 h-3 animate-spin text-info" />
+        return <Loader2 className="w-2.5 h-2.5 animate-spin text-foreground/60" />
       case 'connected':
-        return <CheckCircle className="w-3 h-3 text-success" />
+        return <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
       case 'error':
-        return <AlertCircle className="w-3 h-3 text-error" />
+        return <AlertCircle className="w-2.5 h-2.5 text-destructive" />
       default:
-        return <AlertCircle className="w-3 h-3 text-warning" />
+        return <AlertCircle className="w-2.5 h-2.5 text-amber-500" />
     }
   }
 
-  const getSdkLabel = () => {
+  const sdkLabel = () => {
     switch (sdkStatus) {
       case 'syncing':
-        return 'Syncing...'
+        return 'Syncing'
       case 'connected':
         return 'Connected'
       case 'error':
@@ -51,29 +51,18 @@ export function StatusBar({
   }
 
   return (
-    <div className="h-10 border-t border-border bg-card flex items-center justify-between px-6 text-xs text-foreground/50">
-      {/* Left: Status Indicators */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          {getSdkIcon()}
-          <span>SDK: {getSdkLabel()}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <CheckCircle className="w-3 h-3 text-foreground/30" />
-          <span>Last Sync: {formatTime(lastSyncTime)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {coreStatus === 'ready' ? (
-            <CheckCircle className="w-3 h-3 text-foreground/30" />
-          ) : (
-            <Loader2 className="w-3 h-3 animate-spin text-foreground/30" />
-          )}
-          <span>Core: {coreStatus === 'ready' ? 'Ready' : 'Initializing'}</span>
-        </div>
+    <footer className="h-6 shrink-0 border-t border-border/60 bg-card/40 backdrop-blur-md flex items-center justify-between px-3 text-[10.5px] text-foreground/55 select-none">
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-1.5">
+          {sdkIcon()}
+          <span>SDK · {sdkLabel()}</span>
+        </span>
+        <span className="opacity-50">·</span>
+        <span>Sync · {formatTime(lastSyncTime)}</span>
+        <span className="opacity-50">·</span>
+        <span>Core · {coreStatus === 'ready' ? 'Ready' : 'Init'}</span>
       </div>
-
-      {/* Right: App Version */}
-      <div className="text-foreground/40">v0.1.0</div>
-    </div>
+      <div className="opacity-60 font-mono">v0.1.0</div>
+    </footer>
   )
 }

@@ -10,10 +10,18 @@ export function Drivers() {
   return window['go']['app']['App']['Drivers']();
 }
 
+export function InspectProject(arg1) {
+  return window['go']['app']['App']['InspectProject'](arg1);
+}
+
 export function ListEndpoints() {
   return window['go']['app']['App']['ListEndpoints']();
 }
 
 export function OpenProject(arg1) {
   return window['go']['app']['App']['OpenProject'](arg1);
+}
+
+export function SelectProjectFolder() {
+  return window['go']['app']['App']['SelectProjectFolder']();
 }

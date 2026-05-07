@@ -15,91 +15,95 @@ export function RequestPanel({ requestBody, onExecute }: RequestPanelProps) {
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
-    const checkDarkMode = () => {
-      setIsDark(document.documentElement.classList.contains('dark'))
-    }
-    
-    checkDarkMode()
-    
-    const observer = new MutationObserver(checkDarkMode)
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'))
+    check()
+    const observer = new MutationObserver(check)
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    
     return () => observer.disconnect()
   }, [])
 
   return (
-    <div className="flex-1 border-r border-border/50 flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-border/50">
-        <div className="flex items-center gap-2 ">
-          <Send className="w-4 h-4 text-muted-foreground " />
-          <h3 className="text-sm font-semibold text-foreground">Request</h3>
+    <div className="flex flex-col min-w-0 border-r border-border/60 bg-background">
+      <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
+        <div className="flex items-center gap-1.5">
+          <Send className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Request
+          </h3>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 p-1 hover:bg-muted rounded transition-colors">
-          <RotateCcw className="w-4 h-4 text-muted-foreground" />
+        <Button variant="ghost" size="icon-sm" className="h-6 w-6">
+          <RotateCcw className="w-3 h-3 text-muted-foreground" />
         </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="body" className="flex-1 flex flex-col ">
-        <TabsList className="w-full justify-start border-b border-border/50 rounded-none bg-transparent px-4 h-auto py-1">
-          <TabsTrigger value="body" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Body</TabsTrigger>
-          <TabsTrigger value="params" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Params</TabsTrigger>
-          <TabsTrigger value="headers" className="text-xs py-2 px-3 mr-8 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Headers</TabsTrigger>
-          <TabsTrigger value="cookies" className="text-xs py-2 px-3 cursor-pointer data-[state=active]:border-b-2 data-[state=active]:border-primary">Cookies</TabsTrigger>
+      <Tabs defaultValue="body" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
+          {['body', 'params', 'headers', 'cookies'].map((v) => (
+            <TabsTrigger
+              key={v}
+              value={v}
+              className="text-[11.5px] capitalize px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
+            >
+              {v}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="body" className="flex-1 flex flex-col p-4 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Format:</span>
-              <div className="flex items-center gap-1">
-                <button className="px-2.5 py-1 text-xs bg-primary/10 text-primary rounded hover:bg-primary/20 transition">JSON</button>
-                <button className="px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted rounded transition">Form</button>
-              </div>
-            </div>
+        <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
+          <div className="flex items-center gap-1 mb-2">
+            <button className="px-2 py-0.5 text-[10.5px] bg-primary/15 text-primary rounded-sm hover:bg-primary/25 transition-colors">
+              JSON
+            </button>
+            <button className="px-2 py-0.5 text-[10.5px] text-muted-foreground hover:bg-accent/60 rounded-sm transition-colors">
+              Form
+            </button>
           </div>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto rounded-md border border-border/40 bg-muted/20 p-2">
             <SyntaxHighlighter
               language="json"
               style={isDark ? vscDarkPlus : materialLight}
               customStyle={{
                 margin: 0,
-                fontSize: '0.75rem',
+                fontSize: '11.5px',
                 background: 'transparent',
                 padding: 0,
+                fontFamily: 'var(--font-mono)',
               }}
               showLineNumbers={false}
-              wrapLines={true}
+              wrapLines
             >
               {JSON.stringify(requestBody, null, 2)}
             </SyntaxHighlighter>
           </div>
         </TabsContent>
 
-        <TabsContent value="params" className="flex-1 p-4 overflow-auto">
-          <div className="text-center py-8 text-sm text-muted-foreground">No parameters</div>
+        <TabsContent value="params" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
+          No parameters
         </TabsContent>
-
-        <TabsContent value="headers" className="flex-1 p-4 overflow-auto">
-          <div className="text-center py-8 text-sm text-muted-foreground">No headers</div>
+        <TabsContent value="headers" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
+          No headers
         </TabsContent>
-
-        <TabsContent value="cookies" className="flex-1 p-4 overflow-auto">
-          <div className="text-center py-8 text-sm text-muted-foreground">No cookies</div>
+        <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
+          No cookies
         </TabsContent>
       </Tabs>
 
-      {/* Execute Button */}
-      <div className="px-4 py-3 border-t border-border/50 bg-background">
-        <Button
+      <div className="px-3 py-2 border-t border-border/40">
+        <button
           onClick={onExecute}
-          className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold h-9"
+          className="group w-full h-8 inline-flex items-center rounded-md border border-border/60 bg-card hover:bg-accent/60 active:bg-accent text-foreground text-[12px] font-medium transition-colors px-2.5"
         >
-          <Play className="w-4 h-4 mr-2" />
-          Execute
-          <span className="ml-auto text-xs opacity-80">⌘↵</span>
-        </Button>
+          <Play className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+          <span className="ml-2">Execute</span>
+          <span className="ml-auto flex items-center gap-1 text-muted-foreground group-hover:text-foreground/70">
+            <kbd className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded border border-border/60 bg-muted/50 text-[10.5px] font-sans leading-none">
+              ⌘
+            </kbd>
+            <kbd className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded border border-border/60 bg-muted/50 text-[10.5px] font-sans leading-none">
+              ⏎
+            </kbd>
+          </span>
+        </button>
       </div>
     </div>
   )
