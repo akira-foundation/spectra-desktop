@@ -1,15 +1,77 @@
 package storage
 
-type Storage struct{}
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/sqlitedialect"
+
+	_ "modernc.org/sqlite"
+)
+
+const (
+	appFolder = "Spectra"
+	dbFile    = "spectra.db"
+)
+
+type Storage struct {
+	DB *bun.DB
+	sql *sql.DB
+}
 
 func New() *Storage {
 	return &Storage{}
 }
 
-func (s *Storage) Open(_ string) error {
+func (s *Storage) Open(path string) error {
+	if path == "" {
+		resolved, err := DefaultPath()
+		if err != nil {
+			return err
+		}
+		path = resolved
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create db dir: %w", err)
+	}
+
+	dsn := fmt.Sprintf("file:%s?cache=shared&_journal=WAL&_busy_timeout=5000&_foreign_keys=on", path)
+	sqldb, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return fmt.Errorf("open sqlite: %w", err)
+	}
+	if err := sqldb.Ping(); err != nil {
+		return fmt.Errorf("ping sqlite: %w", err)
+	}
+	sqldb.SetMaxOpenConns(1)
+
+	s.sql = sqldb
+	s.DB = bun.NewDB(sqldb, sqlitedialect.New())
 	return nil
 }
 
 func (s *Storage) Close() error {
+	if s.DB != nil {
+		return s.DB.Close()
+	}
+	if s.sql != nil {
+		return s.sql.Close()
+	}
 	return nil
+}
+
+func (s *Storage) Migrate(ctx context.Context) error {
+	return runMigrations(ctx, s.DB)
+}
+
+func DefaultPath() (string, error) {
+	cfg, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cfg, appFolder, dbFile), nil
 }

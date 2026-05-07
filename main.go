@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"log"
 
 	"spectra-desktop/internal/app"
 
@@ -11,12 +12,16 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
+//go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	a := app.New()
+	a, err := app.New()
+	if err != nil {
+		log.Fatalf("init app: %v", err)
+	}
 
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:     "Spectra",
 		Width:     1280,
 		Height:    800,
@@ -27,6 +32,7 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 22, G: 22, B: 26, A: 1},
 		OnStartup:        a.Startup,
+		OnShutdown:       a.Shutdown,
 		Bind: []interface{}{
 			a,
 		},
@@ -50,6 +56,6 @@ func main() {
 	})
 
 	if err != nil {
-		println("Error:", err.Error())
+		log.Fatalf("wails run: %v", err)
 	}
 }

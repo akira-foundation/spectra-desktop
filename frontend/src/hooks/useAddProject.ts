@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 import { projectService, type ProjectInfo } from '@/services/projectService'
 import { useProjectStore } from '@/store/projectStore'
-import { projectFromInfo } from '@/lib/project-factory'
+import { projectInputFromInfo } from '@/lib/project-factory'
 
-export type AddProjectStatus = 'idle' | 'picking' | 'inspecting' | 'ready' | 'error'
+export type AddProjectStatus = 'idle' | 'picking' | 'inspecting' | 'saving' | 'ready' | 'error'
 
 export interface AddProjectState {
   status: AddProjectStatus
@@ -11,12 +11,12 @@ export interface AddProjectState {
   error: string | null
   pickFolder: () => Promise<void>
   setPath: (path: string) => Promise<void>
-  confirm: () => void
+  confirm: () => Promise<void>
   reset: () => void
 }
 
 export function useAddProject(onSuccess?: () => void): AddProjectState {
-  const addProject = useProjectStore((s) => s.addProject)
+  const addProjectFromInput = useProjectStore((s) => s.addProjectFromInput)
   const [status, setStatus] = useState<AddProjectStatus>('idle')
   const [info, setInfo] = useState<ProjectInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,8 +35,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
       setInfo(result)
       setStatus('ready')
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      setError(message)
+      setError(toMessage(err))
       setStatus('error')
     }
   }, [])
@@ -52,8 +51,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
       }
       await inspect(path)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      setError(message)
+      setError(toMessage(err))
       setStatus('error')
     }
   }, [inspect])
@@ -66,12 +64,23 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
     [inspect],
   )
 
-  const confirm = useCallback(() => {
+  const confirm = useCallback(async () => {
     if (!info) return
-    addProject(projectFromInfo(info))
-    onSuccess?.()
-    reset()
-  }, [info, addProject, onSuccess, reset])
+    setStatus('saving')
+    setError(null)
+    try {
+      await addProjectFromInput(projectInputFromInfo(info))
+      onSuccess?.()
+      reset()
+    } catch (err) {
+      setError(toMessage(err))
+      setStatus('ready')
+    }
+  }, [info, addProjectFromInput, onSuccess, reset])
 
   return { status, info, error, pickFolder, setPath, confirm, reset }
+}
+
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }

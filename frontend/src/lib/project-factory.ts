@@ -1,35 +1,56 @@
 import type { Project } from '@/types/project'
 import type { ProjectInfo } from '@/services/projectService'
+import type { ProjectRecord } from '@/services/projectStorageService'
 
-export function projectFromInfo(info: ProjectInfo): Project {
-  const framework = (info.framework || 'other') as Project['framework']
+const emptyStats = {
+  routes: 0,
+  models: 0,
+  middleware: 0,
+  controllers: 0,
+  errors: 0,
+}
+
+export function projectInputFromInfo(info: ProjectInfo) {
   return {
-    id: createId(info.path),
-    name: info.name || fallbackName(info.path),
+    id: '',
+    name: info.name,
     path: info.path,
-    framework: framework === 'laravel' || framework === 'symfony' ? framework : 'other',
+    framework: info.framework || 'other',
     frameworkVersion: info.frameworkVersion || '',
+  }
+}
+
+export function projectFromRecord(record: ProjectRecord): Project {
+  const framework = normalizeFramework(record.framework)
+  return {
+    id: record.id,
+    name: record.name,
+    path: record.path,
+    framework,
+    frameworkVersion: record.frameworkVersion ?? '',
     sdkVersion: '',
-    lastSyncTime: null,
-    status: 'disconnected',
-    stats: {
-      routes: 0,
-      models: 0,
-      middleware: 0,
-      controllers: 0,
-      errors: 0,
-    },
+    lastSyncTime: record.lastSyncedAt ? toDate(record.lastSyncedAt) : null,
+    status: normalizeStatus(record.status),
+    stats: { ...emptyStats },
   }
 }
 
-function createId(path: string): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
-  return `${path}-${Date.now()}`
+function toDate(value: string | Date): Date {
+  return value instanceof Date ? value : new Date(value)
 }
 
-function fallbackName(path: string): string {
-  const parts = path.split(/[/\\]/).filter(Boolean)
-  return parts[parts.length - 1] ?? 'Untitled Project'
+function normalizeFramework(value: string): Project['framework'] {
+  if (value === 'laravel' || value === 'symfony') return value
+  return 'other'
+}
+
+function normalizeStatus(value: string): Project['status'] {
+  switch (value) {
+    case 'connected':
+    case 'syncing':
+    case 'error':
+      return value
+    default:
+      return 'disconnected'
+  }
 }

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import type { Project } from '@/types/project'
 import { syncService } from '@/services/syncService'
-import { storageService } from '@/services/storageService'
+import { projectStorageService, type ProjectInput } from '@/services/projectStorageService'
+import { projectFromRecord } from '@/lib/project-factory'
 
 interface ProjectState {
   projects: Project[]
@@ -12,15 +13,10 @@ interface ProjectState {
   error: string | null
   lastSyncTime: Record<string, number>
 
-  setProjects: (projects: Project[]) => void
-  addProject: (project: Project) => void
-  removeProject: (id: string) => void
   setActiveProject: (id: string) => void
-  updateProject: (id: string, updates: Partial<Project>) => void
-  setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
-  loadFromStorage: () => void
-  saveToStorage: () => void
+  loadFromStorage: () => Promise<void>
+  addProjectFromInput: (input: ProjectInput) => Promise<Project>
+  removeProject: (id: string) => Promise<void>
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -34,59 +30,49 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   error: null,
   lastSyncTime: {},
 
-  setProjects: (projects) => set({ projects }),
-
-  addProject: (project) => set((state) => {
-    const newProjects = [...state.projects, project]
-    storageService.saveProjects(newProjects)
-    return {
-      projects: newProjects,
-      activeProjectId: project.id,
-    }
-  }),
-
-  removeProject: (id) => set((state) => {
-    const filtered = state.projects.filter((p) => p.id !== id)
-    const newActiveId = state.activeProjectId === id
-      ? filtered[0]?.id || null
-      : state.activeProjectId
-
-    storageService.saveProjects(filtered)
-
-    return {
-      projects: filtered,
-      activeProjectId: newActiveId,
-    }
-  }),
-
   setActiveProject: (id) => set({ activeProjectId: id }),
 
-  updateProject: (id, updates) => set((state) => {
-    const newProjects = state.projects.map((p) =>
-      p.id === id ? { ...p, ...updates } : p
-    )
-    storageService.saveProjects(newProjects)
-    return { projects: newProjects }
-  }),
-
-  setLoading: (loading) => set({ isLoading: loading }),
-
-  setError: (error) => set({ error }),
-
-  loadFromStorage: () => {
-    const projects = storageService.getProjects()
-    set({ projects })
+  loadFromStorage: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const records = await projectStorageService.list()
+      const projects = records.map(projectFromRecord)
+      set((state) => ({
+        projects,
+        activeProjectId: state.activeProjectId ?? projects[0]?.id ?? null,
+        isLoading: false,
+      }))
+    } catch (err) {
+      set({ error: errorMessage(err), isLoading: false })
+    }
   },
 
-  saveToStorage: () => {
-    const state = get()
-    storageService.saveProjects(state.projects)
+  addProjectFromInput: async (input) => {
+    const record = await projectStorageService.save(input)
+    const project = projectFromRecord(record)
+    set((state) => {
+      const others = state.projects.filter((p) => p.id !== project.id)
+      return {
+        projects: [...others, project],
+        activeProjectId: project.id,
+        error: null,
+      }
+    })
+    return project
+  },
+
+  removeProject: async (id) => {
+    await projectStorageService.remove(id)
+    set((state) => {
+      const filtered = state.projects.filter((p) => p.id !== id)
+      const newActiveId = state.activeProjectId === id ? filtered[0]?.id ?? null : state.activeProjectId
+      return { projects: filtered, activeProjectId: newActiveId }
+    })
   },
 
   syncProject: async (projectId) => {
     const state = get()
     const project = state.projects.find((p) => p.id === projectId)
-
     if (!project) {
       set({ error: 'Project not found' })
       return
@@ -99,29 +85,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     try {
       const response = await syncService.syncProject(project.path, project.framework)
-
-      if (response.success) {
-        const now = Date.now()
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id === projectId
-              ? {
-                  ...p,
-                  stats: response.stats,
-                  lastSyncTime: new Date(),
-                  status: 'connected' as const,
-                }
-              : p
-          ),
-          lastSyncTime: { ...s.lastSyncTime, [projectId]: now },
-          error: null,
-        }))
-      } else {
+      if (!response.success) {
         set({ error: response.message })
+        return
       }
+      try {
+        await projectStorageService.markSynced(projectId)
+      } catch (err) {
+        console.error('markSynced failed:', err)
+      }
+      set((s) => ({
+        projects: s.projects.map((p) =>
+          p.id === projectId
+            ? { ...p, stats: response.stats, lastSyncTime: new Date(), status: 'connected' }
+            : p,
+        ),
+        lastSyncTime: { ...s.lastSyncTime, [projectId]: Date.now() },
+        error: null,
+      }))
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      set({ error: errorMessage })
+      set({ error: errorMessage(err) })
     } finally {
       set((s) => {
         const newSyncing = new Set(s.syncingProjects)
@@ -134,20 +117,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   testConnection: async (projectId) => {
     const state = get()
     const project = state.projects.find((p) => p.id === projectId)
-
     if (!project) {
       set({ error: 'Project not found' })
       return false
     }
-
     try {
       const response = await syncService.testConnection(project.path)
       set({ error: null })
       return response.success
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      set({ error: errorMessage })
+      set({ error: errorMessage(err) })
       return false
     }
   },
 }))
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}

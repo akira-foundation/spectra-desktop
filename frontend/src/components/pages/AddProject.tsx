@@ -3,7 +3,6 @@ import { useProjectStore } from '@/store/projectStore'
 import { ChevronRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { Project } from '@/types/project'
 
 type Step = 'framework' | 'folder' | 'install' | 'test' | 'sync' | 'success'
 
@@ -15,7 +14,7 @@ export function AddProject() {
     framework: '' as 'laravel' | 'symfony' | 'other',
     frameworkVersion: '',
   })
-  const addProject = useProjectStore((state) => state.addProject)
+  const addProjectFromInput = useProjectStore((state) => state.addProjectFromInput)
 
   const steps: { id: Step; title: string; description: string }[] = [
     { id: 'framework', title: 'Choose Framework', description: 'Select your project framework' },
@@ -42,25 +41,14 @@ export function AddProject() {
     handleNext()
   }
 
-  const handleAddProject = () => {
-    const newProject: Project = {
-      id: Date.now().toString(),
+  const handleAddProject = async () => {
+    await addProjectFromInput({
+      id: '',
       name: projectData.name || 'New Project',
       path: projectData.path,
       framework: projectData.framework,
       frameworkVersion: projectData.frameworkVersion,
-      sdkVersion: '1.0.0',
-      lastSyncTime: new Date(),
-      status: 'connected',
-      stats: {
-        routes: 0,
-        models: 0,
-        middleware: 0,
-        controllers: 0,
-        errors: 0,
-      },
-    }
-    addProject(newProject)
+    })
     setCurrentStep('success')
   }
 
