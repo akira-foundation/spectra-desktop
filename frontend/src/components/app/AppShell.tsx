@@ -6,6 +6,8 @@ import { StatusBar } from './StatusBar'
 import { DrawerMenu } from './DrawerMenu'
 import { CommandPalette } from './CommandPalette'
 import { AddProjectDialog } from '@/components/projects/AddProjectDialog'
+import { AuthenticationDrawer } from '@/components/api-inspector/AuthenticationDrawer'
+import { useUIStore } from '@/store/uiStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 interface AppShellProps {
@@ -13,11 +15,17 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const activeAuthMethod = useUIStore((s) => s.activeAuthMethod)
+  const setActiveAuthMethod = useUIStore((s) => s.setActiveAuthMethod)
   return (
     <TooltipProvider delayDuration={200}>
       <div className="h-screen w-screen flex flex-col bg-[#e5e5e5] dark:bg-transparent text-foreground overflow-hidden">
         <CommandPalette />
         <AddProjectDialog />
+        <AuthenticationDrawer
+          activeMethod={activeAuthMethod}
+          onMethodChange={setActiveAuthMethod}
+        />
         <DrawerMenu />
 
         <Topbar />

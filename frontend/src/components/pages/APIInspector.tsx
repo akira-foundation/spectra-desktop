@@ -401,11 +401,6 @@ export function APIInspector() {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden rounded-md border border-border/40 bg-card/30">
-        <AuthenticationDrawer
-          activeMethod={activeAuthMethod}
-          onMethodChange={setActiveAuthMethod}
-        />
-
         <BaseURLBar />
 
         {!selected ? (
