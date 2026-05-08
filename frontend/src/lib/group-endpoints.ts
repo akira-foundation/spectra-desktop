@@ -118,7 +118,45 @@ function fromName(name?: string): string | null {
 
   // pick the deepest "module" — second-to-last when nested, else the only one
   const pick = segments.length >= 2 ? segments[segments.length - 2] : segments[0]
-  return pick.toUpperCase()
+  return prettifySegment(pick)
+}
+
+const VERB_PREFIXES = new Set([
+  'get',
+  'list',
+  'find',
+  'fetch',
+  'show',
+  'index',
+  'store',
+  'create',
+  'update',
+  'destroy',
+  'delete',
+  'remove',
+  'put',
+  'patch',
+  'post',
+])
+
+function prettifySegment(value: string): string {
+  if (!value) return value
+  let parts = splitWords(value)
+  if (parts.length > 1 && VERB_PREFIXES.has(parts[0].toLowerCase())) {
+    parts = parts.slice(1)
+  }
+  if (parts.length === 0) return value.toUpperCase()
+  return parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(' ')
+}
+
+function splitWords(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(/[\s\-_]+/)
+    .filter(Boolean)
 }
 
 function fromController(handler?: string): string | null {
@@ -130,10 +168,10 @@ function fromController(handler?: string): string | null {
   const last = segments[segments.length - 1]
   const stripped = last.replace(/Controller$/i, '').trim()
   if (stripped) {
-    return stripped.toUpperCase()
+    return prettifySegment(stripped)
   }
   if (segments.length >= 2) {
-    return segments[segments.length - 2].toUpperCase()
+    return prettifySegment(segments[segments.length - 2])
   }
   return null
 }
@@ -145,7 +183,7 @@ function fromPath(path?: string): string | null {
     const clean = segment.toLowerCase()
     if (clean.startsWith('{')) continue
     if (PREFIX_SKIP.has(clean)) continue
-    return clean.toUpperCase()
+    return prettifySegment(segment)
   }
   return null
 }
