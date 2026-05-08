@@ -1,4 +1,5 @@
-import { Check, ChevronsUpDown, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
 import type { Project } from '@/types/project'
 import {
   DropdownMenu,
@@ -9,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { useProjectStore } from '@/store/projectStore'
 import { ProjectAvatar } from './ProjectAvatar'
 import { cn } from '@/lib/utils'
 
@@ -25,44 +28,66 @@ export function ProjectSwitcher({
   onSelect,
   onAddProject,
 }: ProjectSwitcherProps) {
+  const removeProject = useProjectStore((s) => s.removeProject)
+  const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
+
   if (!activeProject) {
     return <AddProjectButton onClick={onAddProject} />
   }
 
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    await removeProject(pendingDelete.id)
+    setPendingDelete(null)
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-accent/60 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[state=open]:bg-accent/60">
-          <ProjectAvatar name={activeProject.name} />
-          <span className="text-[12px] font-semibold tracking-tight truncate max-w-[160px]">
-            {activeProject.name}
-          </span>
-          <FrameworkChip framework={activeProject.framework} />
-          <ChevronsUpDown className="w-3 h-3 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[18rem]">
-        <DropdownMenuLabel className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-          Projects
-        </DropdownMenuLabel>
-        {projects.map((p) => (
-          <ProjectRow
-            key={p.id}
-            project={p}
-            active={p.id === activeProject.id}
-            onSelect={() => onSelect(p.id)}
-          />
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={onAddProject}
-          className="gap-2 text-[12.5px] text-emerald-500 focus:text-emerald-500"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="font-medium">Add Project</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-accent/60 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[state=open]:bg-accent/60">
+            <ProjectAvatar name={activeProject.name} />
+            <span className="text-[12px] font-semibold tracking-tight truncate max-w-[160px]">
+              {activeProject.name}
+            </span>
+            <FrameworkChip framework={activeProject.framework} />
+            <ChevronsUpDown className="w-3 h-3 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-[18rem]">
+          <DropdownMenuLabel className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            Projects
+          </DropdownMenuLabel>
+          {projects.map((p) => (
+            <ProjectRow
+              key={p.id}
+              project={p}
+              active={p.id === activeProject.id}
+              onSelect={() => onSelect(p.id)}
+              onDelete={() => setPendingDelete(p)}
+            />
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={onAddProject}
+            className="gap-2 text-[12.5px] text-emerald-500 focus:text-emerald-500"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="font-medium">Add Project</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(v) => !v && setPendingDelete(null)}
+        variant="destructive"
+        title={`Remove ${pendingDelete?.name ?? 'project'}?`}
+        description="This unlinks the project from Spectra. The folder on disk is not touched."
+        confirmLabel="Remove"
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }
 
@@ -70,21 +95,34 @@ interface ProjectRowProps {
   project: Project
   active: boolean
   onSelect: () => void
+  onDelete: () => void
 }
 
-function ProjectRow({ project, active, onSelect }: ProjectRowProps) {
+function ProjectRow({ project, active, onSelect, onDelete }: ProjectRowProps) {
   return (
     <Tooltip delayDuration={400}>
       <TooltipTrigger asChild>
         <DropdownMenuItem
           onSelect={onSelect}
-          className={cn('gap-2 text-[12.5px] py-1.5', active && 'bg-accent/40')}
+          className={cn('group gap-2 text-[12.5px] py-1.5 pr-1.5', active && 'bg-accent/40')}
         >
           <ProjectAvatar name={project.name} />
           <span className="font-medium truncate flex-1 min-w-0">{project.name}</span>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <FrameworkChip framework={project.framework} />
-            {active && <Check className="w-3.5 h-3.5 text-primary" />}
+            {active && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              aria-label="Remove project"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           </div>
         </DropdownMenuItem>
       </TooltipTrigger>
