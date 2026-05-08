@@ -177,25 +177,17 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="space-y-3 lg:col-span-1">
-          <AuthCard auth={auth} />
-          <EnvCard env={activeEnv} count={envs?.length ?? 0} onOpen={() => goToInspector()} />
-          <PinnedCard
-            endpoints={pinnedEndpoints}
-            onOpen={(id) => goToInspector(id)}
-          />
-        </div>
-        <div className="space-y-3 lg:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2">
           <RecentActivityCard
             entries={recent}
             onOpen={(endpointID) => goToInspector(endpointID)}
           />
-          <SnapshotCard
-            snapshot={latestSnapshot}
-            onOpen={() => setCurrentPage('changelog')}
-          />
         </div>
+        <SnapshotCard
+          snapshot={latestSnapshot}
+          onOpen={() => setCurrentPage('changelog')}
+        />
       </div>
     </div>
   )
