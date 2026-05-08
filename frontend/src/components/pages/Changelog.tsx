@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Plus, Minus, Pencil, ChevronRight, History } from 'lucide-react'
+import { Plus, Minus, Pencil, ChevronRight, History, Search, X } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import { useChangelogStore } from '@/store/changelogStore'
 import { Welcome } from '@/components/pages/Welcome'
@@ -107,6 +107,11 @@ function DiffView({ snapshotId }: DiffViewProps) {
   const loadDiff = useChangelogStore((s) => s.loadDiff)
   const diff = useChangelogStore((s) => s.diffsByID[snapshotId])
   const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    setQuery('')
+  }, [snapshotId])
 
   useEffect(() => {
     if (diff) return
@@ -125,41 +130,81 @@ function DiffView({ snapshotId }: DiffViewProps) {
     )
   }
 
-  const added = diff.added ?? []
-  const removed = diff.removed ?? []
-  const changed = diff.changed ?? []
+  const filterEntries = (entries: SnapshotDiffEntry[]) => {
+    const q = query.trim().toLowerCase()
+    if (!q) return entries
+    return entries.filter(
+      (e) =>
+        e.method.toLowerCase().includes(q) ||
+        e.path.toLowerCase().includes(q) ||
+        (e.changes ?? []).some((c) => c.toLowerCase().includes(q)),
+    )
+  }
+  const added = filterEntries(diff.added ?? [])
+  const removed = filterEntries(diff.removed ?? [])
+  const changed = filterEntries(diff.changed ?? [])
+  const totalRaw =
+    (diff.added?.length ?? 0) + (diff.removed?.length ?? 0) + (diff.changed?.length ?? 0)
   const empty = added.length === 0 && removed.length === 0 && changed.length === 0
   const isFirst = !diff.previousID
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-4 py-2.5 border-b border-border/40">
+      <div className="px-4 py-2.5 border-b border-border/40 space-y-2">
         <div className="flex items-center gap-3 text-[11.5px]">
           <span className="text-muted-foreground">Snapshot</span>
           <span className="font-mono tabular-nums">{formatDate(new Date(diff.scannedAt))}</span>
           <div className="flex items-center gap-2 ml-auto text-[10.5px] font-mono">
-            {added.length > 0 && (
-              <span className="text-emerald-500">+{added.length}</span>
+            {(diff.added?.length ?? 0) > 0 && (
+              <span className="text-emerald-500">+{diff.added?.length}</span>
             )}
-            {removed.length > 0 && (
-              <span className="text-rose-500">-{removed.length}</span>
+            {(diff.removed?.length ?? 0) > 0 && (
+              <span className="text-rose-500">-{diff.removed?.length}</span>
             )}
-            {changed.length > 0 && (
-              <span className="text-amber-500">~{changed.length}</span>
+            {(diff.changed?.length ?? 0) > 0 && (
+              <span className="text-amber-500">~{diff.changed?.length}</span>
             )}
           </div>
         </div>
+        {totalRaw > 0 && (
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by method, path, or change kind"
+              className="w-full h-7 pl-7 pr-7 text-[12px] bg-input/60 border border-border/50 rounded-md focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/70"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Clear filter"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-auto">
         {empty ? (
           <div className="p-8 text-center space-y-1">
             <p className="text-[12.5px] font-medium text-foreground/85">
-              {isFirst ? 'First snapshot' : 'No changes'}
+              {query
+                ? 'No matches'
+                : isFirst
+                  ? 'First snapshot'
+                  : 'No changes'}
             </p>
             <p className="text-[11.5px] text-muted-foreground">
-              {isFirst
-                ? 'No prior snapshot to compare against.'
-                : 'API definition matches the previous scan.'}
+              {query
+                ? 'Try a different filter.'
+                : isFirst
+                  ? 'No prior snapshot to compare against.'
+                  : 'API definition matches the previous scan.'}
             </p>
           </div>
         ) : (
