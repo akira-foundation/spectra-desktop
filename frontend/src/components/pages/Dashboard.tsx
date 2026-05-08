@@ -13,7 +13,6 @@ import {
   Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Welcome } from '@/components/pages/Welcome'
 import type { StatCard } from '@/services/scannerService'
 
@@ -71,55 +70,6 @@ export function Dashboard() {
       ) : (
         <div className="text-[12px] text-muted-foreground italic">Loading stats…</div>
       )}
-
-      <section className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-3">
-        <h2 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          SDK Status
-        </h2>
-        <div className="space-y-2 text-[12.5px]">
-          <Row label="Status">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="font-medium capitalize">{activeProject.status}</span>
-            </span>
-          </Row>
-          <Row label="SDK version">
-            <span className="font-mono text-[11.5px]">{activeProject.sdkVersion}</span>
-          </Row>
-          <Row label="Last sync">
-            <span className="font-medium">
-              {activeProject.lastSyncTime
-                ? new Date(activeProject.lastSyncTime).toLocaleDateString()
-                : 'Never'}
-            </span>
-          </Row>
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Quick Navigation
-        </h2>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {[
-            { label: 'Endpoints', icon: Navigation },
-            { label: 'Models', icon: Database },
-            { label: 'Controllers', icon: Code },
-            { label: 'Middleware', icon: Cpu },
-            { label: 'Changelog', icon: Navigation },
-            { label: 'Settings', icon: Cpu },
-          ].map(({ label, icon: Icon }) => (
-            <Button
-              key={label}
-              variant="outline"
-              className="h-auto flex-col gap-1.5 py-3 border-border/60 bg-card/30 hover:bg-card/60"
-            >
-              <Icon className="w-4 h-4 text-primary" />
-              <span className="text-[11px] font-medium">{label}</span>
-            </Button>
-          ))}
-        </div>
-      </section>
     </div>
   )
 }
@@ -143,11 +93,3 @@ function Stat({ card }: StatProps) {
   )
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      {children}
-    </div>
-  )
-}
