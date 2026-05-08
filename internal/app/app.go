@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type App struct {
 	endpoints domain.EndpointRepository
 	auth      domain.AuthRepository
 	history   domain.HistoryRepository
+	envs      domain.EnvironmentRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
 }
@@ -60,6 +62,7 @@ func New() (*App, error) {
 		endpoints: repository.NewEndpointRepository(store.DB),
 		auth:      repository.NewAuthRepository(store.DB),
 		history:   repository.NewHistoryRepository(store.DB),
+		envs:      repository.NewEnvironmentRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
 	}, nil
@@ -390,14 +393,17 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	if baseURL == "" {
 		return nil, fmt.Errorf("missing base url")
 	}
-	target, err := joinURL(baseURL, input.Path)
+	vars := a.resolveEnvVars(input.ProjectID)
+	resolvedPath := substituteVars(input.Path, vars)
+	target, err := joinURL(baseURL, resolvedPath)
 	if err != nil {
 		return nil, err
 	}
 
 	timeout := time.Duration(input.TimeoutMs) * time.Millisecond
 
-	headers := input.Headers
+	headers := substituteHeaderVars(input.Headers, vars)
+	body := substituteVars(input.Body, vars)
 	var cookies []http.Cookie
 	if !input.SkipAuth && input.ProjectID != "" {
 		merged, ck := a.applyProjectAuth(input.ProjectID, headers)
@@ -409,7 +415,7 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 		Method:  input.Method,
 		URL:     target,
 		Headers: headers,
-		Body:    input.Body,
+		Body:    body,
 		Cookies: cookies,
 		Timeout: timeout,
 	})
@@ -553,6 +559,121 @@ func (a *App) GetHistoryEntry(id string) (*HistoryEntryDetail, error) {
 
 func (a *App) ClearHistory(projectID string) error {
 	return a.history.Clear(a.ctx, projectID)
+}
+
+type EnvironmentDTO struct {
+	ID        string            `json:"id"`
+	ProjectID string            `json:"projectID"`
+	Name      string            `json:"name"`
+	Vars      map[string]string `json:"vars"`
+	SortOrder int               `json:"sortOrder"`
+}
+
+type SaveEnvironmentInput struct {
+	ID        string            `json:"id,omitempty"`
+	ProjectID string            `json:"projectID"`
+	Name      string            `json:"name"`
+	Vars      map[string]string `json:"vars,omitempty"`
+	SortOrder int               `json:"sortOrder,omitempty"`
+}
+
+func (a *App) ListEnvironments(projectID string) ([]EnvironmentDTO, error) {
+	if projectID == "" {
+		return []EnvironmentDTO{}, nil
+	}
+	envs, err := a.envs.List(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]EnvironmentDTO, 0, len(envs))
+	for _, e := range envs {
+		out = append(out, envToDTO(e))
+	}
+	return out, nil
+}
+
+func (a *App) SaveEnvironment(input SaveEnvironmentInput) (*EnvironmentDTO, error) {
+	if input.ProjectID == "" {
+		return nil, fmt.Errorf("project id required")
+	}
+	if input.Vars == nil {
+		input.Vars = map[string]string{}
+	}
+	env, err := a.envs.Save(a.ctx, domain.EnvironmentInput{
+		ID:        input.ID,
+		ProjectID: input.ProjectID,
+		Name:      input.Name,
+		Vars:      input.Vars,
+		SortOrder: input.SortOrder,
+	})
+	if err != nil || env == nil {
+		return nil, err
+	}
+	dto := envToDTO(*env)
+	return &dto, nil
+}
+
+func (a *App) DeleteEnvironment(id string) error {
+	return a.envs.Delete(a.ctx, id)
+}
+
+func (a *App) SetActiveEnvironment(projectID, envID string) error {
+	return a.projects.UpdateActiveEnvironment(a.ctx, projectID, envID)
+}
+
+func (a *App) resolveEnvVars(projectID string) map[string]string {
+	if projectID == "" {
+		return map[string]string{}
+	}
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil || project.ActiveEnvironmentID == "" {
+		return map[string]string{}
+	}
+	env, err := a.envs.GetByID(a.ctx, project.ActiveEnvironmentID)
+	if err != nil || env == nil {
+		return map[string]string{}
+	}
+	return env.Vars
+}
+
+var varPattern = regexp.MustCompile(`\{\{\s*([A-Za-z0-9_.\-]+)\s*\}\}`)
+
+func substituteVars(input string, vars map[string]string) string {
+	if input == "" || len(vars) == 0 {
+		return input
+	}
+	return varPattern.ReplaceAllStringFunc(input, func(match string) string {
+		groups := varPattern.FindStringSubmatch(match)
+		if len(groups) < 2 {
+			return match
+		}
+		key := groups[1]
+		if v, ok := vars[key]; ok {
+			return v
+		}
+		return match
+	})
+}
+
+func substituteHeaderVars(headers map[string]string, vars map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return headers
+	}
+	out := make(map[string]string, len(headers))
+	for k, v := range headers {
+		out[k] = substituteVars(v, vars)
+	}
+	return out
+}
+
+func envToDTO(e domain.Environment) EnvironmentDTO {
+	return EnvironmentDTO{
+		ID:        e.ID,
+		ProjectID: e.ProjectID,
+		Name:      e.Name,
+		Vars:      e.Vars,
+		SortOrder: e.SortOrder,
+	}
 }
 
 func (a *App) isLogoutEndpoint(projectID, endpointID string) bool {

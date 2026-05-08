@@ -24,6 +24,26 @@ export namespace app {
 	        this.logoutRoute = source["logoutRoute"];
 	    }
 	}
+	export class EnvironmentDTO {
+	    id: string;
+	    projectID: string;
+	    name: string;
+	    vars: Record<string, string>;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvironmentDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.name = source["name"];
+	        this.vars = source["vars"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
 	export class ExecuteRequestInput {
 	    projectID: string;
 	    endpointID?: string;
@@ -247,6 +267,26 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class SaveEnvironmentInput {
+	    id?: string;
+	    projectID: string;
+	    name: string;
+	    vars?: Record<string, string>;
+	    sortOrder?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveEnvironmentInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.name = source["name"];
+	        this.vars = source["vars"];
+	        this.sortOrder = source["sortOrder"];
+	    }
 	}
 	export class SetProjectAuthInput {
 	    projectID: string;
@@ -473,6 +513,7 @@ export namespace domain {
 	    loginEndpointId?: string;
 	    loginTokenPath?: string;
 	    logoutEndpointId?: string;
+	    activeEnvironmentId?: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -498,6 +539,7 @@ export namespace domain {
 	        this.loginEndpointId = source["loginEndpointId"];
 	        this.loginTokenPath = source["loginTokenPath"];
 	        this.logoutEndpointId = source["logoutEndpointId"];
+	        this.activeEnvironmentId = source["activeEnvironmentId"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastSyncedAt = this.convertValues(source["lastSyncedAt"], null);

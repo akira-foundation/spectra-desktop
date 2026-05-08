@@ -10,6 +10,8 @@ export function ClearHistory(arg1:string):Promise<void>;
 
 export function ClearProjectAuth(arg1:string):Promise<void>;
 
+export function DeleteEnvironment(arg1:string):Promise<void>;
+
 export function DeleteProject(arg1:string):Promise<void>;
 
 export function DetectFramework(arg1:string):Promise<string>;
@@ -34,6 +36,8 @@ export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
 export function ListEndpoints(arg1:string):Promise<Array<core.Endpoint>>;
 
+export function ListEnvironments(arg1:string):Promise<Array<app.EnvironmentDTO>>;
+
 export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryListItem>>;
 
 export function ListProjects():Promise<Array<domain.Project>>;
@@ -44,6 +48,8 @@ export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
 
+export function SaveEnvironment(arg1:app.SaveEnvironmentInput):Promise<app.EnvironmentDTO>;
+
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
 export function ScanActiveProject():Promise<Array<core.Endpoint>>;
@@ -51,6 +57,8 @@ export function ScanActiveProject():Promise<Array<core.Endpoint>>;
 export function ScanWorkspace(arg1:string):Promise<Array<core.Endpoint>>;
 
 export function SelectProjectFolder():Promise<string>;
+
+export function SetActiveEnvironment(arg1:string,arg2:string):Promise<void>;
 
 export function SetActiveProjectID(arg1:string):Promise<void>;
 

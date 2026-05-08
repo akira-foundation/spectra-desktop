@@ -10,6 +10,10 @@ export function ClearProjectAuth(arg1) {
   return window['go']['app']['App']['ClearProjectAuth'](arg1);
 }
 
+export function DeleteEnvironment(arg1) {
+  return window['go']['app']['App']['DeleteEnvironment'](arg1);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['app']['App']['DeleteProject'](arg1);
 }
@@ -58,6 +62,10 @@ export function ListEndpoints(arg1) {
   return window['go']['app']['App']['ListEndpoints'](arg1);
 }
 
+export function ListEnvironments(arg1) {
+  return window['go']['app']['App']['ListEnvironments'](arg1);
+}
+
 export function ListHistory(arg1, arg2) {
   return window['go']['app']['App']['ListHistory'](arg1, arg2);
 }
@@ -78,6 +86,10 @@ export function PreviewAPIRoutes(arg1, arg2, arg3) {
   return window['go']['app']['App']['PreviewAPIRoutes'](arg1, arg2, arg3);
 }
 
+export function SaveEnvironment(arg1) {
+  return window['go']['app']['App']['SaveEnvironment'](arg1);
+}
+
 export function SaveProject(arg1) {
   return window['go']['app']['App']['SaveProject'](arg1);
 }
@@ -92,6 +104,10 @@ export function ScanWorkspace(arg1) {
 
 export function SelectProjectFolder() {
   return window['go']['app']['App']['SelectProjectFolder']();
+}
+
+export function SetActiveEnvironment(arg1, arg2) {
+  return window['go']['app']['App']['SetActiveEnvironment'](arg1, arg2);
 }
 
 export function SetActiveProjectID(arg1) {

@@ -19,5 +19,6 @@ type ProjectRepository interface {
 	UpdateStatus(ctx context.Context, id string, status ProjectStatus) error
 	UpdateBaseURL(ctx context.Context, id string, baseURL string) error
 	UpdateAuthRoutes(ctx context.Context, id string, loginID string, logoutID string, tokenPath string) error
+	UpdateActiveEnvironment(ctx context.Context, id string, envID string) error
 	MarkSynced(ctx context.Context, id string) error
 }

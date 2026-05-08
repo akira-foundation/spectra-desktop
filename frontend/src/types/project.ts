@@ -9,6 +9,7 @@ export interface Project {
   loginEndpointId?: string
   loginTokenPath?: string
   logoutEndpointId?: string
+  activeEnvironmentId?: string
   lastSyncTime: Date | null
   status: 'connected' | 'disconnected' | 'syncing' | 'error'
   stats: {

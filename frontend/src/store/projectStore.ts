@@ -26,6 +26,7 @@ interface ProjectState {
   refreshProject: (id: string) => Promise<void>
   updateBaseURL: (id: string, baseUrl: string) => Promise<void>
   updateAuthRoutes: (id: string, loginId: string, logoutId: string, tokenPath: string) => Promise<void>
+  setActiveEnvironment: (id: string, envId: string) => void
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -173,6 +174,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               logoutEndpointId: logoutId,
             }
           : p,
+      ),
+    }))
+  },
+
+  setActiveEnvironment: (id, envId) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === id ? { ...p, activeEnvironmentId: envId } : p,
       ),
     }))
   },

@@ -23,6 +23,7 @@ type Project struct {
 	LoginEndpointID  string     `bun:"login_endpoint_id,notnull,default:''"`
 	LoginTokenPath   string     `bun:"login_token_path,notnull,default:''"`
 	LogoutEndpointID string     `bun:"logout_endpoint_id,notnull,default:''"`
+	ActiveEnvID      string     `bun:"active_environment_id,notnull,default:''"`
 	CreatedAt        time.Time  `bun:"created_at,notnull"`
 	UpdatedAt        time.Time  `bun:"updated_at,notnull"`
 	LastSyncedAt     *time.Time `bun:"last_synced_at"`
@@ -41,10 +42,11 @@ func (p Project) ToDomain() domain.Project {
 		BaseURL:          p.BaseURL,
 		LoginEndpointID:  p.LoginEndpointID,
 		LoginTokenPath:   p.LoginTokenPath,
-		LogoutEndpointID: p.LogoutEndpointID,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
-		LastSyncedAt:     p.LastSyncedAt,
+		LogoutEndpointID:    p.LogoutEndpointID,
+		ActiveEnvironmentID: p.ActiveEnvID,
+		CreatedAt:           p.CreatedAt,
+		UpdatedAt:           p.UpdatedAt,
+		LastSyncedAt:        p.LastSyncedAt,
 	}
 }
 
@@ -61,9 +63,10 @@ func FromDomain(p domain.Project) Project {
 		BaseURL:          p.BaseURL,
 		LoginEndpointID:  p.LoginEndpointID,
 		LoginTokenPath:   p.LoginTokenPath,
-		LogoutEndpointID: p.LogoutEndpointID,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
-		LastSyncedAt:     p.LastSyncedAt,
+		LogoutEndpointID:    p.LogoutEndpointID,
+		ActiveEnvID:         p.ActiveEnvironmentID,
+		CreatedAt:           p.CreatedAt,
+		UpdatedAt:           p.UpdatedAt,
+		LastSyncedAt:        p.LastSyncedAt,
 	}
 }

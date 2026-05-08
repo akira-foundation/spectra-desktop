@@ -206,6 +206,16 @@ func (r *ProjectRepository) UpdateBaseURL(ctx context.Context, id, baseURL strin
 	return nil
 }
 
+func (r *ProjectRepository) UpdateActiveEnvironment(ctx context.Context, id, envID string) error {
+	_, err := r.db.NewUpdate().
+		Model((*model.Project)(nil)).
+		Set("active_environment_id = ?", envID).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", id).
+		Exec(ctx)
+	return err
+}
+
 func (r *ProjectRepository) UpdateAuthRoutes(ctx context.Context, id, loginID, logoutID, tokenPath string) error {
 	res, err := r.db.NewUpdate().
 		Model((*model.Project)(nil)).

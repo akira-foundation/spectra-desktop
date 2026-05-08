@@ -28,6 +28,7 @@ import { useEndpointsStore } from "@/store/endpointsStore";
 import type { ScannedEndpoint } from "@/services/scannerService";
 import { useHttpMethod } from "@/hooks/useHttpMethod";
 import { cn } from "@/lib/utils";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = [];
 
@@ -140,6 +141,7 @@ export function BaseURLBar() {
         </button>
       )}
 
+      <EnvironmentSwitcher />
       <AuthRoutesPopover
         projectId={project.id}
         endpoints={allEndpoints}
