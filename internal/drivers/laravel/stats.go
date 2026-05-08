@@ -9,12 +9,8 @@ import (
 	"spectra-desktop/internal/core"
 )
 
-func (d *Driver) Stats(ctx context.Context, projectPath string) (core.StatsReport, error) {
-	endpoints, err := d.Scan(ctx, projectPath)
-	if err != nil {
-		return core.StatsReport{}, err
-	}
-
+func (d *Driver) Stats(ctx context.Context, projectPath string, endpoints []core.Endpoint) (core.StatsReport, error) {
+	_ = ctx
 	controllers := make(map[string]struct{})
 	middleware := make(map[string]struct{})
 	formRequests := make(map[string]struct{})

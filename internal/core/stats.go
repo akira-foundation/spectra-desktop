@@ -29,5 +29,5 @@ type StatsReport struct {
 }
 
 type StatsCapable interface {
-	Stats(ctx context.Context, projectPath string) (StatsReport, error)
+	Stats(ctx context.Context, projectPath string, endpoints []Endpoint) (StatsReport, error)
 }

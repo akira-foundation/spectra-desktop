@@ -1325,7 +1325,11 @@ func (a *App) GetProjectStatsReport(projectID string) (core.StatsReport, error) 
 	if !ok {
 		return a.fallbackStatsReport(projectID)
 	}
-	return cap.Stats(a.ctx, project.Path)
+	endpoints, err := a.endpoints.List(a.ctx, projectID)
+	if err != nil {
+		return core.StatsReport{}, err
+	}
+	return cap.Stats(a.ctx, project.Path, endpoints)
 }
 
 func (a *App) fallbackStatsReport(projectID string) (core.StatsReport, error) {
