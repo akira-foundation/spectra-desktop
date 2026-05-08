@@ -128,10 +128,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const bodies = { ...s.requestBodyByEndpoint }
         const headers = { ...s.requestHeadersByEndpoint }
         for (const key of Object.keys(bodies)) {
-          if (key.startsWith(id + '#')) delete bodies[key]
+          if (key.startsWith(id + '::')) delete bodies[key]
         }
         for (const key of Object.keys(headers)) {
-          if (key.startsWith(id + '#')) delete headers[key]
+          if (key.startsWith(id + '::')) delete headers[key]
         }
         const pinned = { ...s.pinnedEndpointsByProject }
         delete pinned[id]

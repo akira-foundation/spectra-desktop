@@ -161,6 +161,11 @@ export function APIInspector() {
     [selectedTag, allEndpoints],
   )
 
+  const persistKey = useMemo(() => {
+    if (!activeProjectId || !selectedRaw) return null
+    return `${activeProjectId}::${selectedRaw.method}::${selectedRaw.path}`
+  }, [activeProjectId, selectedRaw])
+
   useEffect(() => {
     setRouteValues(routeParams.map(() => ''))
     setQueryParams([])
@@ -171,7 +176,7 @@ export function APIInspector() {
       setBodyTouched(false)
       return
     }
-    const stored = persistedBodies[selectedTag]
+    const stored = persistKey ? persistedBodies[persistKey] : undefined
     if (stored !== undefined) {
       setRequestBody(stored)
       setBodyTouched(true)
@@ -184,11 +189,11 @@ export function APIInspector() {
       }
       setBodyTouched(false)
     }
-    setHeaders(persistedHeaders[selectedTag] ?? [])
-  }, [selectedTag, rawSchema])
+    setHeaders((persistKey && persistedHeaders[persistKey]) || [])
+  }, [persistKey, rawSchema])
 
-  const persistedBodyForSelected = selectedTag ? persistedBodies[selectedTag] : undefined
-  const persistedHeadersForSelected = selectedTag ? persistedHeaders[selectedTag] : undefined
+  const persistedBodyForSelected = persistKey ? persistedBodies[persistKey] : undefined
+  const persistedHeadersForSelected = persistKey ? persistedHeaders[persistKey] : undefined
   useEffect(() => {
     if (persistedBodyForSelected !== undefined) {
       setRequestBody(persistedBodyForSelected)
@@ -227,28 +232,28 @@ export function APIInspector() {
   const handleHeaderAdd = () => {
     setHeaders((prev) => {
       const next = [...prev, { key: '', value: '', enabled: true }]
-      if (selectedTag) persistHeaders(selectedTag, next)
+      if (persistKey) persistHeaders(persistKey, next)
       return next
     })
   }
   const handleHeaderChange = (index: number, patch: Partial<HeaderRow>) => {
     setHeaders((prev) => {
       const next = prev.map((h, i) => (i === index ? { ...h, ...patch } : h))
-      if (selectedTag) persistHeaders(selectedTag, next)
+      if (persistKey) persistHeaders(persistKey, next)
       return next
     })
   }
   const handleHeaderRemove = (index: number) => {
     setHeaders((prev) => {
       const next = prev.filter((_, i) => i !== index)
-      if (selectedTag) persistHeaders(selectedTag, next)
+      if (persistKey) persistHeaders(persistKey, next)
       return next
     })
   }
   const handleBodyChange = (value: string) => {
     setRequestBody(value)
     setBodyTouched(true)
-    if (selectedTag) persistBody(selectedTag, value)
+    if (persistKey) persistBody(persistKey, value)
   }
 
   const handleResetBody = () => {

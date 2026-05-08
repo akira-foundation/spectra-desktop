@@ -89,13 +89,13 @@ func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endp
 			return nil
 		}
 		rows := make([]model.Endpoint, 0, len(endpoints))
-		for i, ep := range endpoints {
-			ep.ID = projectID + "#" + strconv.Itoa(i)
-			if o, ok := overrides[string(ep.Method)+" "+ep.Path]; ok {
-				ep.AuthRoleOverride = core.AuthRole(o.Role)
-				ep.TokenPathOverride = o.TokenPath
+		for i := range endpoints {
+			endpoints[i].ID = projectID + "#" + strconv.Itoa(i)
+			if o, ok := overrides[string(endpoints[i].Method)+" "+endpoints[i].Path]; ok {
+				endpoints[i].AuthRoleOverride = core.AuthRole(o.Role)
+				endpoints[i].TokenPathOverride = o.TokenPath
 			}
-			rows = append(rows, model.EndpointFromCore(projectID, ep, now, now))
+			rows = append(rows, model.EndpointFromCore(projectID, endpoints[i], now, now))
 		}
 		_, err := tx.NewInsert().Model(&rows).Exec(ctx)
 		return err

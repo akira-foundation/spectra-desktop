@@ -221,7 +221,7 @@ async function applyRenames(
   const bodies = { ...ui.requestBodyByEndpoint }
   let bodiesChanged = false
   for (const [k, body] of Object.entries(bodies)) {
-    if (!k.startsWith(projectId + '#')) continue
+    if (!k.startsWith(projectId + '::')) continue
     let next = body
     for (const r of renames) {
       next = applyRename(next, r.from, r.to)
@@ -235,7 +235,7 @@ async function applyRenames(
   const headers = { ...ui.requestHeadersByEndpoint }
   let headersChanged = false
   for (const [k, list] of Object.entries(headers)) {
-    if (!k.startsWith(projectId + '#')) continue
+    if (!k.startsWith(projectId + '::')) continue
     const nextList = list.map((h) => {
       let key = h.key
       let value = h.value
