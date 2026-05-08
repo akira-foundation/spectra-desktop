@@ -40,6 +40,8 @@ interface RequestPanelProps {
   projectId?: string | null
   endpointPath?: string | null
   testResults?: TestResult[]
+  responseBody?: string
+  responseHeaders?: Record<string, string[]>
 }
 
 export function RequestPanel({
@@ -66,6 +68,8 @@ export function RequestPanel({
   projectId,
   endpointPath,
   testResults,
+  responseBody,
+  responseHeaders,
 }: RequestPanelProps) {
   const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
@@ -198,6 +202,8 @@ export function RequestPanel({
             method={method ?? null}
             path={endpointPath ?? null}
             results={testResults}
+            responseBody={responseBody}
+            responseHeaders={responseHeaders}
           />
         </TabsContent>
         <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">

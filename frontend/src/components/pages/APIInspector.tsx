@@ -437,6 +437,8 @@ export function APIInspector() {
                 projectId={activeProjectId}
                 endpointPath={selected.path}
                 testResults={lastTestResults}
+                responseBody={runner.response?.body}
+                responseHeaders={runner.response?.headers as Record<string, string[]> | undefined}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}
