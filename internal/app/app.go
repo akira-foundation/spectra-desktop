@@ -837,10 +837,17 @@ func (a *App) GetSnapshotDiff(snapshotID string) (*SnapshotDiff, error) {
 		ID:         current.ID,
 		ScannedAt:  current.ScannedAt,
 		PreviousID: prevID,
-		Added:      diff.Added,
-		Removed:    diff.Removed,
-		Changed:    diff.Changed,
+		Added:      ensureSlice(diff.Added),
+		Removed:    ensureSlice(diff.Removed),
+		Changed:    ensureSlice(diff.Changed),
 	}, nil
+}
+
+func ensureSlice(in []SnapshotDiffEntry) []SnapshotDiffEntry {
+	if in == nil {
+		return []SnapshotDiffEntry{}
+	}
+	return in
 }
 
 func computeDiff(previousJSON, currentJSON string) (struct {

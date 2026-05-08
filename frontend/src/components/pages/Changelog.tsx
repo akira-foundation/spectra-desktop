@@ -124,8 +124,10 @@ function DiffView({ snapshotId }: DiffViewProps) {
     )
   }
 
-  const empty =
-    diff.added.length === 0 && diff.removed.length === 0 && diff.changed.length === 0
+  const added = diff.added ?? []
+  const removed = diff.removed ?? []
+  const changed = diff.changed ?? []
+  const empty = added.length === 0 && removed.length === 0 && changed.length === 0
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -134,14 +136,14 @@ function DiffView({ snapshotId }: DiffViewProps) {
           <span className="text-muted-foreground">Snapshot</span>
           <span className="font-mono tabular-nums">{formatDate(new Date(diff.scannedAt))}</span>
           <div className="flex items-center gap-2 ml-auto text-[10.5px] font-mono">
-            {diff.added.length > 0 && (
-              <span className="text-emerald-500">+{diff.added.length}</span>
+            {added.length > 0 && (
+              <span className="text-emerald-500">+{added.length}</span>
             )}
-            {diff.removed.length > 0 && (
-              <span className="text-rose-500">-{diff.removed.length}</span>
+            {removed.length > 0 && (
+              <span className="text-rose-500">-{removed.length}</span>
             )}
-            {diff.changed.length > 0 && (
-              <span className="text-amber-500">~{diff.changed.length}</span>
+            {changed.length > 0 && (
+              <span className="text-amber-500">~{changed.length}</span>
             )}
           </div>
         </div>
@@ -153,14 +155,14 @@ function DiffView({ snapshotId }: DiffViewProps) {
           </p>
         ) : (
           <div className="p-3 space-y-4">
-            {diff.added.length > 0 && (
-              <Section title="Added" tone="emerald" icon={Plus} entries={diff.added} />
+            {added.length > 0 && (
+              <Section title="Added" tone="emerald" icon={Plus} entries={added} />
             )}
-            {diff.removed.length > 0 && (
-              <Section title="Removed" tone="rose" icon={Minus} entries={diff.removed} />
+            {removed.length > 0 && (
+              <Section title="Removed" tone="rose" icon={Minus} entries={removed} />
             )}
-            {diff.changed.length > 0 && (
-              <Section title="Changed" tone="amber" icon={Pencil} entries={diff.changed} />
+            {changed.length > 0 && (
+              <Section title="Changed" tone="amber" icon={Pencil} entries={changed} />
             )}
           </div>
         )}
