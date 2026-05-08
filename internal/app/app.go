@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -63,6 +65,34 @@ func New() (*App, error) {
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	go a.migrateAuthRolesIfNeeded()
+}
+
+func (a *App) migrateAuthRolesIfNeeded() {
+	projects, err := a.projects.List(a.ctx)
+	if err != nil {
+		return
+	}
+	for _, p := range projects {
+		eps, err := a.endpoints.List(a.ctx, p.ID)
+		if err != nil || len(eps) == 0 {
+			continue
+		}
+		hasRole := false
+		for _, e := range eps {
+			if e.AuthRole != "" {
+				hasRole = true
+				break
+			}
+		}
+		if hasRole {
+			continue
+		}
+		log.Printf("auth migrate: rescanning project %s (%s)", p.Name, p.ID)
+		if _, err := a.ScanWorkspace(p.ID); err != nil {
+			log.Printf("auth migrate scan failed %s: %v", p.ID, err)
+		}
+	}
 }
 
 func (a *App) Shutdown(_ context.Context) {
@@ -104,11 +134,70 @@ type ProjectInfo struct {
 }
 
 type APIDetection struct {
-	Mode       string `json:"mode"`
-	Value      string `json:"value"`
-	Count      int    `json:"count"`
-	TotalCount int    `json:"totalCount"`
-	ScanError  string `json:"scanError,omitempty"`
+	Mode        string `json:"mode"`
+	Value       string `json:"value"`
+	Count       int    `json:"count"`
+	TotalCount  int    `json:"totalCount"`
+	ScanError   string `json:"scanError,omitempty"`
+	LoginRoute  string `json:"loginRoute,omitempty"`
+	LogoutRoute string `json:"logoutRoute,omitempty"`
+}
+
+func summarizeAuth(endpoints []core.Endpoint) (string, string) {
+	type cand struct {
+		ep    core.Endpoint
+		score int
+	}
+	var bestLogin, bestLogout cand
+	for _, ep := range endpoints {
+		if ep.AuthRole == core.AuthRoleLogin {
+			score := scoreAuthPath(string(ep.Path), core.AuthRoleLogin) + 1
+			if score > bestLogin.score {
+				bestLogin = cand{ep: ep, score: score}
+			}
+		} else if ep.AuthRole == core.AuthRoleLogout {
+			score := scoreAuthPath(string(ep.Path), core.AuthRoleLogout) + 1
+			if score > bestLogout.score {
+				bestLogout = cand{ep: ep, score: score}
+			}
+		}
+	}
+	loginRoute := ""
+	if bestLogin.score > 0 {
+		loginRoute = string(bestLogin.ep.Method) + " " + bestLogin.ep.Path
+	}
+	logoutRoute := ""
+	if bestLogout.score > 0 {
+		logoutRoute = string(bestLogout.ep.Method) + " " + bestLogout.ep.Path
+	}
+	return loginRoute, logoutRoute
+}
+
+func scoreAuthPath(path string, role core.AuthRole) int {
+	p := strings.ToLower(path)
+	switch role {
+	case core.AuthRoleLogin:
+		switch {
+		case strings.HasSuffix(p, "/login"):
+			return 5
+		case strings.Contains(p, "/login"):
+			return 3
+		case strings.Contains(p, "/signin") || strings.Contains(p, "/sign-in"):
+			return 2
+		case strings.Contains(p, "/authenticate") || strings.Contains(p, "/auth/token"):
+			return 2
+		}
+	case core.AuthRoleLogout:
+		switch {
+		case strings.HasSuffix(p, "/logout"):
+			return 5
+		case strings.Contains(p, "/logout"):
+			return 3
+		case strings.Contains(p, "/signout") || strings.Contains(p, "/sign-out"):
+			return 2
+		}
+	}
+	return 0
 }
 
 func (a *App) InspectProject(path string) (ProjectInfo, error) {
@@ -129,6 +218,9 @@ func (a *App) InspectProject(path string) (ProjectInfo, error) {
 	info.Detection = det
 	defaults := driver.Defaults()
 	info.DefaultBaseURL = defaults.BaseURL
+	if envURL := readDotenvAppURL(ws.Path); envURL != "" {
+		info.DefaultBaseURL = envURL
+	}
 	info.DefaultPorts = defaults.Ports
 
 	endpoints, scanErr := driver.Scan(a.ctx, ws.Path)
@@ -140,11 +232,14 @@ func (a *App) InspectProject(path string) (ProjectInfo, error) {
 		return info, nil
 	}
 	result := core.ApplyFilter(endpoints, core.FilterModeAuto, "")
+	loginRoute, logoutRoute := summarizeAuth(result.Endpoints)
 	info.APIDetection = APIDetection{
-		Mode:       result.Mode,
-		Value:      result.Value,
-		Count:      len(result.Endpoints),
-		TotalCount: len(endpoints),
+		Mode:        result.Mode,
+		Value:       result.Value,
+		Count:       len(result.Endpoints),
+		TotalCount:  len(endpoints),
+		LoginRoute:  loginRoute,
+		LogoutRoute: logoutRoute,
 	}
 	return info, nil
 }
@@ -159,11 +254,14 @@ func (a *App) PreviewAPIRoutes(path, mode, value string) (APIDetection, error) {
 		return APIDetection{Mode: mode, Value: value, ScanError: err.Error()}, nil
 	}
 	result := core.ApplyFilter(endpoints, mode, value)
+	loginRoute, logoutRoute := summarizeAuth(result.Endpoints)
 	return APIDetection{
-		Mode:       result.Mode,
-		Value:      result.Value,
-		Count:      len(result.Endpoints),
-		TotalCount: len(endpoints),
+		Mode:        result.Mode,
+		Value:       result.Value,
+		Count:       len(result.Endpoints),
+		TotalCount:  len(endpoints),
+		LoginRoute:  loginRoute,
+		LogoutRoute: logoutRoute,
 	}, nil
 }
 
@@ -318,17 +416,37 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	}
 
 	if input.ProjectID != "" && input.EndpointID != "" {
-		a.captureAuthFromResponse(input.ProjectID, input.EndpointID, resp)
+		if a.isLogoutEndpoint(input.ProjectID, input.EndpointID) && resp.Status < 400 {
+			if err := a.auth.Clear(a.ctx, input.ProjectID); err != nil {
+				log.Printf("clear auth on logout: %v", err)
+			}
+		} else {
+			a.captureAuthFromResponse(input.ProjectID, input.EndpointID, resp)
+		}
 	}
 	return resp, nil
 }
 
-func (a *App) UpdateProjectLoginEndpoint(projectID, endpointID, tokenPath string) error {
-	return a.projects.UpdateLoginEndpoint(a.ctx, projectID, endpointID, tokenPath)
+func (a *App) isLogoutEndpoint(projectID, endpointID string) bool {
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil {
+		return false
+	}
+	return project.LogoutEndpointID != "" && project.LogoutEndpointID == endpointID
+}
+
+func (a *App) UpdateProjectAuthRoutes(projectID, loginID, logoutID, tokenPath string) error {
+	return a.projects.UpdateAuthRoutes(a.ctx, projectID, loginID, logoutID, tokenPath)
 }
 
 func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[string]string, []http.Cookie) {
 	rec, err := a.auth.Get(a.ctx, projectID)
+	log.Printf("applyProjectAuth project=%s err=%v rec_nil=%t token_len=%d", projectID, err, rec == nil, func() int {
+		if rec == nil {
+			return 0
+		}
+		return len(rec.Token)
+	}())
 	if err != nil || rec == nil {
 		return base, nil
 	}
@@ -368,8 +486,10 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 
 	project, err := a.projects.GetByID(a.ctx, projectID)
 	if err != nil || project == nil {
+		log.Printf("capture: project nil err=%v", err)
 		return
 	}
+	log.Printf("capture: project_login=%q endpoint=%q match=%t", project.LoginEndpointID, endpointID, project.LoginEndpointID == endpointID)
 	if project.LoginEndpointID == "" || project.LoginEndpointID != endpointID {
 		return
 	}
@@ -422,6 +542,8 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 	}
 	if err := a.auth.Save(a.ctx, rec); err != nil {
 		log.Printf("save project auth: %v", err)
+	} else {
+		log.Printf("capture: saved token_len=%d user=%v", len(rec.Token), extraction.User)
 	}
 }
 
@@ -464,6 +586,45 @@ func extractTokenAtPath(body []byte, path string) (string, string, bool) {
 		return "", "", false
 	}
 	return s, path, true
+}
+
+func readDotenvAppURL(projectPath string) string {
+	candidates := []string{".env", ".env.local", ".env.example"}
+	for _, name := range candidates {
+		path := filepath.Join(projectPath, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		if url := extractDotenvKey(string(data), "APP_URL"); url != "" {
+			return url
+		}
+	}
+	return ""
+}
+
+func extractDotenvKey(content, key string) string {
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		idx := strings.Index(trimmed, "=")
+		if idx <= 0 {
+			continue
+		}
+		k := strings.TrimSpace(trimmed[:idx])
+		if k != key {
+			continue
+		}
+		v := strings.TrimSpace(trimmed[idx+1:])
+		v = strings.Trim(v, `"'`)
+		if v == "" {
+			continue
+		}
+		return v
+	}
+	return ""
 }
 
 func toHTTPHeader(in map[string][]string) http.Header {
@@ -532,7 +693,66 @@ func (a *App) ScanWorkspace(projectID string) ([]core.Endpoint, error) {
 	if err := a.endpoints.Replace(a.ctx, projectID, filtered); err != nil {
 		return nil, fmt.Errorf("persist endpoints: %w", err)
 	}
+	if project.LoginEndpointID == "" || project.LogoutEndpointID == "" {
+		stored, err := a.endpoints.List(a.ctx, projectID)
+		if err == nil {
+			loginID := project.LoginEndpointID
+			logoutID := project.LogoutEndpointID
+			if loginID == "" {
+				loginID = pickAuthEndpoint(stored, core.AuthRoleLogin)
+			}
+			if logoutID == "" {
+				logoutID = pickAuthEndpoint(stored, core.AuthRoleLogout)
+			}
+			if loginID != project.LoginEndpointID || logoutID != project.LogoutEndpointID {
+				if err := a.projects.UpdateAuthRoutes(a.ctx, projectID, loginID, logoutID, project.LoginTokenPath); err != nil {
+					log.Printf("auto-set auth routes: %v", err)
+				}
+			}
+		}
+	}
 	return filtered, nil
+}
+
+func pickAuthEndpoint(endpoints []core.Endpoint, target core.AuthRole) string {
+	type candidate struct {
+		id    string
+		score int
+	}
+	var best candidate
+	for _, ep := range endpoints {
+		if ep.AuthRole != target {
+			continue
+		}
+		score := 1
+		path := strings.ToLower(ep.Path)
+		switch target {
+		case core.AuthRoleLogin:
+			switch {
+			case strings.HasSuffix(path, "/login"):
+				score += 5
+			case strings.Contains(path, "/login"):
+				score += 3
+			case strings.Contains(path, "/signin") || strings.Contains(path, "/sign-in"):
+				score += 2
+			case strings.Contains(path, "/authenticate") || strings.Contains(path, "/auth/token"):
+				score += 2
+			}
+		case core.AuthRoleLogout:
+			switch {
+			case strings.HasSuffix(path, "/logout"):
+				score += 5
+			case strings.Contains(path, "/logout"):
+				score += 3
+			case strings.Contains(path, "/signout") || strings.Contains(path, "/sign-out"):
+				score += 2
+			}
+		}
+		if score > best.score {
+			best = candidate{id: ep.ID, score: score}
+		}
+	}
+	return best.id
 }
 
 func (a *App) ScanActiveProject() ([]core.Endpoint, error) {

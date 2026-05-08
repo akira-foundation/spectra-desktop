@@ -206,11 +206,12 @@ func (r *ProjectRepository) UpdateBaseURL(ctx context.Context, id, baseURL strin
 	return nil
 }
 
-func (r *ProjectRepository) UpdateLoginEndpoint(ctx context.Context, id, endpointID, tokenPath string) error {
+func (r *ProjectRepository) UpdateAuthRoutes(ctx context.Context, id, loginID, logoutID, tokenPath string) error {
 	res, err := r.db.NewUpdate().
 		Model((*model.Project)(nil)).
-		Set("login_endpoint_id = ?", endpointID).
+		Set("login_endpoint_id = ?", loginID).
 		Set("login_token_path = ?", tokenPath).
+		Set("logout_endpoint_id = ?", logoutID).
 		Set("updated_at = ?", time.Now().UTC()).
 		Where("id = ?", id).
 		Exec(ctx)

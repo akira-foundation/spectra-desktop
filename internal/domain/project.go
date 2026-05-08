@@ -30,6 +30,7 @@ type Project struct {
 	BaseURL          string        `json:"baseUrl"`
 	LoginEndpointID  string        `json:"loginEndpointId,omitempty"`
 	LoginTokenPath   string        `json:"loginTokenPath,omitempty"`
+	LogoutEndpointID string        `json:"logoutEndpointId,omitempty"`
 	CreatedAt        time.Time     `json:"createdAt"`
 	UpdatedAt        time.Time     `json:"updatedAt"`
 	LastSyncedAt     *time.Time    `json:"lastSyncedAt,omitempty"`
