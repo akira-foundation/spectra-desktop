@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import CodeMirror, { EditorView, type ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete'
-import { keymap } from '@codemirror/view'
+import { keymap, tooltips } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
 import { useTheme } from '@/hooks/useTheme'
@@ -16,13 +16,14 @@ interface VarInputProps {
   className?: string
   disabled?: boolean
   variables?: Record<string, string>
+  suggestions?: string[]
   scope?: string
   onKeyDown?: (e: React.KeyboardEvent) => void
   onBlur?: (e: React.FocusEvent) => void
 }
 
 export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function VarInput(
-  { value, onChange, placeholder, className, disabled, variables, scope, onKeyDown, onBlur },
+  { value, onChange, placeholder, className, disabled, variables, suggestions, scope, onKeyDown, onBlur },
   _ref,
 ) {
   void _ref
@@ -39,6 +40,7 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
   const onKeyDownRef = useRef(onKeyDown)
   const onBlurRef = useRef(onBlur)
   const variablesRef = useRef<Record<string, string>>(variables ?? {})
+  const suggestionsRef = useRef<string[]>(suggestions ?? [])
   const scopeRef = useRef<string>(scope ?? 'env')
 
   useEffect(() => {
@@ -49,6 +51,9 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
   useEffect(() => {
     variablesRef.current = variables ?? {}
   }, [variables])
+  useEffect(() => {
+    suggestionsRef.current = suggestions ?? []
+  }, [suggestions])
   useEffect(() => {
     scopeRef.current = scope ?? 'env'
   }, [scope])
@@ -62,8 +67,8 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
 
   const extensions = useMemo(
     () => [
-      EditorView.lineWrapping,
       EditorView.contentAttributes.of({ spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
+      tooltips({ position: 'fixed', parent: document.body }),
       Prec.highest(
         keymap.of([
           {
@@ -85,6 +90,7 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
         }
       }),
       autocompletion({
+        activateOnTyping: true,
         override: [
           (context: CompletionContext) => {
             const before = context.matchBefore(/\{\{[A-Za-z0-9_.\-]*$/)
@@ -112,20 +118,49 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
               filter: false,
             }
           },
+          (context: CompletionContext) => {
+            const list = suggestionsRef.current
+            if (!list.length) return null
+            const doc = context.state.doc.toString()
+            if (doc.includes('{{')) {
+              const lastOpen = doc.lastIndexOf('{{', context.pos)
+              const lastClose = doc.lastIndexOf('}}', context.pos)
+              if (lastOpen > lastClose) return null
+            }
+            const word = context.matchBefore(/[A-Za-z0-9_\-]*/)
+            const from = word ? word.from : context.pos
+            const partial = (word?.text ?? '').toLowerCase()
+            const filtered = partial
+              ? list.filter((s) => s.toLowerCase().includes(partial) && s.toLowerCase() !== partial)
+              : list
+            if (!filtered.length) return null
+            return {
+              from,
+              to: context.pos,
+              options: filtered.map((s) => ({ label: s, type: 'keyword' })),
+              filter: false,
+            }
+          },
         ],
       }),
       variableDecorations(() => variablesRef.current),
       EditorView.theme({
         '&': { backgroundColor: 'transparent' },
-        '.cm-scroller': { overflow: 'hidden' },
+        '.cm-scroller': {
+          overflow: 'auto',
+          overflowY: 'hidden',
+          scrollbarWidth: 'none',
+        },
+        '.cm-scroller::-webkit-scrollbar': { height: '0', width: '0', display: 'none' },
         '.cm-content': {
           padding: '5px 8px',
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
           minHeight: '18px',
           caretColor: 'var(--foreground)',
+          whiteSpace: 'pre',
         },
-        '.cm-line': { padding: '0' },
+        '.cm-line': { padding: '0', whiteSpace: 'pre' },
         '.cm-focused': { outline: 'none' },
         ...variableTheme,
       }),
@@ -184,7 +219,7 @@ export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function Var
     <div
       ref={containerRef}
       className={cn(
-        'w-full rounded-md border border-border/50 bg-input/40 dark:bg-input/30 text-foreground transition-colors outline-none',
+        'w-full min-w-0 overflow-hidden rounded-md border border-border/50 bg-input/40 dark:bg-input/30 text-foreground transition-colors outline-none',
         'hover:border-border focus-within:border-border',
         disabled && 'opacity-60 pointer-events-none',
         className,

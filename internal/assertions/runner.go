@@ -131,7 +131,11 @@ func checkHeader(headers http.Header, t Test) (bool, string) {
 		return false, "missing header name"
 	}
 	value := headers.Get(t.JSONPath)
-	switch t.Op {
+	op := t.Op
+	if op == "" {
+		op = "exists"
+	}
+	switch op {
 	case "exists":
 		if value != "" {
 			return true, ""
@@ -170,7 +174,11 @@ func checkJSONPath(body any, t Test) (bool, string) {
 		return false, "response body is not JSON"
 	}
 	value, ok := lookupPath(body, t.JSONPath)
-	switch t.Op {
+	op := t.Op
+	if op == "" {
+		op = "exists"
+	}
+	switch op {
 	case "exists":
 		if ok {
 			return true, ""

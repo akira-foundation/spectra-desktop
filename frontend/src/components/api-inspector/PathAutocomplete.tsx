@@ -91,6 +91,7 @@ export function PathAutocomplete({
       <Input
         ref={inputRef}
         value={value}
+        title={value}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)

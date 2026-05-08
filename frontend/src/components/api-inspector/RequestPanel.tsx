@@ -42,6 +42,8 @@ interface RequestPanelProps {
   testResults?: TestResult[]
   responseBody?: string
   responseHeaders?: Record<string, string[]>
+  autoAuth?: { scheme?: string; tokenPreview?: string } | null
+  onOpenAuth?: () => void
 }
 
 export function RequestPanel({
@@ -70,6 +72,8 @@ export function RequestPanel({
   testResults,
   responseBody,
   responseHeaders,
+  autoAuth,
+  onOpenAuth,
 }: RequestPanelProps) {
   const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
@@ -194,6 +198,8 @@ export function RequestPanel({
             onChange={onHeaderChange}
             onRemove={onHeaderRemove}
             variables={variables}
+            autoAuth={autoAuth}
+            onOpenAuth={onOpenAuth}
           />
         </TabsContent>
         <TabsContent value="tests" className="flex-1 p-3 overflow-auto mt-0">

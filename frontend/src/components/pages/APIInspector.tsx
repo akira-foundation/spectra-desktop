@@ -68,6 +68,8 @@ export function APIInspector() {
   const persistHeaders = useUIStore((s) => s.setRequestHeaders)
   const loadAuth = useAuthStore((s) => s.load)
   const refreshAuth = useAuthStore((s) => s.refresh)
+  const authState = useAuthStore((s) => (activeProjectId ? s.byProject[activeProjectId] : null))
+  const setAuthDrawerOpen = useUIStore((s) => s.setAuthDrawerOpen)
 
   useEffect(() => {
     if (activeProjectId) void loadAuth(activeProjectId)
@@ -110,6 +112,10 @@ export function APIInspector() {
   const [lastTestResults, setLastTestResults] = useState<
     Array<{ name: string; kind: string; pass: boolean; message?: string }>
   >([])
+  const [historySampleBody, setHistorySampleBody] = useState<string | undefined>()
+  const [historySampleHeaders, setHistorySampleHeaders] = useState<
+    Record<string, string[]> | undefined
+  >()
   const [headers, setHeaders] = useState<HeaderRow[]>([])
   const runner = useRequestRunner()
 
@@ -148,6 +154,38 @@ export function APIInspector() {
     () => (selected ? extractRouteParams(selected.path) : []),
     [selected],
   )
+
+  const historyEntries = useHistoryStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] : undefined,
+  )
+
+  useEffect(() => {
+    setHistorySampleBody(undefined)
+    setHistorySampleHeaders(undefined)
+    if (!selected || !activeProjectId || !historyEntries) return
+    const match = historyEntries.find(
+      (h) => h.endpointID === selected.id || (h.method === selected.method && h.url.includes(selected.path)),
+    )
+    if (!match) return
+    let cancelled = false
+    void historyService.get(match.id).then((detail) => {
+      if (cancelled || !detail) return
+      setHistorySampleBody(detail.responseBody || undefined)
+      try {
+        const parsed = detail.responseHeaders ? JSON.parse(detail.responseHeaders) : null
+        if (parsed && typeof parsed === 'object') {
+          const norm: Record<string, string[]> = {}
+          for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+            norm[k] = Array.isArray(v) ? (v as string[]) : [String(v)]
+          }
+          setHistorySampleHeaders(norm)
+        }
+      } catch {}
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selected?.id, activeProjectId, historyEntries])
 
   const rawSchema = useMemo(() => {
     if (!selectedTag) return null
@@ -437,8 +475,13 @@ export function APIInspector() {
                 projectId={activeProjectId}
                 endpointPath={selected.path}
                 testResults={lastTestResults}
-                responseBody={runner.response?.body}
-                responseHeaders={runner.response?.headers as Record<string, string[]> | undefined}
+                responseBody={runner.response?.body ?? historySampleBody}
+                responseHeaders={
+                  (runner.response?.headers as Record<string, string[]> | undefined) ??
+                  historySampleHeaders
+                }
+                autoAuth={authState ? { scheme: authState.scheme, tokenPreview: authState.tokenPreview } : null}
+                onOpenAuth={() => setAuthDrawerOpen(true)}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}

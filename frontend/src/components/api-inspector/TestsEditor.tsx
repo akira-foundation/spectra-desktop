@@ -70,8 +70,13 @@ export function TestsEditor({
     if (loadKey.current === endpointKey) return
     loadKey.current = endpointKey
     void testsService.list(projectId, endpointKey).then((rows) => {
-      setTests(rows)
-      setSavedTests(rows)
+      const normalized = rows.map((r) => {
+        const opts = OP_BY_KIND[r.kind] ?? []
+        if (opts.length > 0 && !r.op) return { ...r, op: opts[0].value }
+        return r
+      })
+      setTests(normalized)
+      setSavedTests(normalized)
     })
   }, [projectId, endpointKey])
 
@@ -143,17 +148,22 @@ export function TestsEditor({
         <p className="text-[11.5px] italic text-muted-foreground p-2">No tests yet.</p>
       ) : (
         <ul className="space-y-1.5">
-          {tests.map((t, idx) => (
-            <TestRow
-              key={idx}
-              test={t}
-              result={resultByIndex.get(idx)}
-              onChange={(patch) => update(idx, patch)}
-              onRemove={() => removeTest(idx)}
-              jsonPaths={jsonPaths}
-              headerNames={headerNames}
-            />
-          ))}
+          {tests.map((t, idx) => {
+            const saved = savedTests[idx]
+            const stale = !saved || JSON.stringify(saved) !== JSON.stringify(t)
+            return (
+              <TestRow
+                key={idx}
+                test={t}
+                result={stale ? undefined : resultByIndex.get(idx)}
+                stale={stale && !!resultByIndex.get(idx)}
+                onChange={(patch) => update(idx, patch)}
+                onRemove={() => removeTest(idx)}
+                jsonPaths={jsonPaths}
+                headerNames={headerNames}
+              />
+            )
+          })}
         </ul>
       )}
     </div>
@@ -163,14 +173,22 @@ export function TestsEditor({
 interface TestRowProps {
   test: EndpointTest
   result?: TestResult
+  stale?: boolean
   onChange: (patch: Partial<EndpointTest>) => void
   onRemove: () => void
   jsonPaths: string[]
   headerNames: string[]
 }
 
-function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: TestRowProps) {
+function TestRow({ test, result, stale, onChange, onRemove, jsonPaths, headerNames }: TestRowProps) {
   const ops = OP_BY_KIND[test.kind] ?? []
+
+  useEffect(() => {
+    if (ops.length > 0 && !test.op) {
+      onChange({ op: ops[0].value })
+    }
+  }, [ops, test.op])
+
   const showPath = test.kind === 'header' || test.kind === 'jsonpath'
   const showOp = ops.length > 0
   const hideExpected =
@@ -178,12 +196,17 @@ function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: T
   const datalistId = `path-suggestions-${test.kind}`
 
   return (
-    <li className="flex items-start gap-1.5">
-      <ResultBadge result={result} />
-      <div className="flex-1 grid grid-cols-[110px_1fr_110px_1fr_28px] gap-1.5 items-center min-w-0">
+    <li className="flex flex-col gap-0.5">
+    <div className="flex items-start gap-1.5">
+      <ResultBadge result={result} stale={stale} />
+      <div className="flex-1 grid grid-cols-[100px_minmax(0,1.6fr)_110px_minmax(0,1fr)_28px] gap-1.5 items-center min-w-0">
         <select
           value={test.kind}
-          onChange={(e) => onChange({ kind: e.target.value, op: '', expected: defaultExpectedFor(e.target.value) })}
+          onChange={(e) => {
+            const k = e.target.value
+            const firstOp = OP_BY_KIND[k]?.[0]?.value ?? ''
+            onChange({ kind: k, op: firstOp, expected: defaultExpectedFor(k) })
+          }}
           className="h-7 text-[11.5px] bg-input/40 border border-border/50 rounded-md px-2"
         >
           {KIND_OPTIONS.map((o) => (
@@ -205,11 +228,10 @@ function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: T
         )}
         {showOp ? (
           <select
-            value={test.op ?? ''}
+            value={test.op || ops[0].value}
             onChange={(e) => onChange({ op: e.target.value })}
             className="h-7 text-[11.5px] bg-input/40 border border-border/50 rounded-md px-2"
           >
-            <option value="">Comparison…</option>
             {ops.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -238,11 +260,31 @@ function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: T
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
+    </div>
+    {result && !stale ? (
+      <p className={cn(
+        'pl-7 text-[10.5px] font-mono',
+        result.pass ? 'text-emerald-500/80' : 'text-rose-500/80',
+      )}>
+        {result.name}
+        {result.message ? ` — ${result.message}` : ''}
+      </p>
+    ) : null}
     </li>
   )
 }
 
-function ResultBadge({ result }: { result?: TestResult }) {
+function ResultBadge({ result, stale }: { result?: TestResult; stale?: boolean }) {
+  if (stale) {
+    return (
+      <span
+        title="Edited — re-execute to update"
+        className="inline-flex h-7 w-5 shrink-0 items-center justify-center text-muted-foreground/60"
+      >
+        <span className="block w-1.5 h-1.5 rounded-full bg-amber-500/70" />
+      </span>
+    )
+  }
   if (!result) {
     return <span className="inline-flex h-7 w-5 items-center justify-center" />
   }
