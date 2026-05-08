@@ -13,16 +13,18 @@ const (
 )
 
 type Endpoint struct {
-	ID          string            `json:"id"`
-	Method      HTTPMethod        `json:"method"`
-	Path        string            `json:"path"`
-	Name        string            `json:"name,omitempty"`
-	Handler     string            `json:"handler,omitempty"`
-	Middleware  []string          `json:"middleware,omitempty"`
-	Parameters  []Parameter       `json:"parameters,omitempty"`
-	Tags        []string          `json:"tags,omitempty"`
-	Source      EndpointSource    `json:"source"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID         string            `json:"id"`
+	Method     HTTPMethod        `json:"method"`
+	Path       string            `json:"path"`
+	Name       string            `json:"name,omitempty"`
+	Handler    string            `json:"handler,omitempty"`
+	Middleware []string          `json:"middleware,omitempty"`
+	Parameters []Parameter       `json:"parameters,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Source     EndpointSource    `json:"source"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
+	Framework  string            `json:"framework,omitempty"`
+	Confidence float64           `json:"confidence,omitempty"`
 }
 
 type Parameter struct {

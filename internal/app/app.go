@@ -24,6 +24,7 @@ type App struct {
 	storage   *storage.Storage
 	projects  domain.ProjectRepository
 	settings  domain.SettingsRepository
+	endpoints domain.EndpointRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
 }
@@ -47,6 +48,7 @@ func New() (*App, error) {
 		storage:   store,
 		projects:  repository.NewProjectRepository(store.DB),
 		settings:  repository.NewSettingsRepository(store.DB),
+		endpoints: repository.NewEndpointRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
 	}, nil
@@ -74,14 +76,6 @@ func (a *App) DetectFramework(path string) (string, core.DetectionResult, error)
 		return "", core.DetectionResult{}, err
 	}
 	return driver.Name(), result, nil
-}
-
-func (a *App) ListEndpoints() ([]core.Endpoint, error) {
-	ws := a.workspace.Current()
-	if ws == nil {
-		return []core.Endpoint{}, nil
-	}
-	return a.scanner.Scan(a.ctx, ws.Path)
 }
 
 func (a *App) SelectProjectFolder() (string, error) {
@@ -150,6 +144,50 @@ func (a *App) SetActiveProjectID(id string) error {
 		return a.settings.Delete(a.ctx, domain.SettingActiveProjectID)
 	}
 	return a.settings.Set(a.ctx, domain.SettingActiveProjectID, id)
+}
+
+func (a *App) ScanWorkspace(projectID string) ([]core.Endpoint, error) {
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	driver, _, err := a.scanner.Resolve(project.Path)
+	if err != nil {
+		return nil, err
+	}
+	endpoints, err := driver.Scan(a.ctx, project.Path)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.endpoints.Replace(a.ctx, projectID, endpoints); err != nil {
+		return nil, fmt.Errorf("persist endpoints: %w", err)
+	}
+	return endpoints, nil
+}
+
+func (a *App) ScanActiveProject() ([]core.Endpoint, error) {
+	id, err := a.settings.Get(a.ctx, domain.SettingActiveProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return []core.Endpoint{}, nil
+	}
+	return a.ScanWorkspace(id)
+}
+
+func (a *App) ListEndpoints(projectID string) ([]core.Endpoint, error) {
+	if projectID == "" {
+		return []core.Endpoint{}, nil
+	}
+	return a.endpoints.List(a.ctx, projectID)
+}
+
+func (a *App) GetProjectStats(projectID string) (domain.ProjectStats, error) {
+	if projectID == "" {
+		return domain.ProjectStats{}, nil
+	}
+	return a.endpoints.Stats(a.ctx, projectID)
 }
 
 func (a *App) DetectProject(id string) (core.DetectionResult, error) {

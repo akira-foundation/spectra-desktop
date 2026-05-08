@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
+import { useEndpointsStore } from '@/store/endpointsStore'
 import { Search, RefreshCw, Lock, User, Key, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
@@ -17,8 +18,11 @@ export function Topbar() {
   const projects = useProjectStore((state) => state.projects)
   const activeProjectId = useProjectStore((state) => state.activeProjectId)
   const setActiveProject = useProjectStore((state) => state.setActiveProject)
-  const syncProject = useProjectStore((state) => state.syncProject)
-  const isSyncing = useProjectStore((state) => state.isSyncing)
+  const rescan = useEndpointsStore((state) => state.scan)
+  const scanStatus = useEndpointsStore((state) =>
+    activeProjectId ? state.status[activeProjectId] ?? 'idle' : 'idle',
+  )
+  const isScanning = scanStatus === 'scanning' || scanStatus === 'loading'
 
   const authMethodConfig = {
     'current-user': { label: 'Current User', icon: User },
@@ -36,7 +40,7 @@ export function Topbar() {
 
   const handleSync = async () => {
     if (activeProjectId) {
-      await syncProject(activeProjectId)
+      await rescan(activeProjectId)
     }
   }
 
@@ -70,11 +74,11 @@ export function Topbar() {
           variant="ghost"
           size="sm"
           onClick={handleSync}
-          disabled={!activeProjectId || isSyncing === activeProjectId}
+          disabled={!activeProjectId || isScanning}
           className="h-7 px-2 text-[11px] text-foreground/85 dark:text-white/85 hover:bg-foreground/10 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing === activeProjectId ? 'animate-spin' : ''}`} />
-          <span>{isSyncing === activeProjectId ? 'Syncing' : 'Sync'}</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+          <span>{isScanning ? 'Scanning' : 'Sync'}</span>
         </Button>
         <Button
           variant="ghost"

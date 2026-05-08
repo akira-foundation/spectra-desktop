@@ -22,12 +22,16 @@ export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
 
+export function GetProjectStats(arg1) {
+  return window['go']['app']['App']['GetProjectStats'](arg1);
+}
+
 export function InspectProject(arg1) {
   return window['go']['app']['App']['InspectProject'](arg1);
 }
 
-export function ListEndpoints() {
-  return window['go']['app']['App']['ListEndpoints']();
+export function ListEndpoints(arg1) {
+  return window['go']['app']['App']['ListEndpoints'](arg1);
 }
 
 export function ListProjects() {
@@ -44,6 +48,14 @@ export function OpenProject(arg1) {
 
 export function SaveProject(arg1) {
   return window['go']['app']['App']['SaveProject'](arg1);
+}
+
+export function ScanActiveProject() {
+  return window['go']['app']['App']['ScanActiveProject']();
+}
+
+export function ScanWorkspace(arg1) {
+  return window['go']['app']['App']['ScanWorkspace'](arg1);
 }
 
 export function SelectProjectFolder() {

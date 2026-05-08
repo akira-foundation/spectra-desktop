@@ -29,7 +29,7 @@ export function EndpointMetadata({
   return (
     <div
       className={cn(
-        'border-b border-border/60 bg-card/50 px-3.5 py-2 flex flex-col gap-1.5 text-[11.5px]',
+        'border-b border-border/60 bg-transparent px-3.5 py-2 flex flex-col gap-1.5 text-[11.5px]',
         className,
       )}
     >

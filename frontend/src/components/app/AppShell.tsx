@@ -26,7 +26,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="rounded-xl border border-border bg-sidebar/70 backdrop-blur-xl backdrop-saturate-150 overflow-hidden shadow-sm">
             <Sidebar />
           </div>
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-xl border border-border bg-sidebar/70 backdrop-blur-xl backdrop-saturate-150 overflow-hidden shadow-sm">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-xl border border-border bg-sidebar overflow-hidden shadow-sm">
             <TabBar />
             <div className="flex-1 overflow-auto min-h-0">{children}</div>
           </div>

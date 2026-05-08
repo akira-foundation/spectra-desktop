@@ -1,4 +1,4 @@
-import { Copy } from 'lucide-react'
+import { Copy, Info } from 'lucide-react'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +8,7 @@ interface EndpointHeaderProps {
   statusCode: number
   responseTime: string
   responseSize: string
+  onInfoClick?: () => void
 }
 
 export function EndpointHeader({
@@ -16,6 +17,7 @@ export function EndpointHeader({
   statusCode,
   responseTime,
   responseSize,
+  onInfoClick,
 }: EndpointHeaderProps) {
   const { getMethodColor } = useHttpMethod()
   const ok = statusCode >= 200 && statusCode < 300
@@ -34,23 +36,40 @@ export function EndpointHeader({
         <span className="font-mono text-[12px] text-foreground truncate">{path}</span>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 text-[10.5px] font-mono px-1.5 py-0.5 rounded border',
-            ok
-              ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10'
-              : 'text-destructive border-destructive/30 bg-destructive/10',
-          )}
-        >
-          <span className="size-1 rounded-full bg-current" />
-          {statusCode}
-        </span>
-        <span className="text-[11px] text-muted-foreground tabular-nums">{responseTime}</span>
-        <span className="text-[11px] text-muted-foreground tabular-nums">{responseSize}</span>
-        <button className="h-6 px-2 text-[10.5px] inline-flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors">
-          <Copy className="w-3 h-3" />
-          Copy
-        </button>
+        {statusCode > 0 && (
+          <>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 text-[10.5px] font-mono px-1.5 py-0.5 rounded border',
+                ok
+                  ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10'
+                  : 'text-destructive border-destructive/30 bg-destructive/10',
+              )}
+            >
+              <span className="size-1 rounded-full bg-current" />
+              {statusCode}
+            </span>
+            {responseTime && responseTime !== '—' && (
+              <span className="text-[11px] text-muted-foreground tabular-nums">{responseTime}</span>
+            )}
+            {responseSize && responseSize !== '—' && (
+              <span className="text-[11px] text-muted-foreground tabular-nums">{responseSize}</span>
+            )}
+            <button className="h-6 px-2 text-[10.5px] inline-flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors">
+              <Copy className="w-3 h-3" />
+              Copy
+            </button>
+          </>
+        )}
+        {onInfoClick && (
+          <button
+            onClick={onInfoClick}
+            aria-label="Endpoint info"
+            className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,0 +1,118 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"time"
+
+	"github.com/uptrace/bun"
+
+	"spectra-desktop/internal/core"
+	"spectra-desktop/internal/domain"
+	"spectra-desktop/internal/repository/model"
+)
+
+type EndpointRepository struct {
+	db *bun.DB
+}
+
+func NewEndpointRepository(db *bun.DB) *EndpointRepository {
+	return &EndpointRepository{db: db}
+}
+
+var _ domain.EndpointRepository = (*EndpointRepository)(nil)
+
+func (r *EndpointRepository) List(ctx context.Context, projectID string) ([]core.Endpoint, error) {
+	var rows []model.Endpoint
+	if err := r.db.NewSelect().
+		Model(&rows).
+		Where("project_id = ?", projectID).
+		OrderExpr("path ASC, method ASC").
+		Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([]core.Endpoint, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.ToCore())
+	}
+	return out, nil
+}
+
+func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endpoints []core.Endpoint) error {
+	now := time.Now().UTC()
+	return r.db.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().
+			Model((*model.Endpoint)(nil)).
+			Where("project_id = ?", projectID).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if len(endpoints) == 0 {
+			return nil
+		}
+		rows := make([]model.Endpoint, 0, len(endpoints))
+		for _, ep := range endpoints {
+			rows = append(rows, model.EndpointFromCore(projectID, ep, now, now))
+		}
+		_, err := tx.NewInsert().Model(&rows).Exec(ctx)
+		return err
+	})
+}
+
+func (r *EndpointRepository) DeleteByProject(ctx context.Context, projectID string) error {
+	_, err := r.db.NewDelete().
+		Model((*model.Endpoint)(nil)).
+		Where("project_id = ?", projectID).
+		Exec(ctx)
+	return err
+}
+
+func (r *EndpointRepository) Stats(ctx context.Context, projectID string) (domain.ProjectStats, error) {
+	var rows []model.Endpoint
+	if err := r.db.NewSelect().
+		Model(&rows).
+		Column("handler", "middleware", "scanned_at").
+		Where("project_id = ?", projectID).
+		Scan(ctx); err != nil {
+		return domain.ProjectStats{}, err
+	}
+
+	stats := domain.ProjectStats{Routes: len(rows)}
+	if len(rows) == 0 {
+		return stats, nil
+	}
+
+	controllers := make(map[string]struct{})
+	middleware := make(map[string]struct{})
+	var latest time.Time
+	for _, row := range rows {
+		if row.Handler != "" {
+			controllers[normalizeController(row.Handler)] = struct{}{}
+		}
+		var mws []string
+		if err := json.Unmarshal([]byte(row.Middleware), &mws); err == nil {
+			for _, m := range mws {
+				middleware[m] = struct{}{}
+			}
+		}
+		if row.ScannedAt.After(latest) {
+			latest = row.ScannedAt
+		}
+	}
+	stats.Controllers = len(controllers)
+	stats.Middleware = len(middleware)
+	if !latest.IsZero() {
+		stats.LastScannedAt = &latest
+	}
+	return stats, nil
+}
+
+func normalizeController(handler string) string {
+	for i := 0; i < len(handler); i++ {
+		if handler[i] == '@' {
+			return handler[:i]
+		}
+	}
+	return handler
+}

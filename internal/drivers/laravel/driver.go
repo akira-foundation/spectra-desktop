@@ -23,7 +23,15 @@ func (d *Driver) Detect(projectPath string) core.DetectionResult {
 }
 
 func (d *Driver) Scan(ctx context.Context, projectPath string) ([]core.Endpoint, error) {
-	return scanRoutes(ctx, projectPath)
+	raws, err := runArtisanRouteList(ctx, projectPath)
+	if err != nil {
+		return nil, err
+	}
+	endpoints := normalize(raws)
+	if len(endpoints) == 0 {
+		return nil, ErrNoRoutes
+	}
+	return endpoints, nil
 }
 
 func (d *Driver) Capabilities() core.DriverCapabilities {
