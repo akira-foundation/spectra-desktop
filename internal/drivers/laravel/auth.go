@@ -1,6 +1,7 @@
 package laravel
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -140,8 +141,157 @@ func (AuthCapability) ApplyAuth(req *http.Request, ctx core.AuthContext) {
 	}
 }
 
+var tokenPaths = [][]string{
+	{"data", "token"},
+	{"data", "access_token"},
+	{"data", "accessToken"},
+	{"data", "auth", "token"},
+	{"data", "user", "token"},
+	{"token"},
+	{"access_token"},
+	{"accessToken"},
+	{"auth", "token"},
+	{"meta", "token"},
+	{"result", "token"},
+}
+
+var userPaths = [][]string{
+	{"data", "user"},
+	{"data", "auth", "user"},
+	{"user"},
+	{"auth", "user"},
+	{"data"},
+	{"result", "user"},
+}
+
 func (AuthCapability) ExtractCredentials(resp core.AuthResponse) (*core.AuthExtraction, bool) {
-	return nil, false
+	if len(resp.Body) == 0 {
+		return extractFromHeaders(resp), false
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(resp.Body, &payload); err != nil {
+		return extractFromHeaders(resp), false
+	}
+
+	out := &core.AuthExtraction{}
+	for _, p := range tokenPaths {
+		if v, ok := lookupString(payload, p); ok && v != "" {
+			out.Token = v
+			out.TokenPath = strings.Join(p, ".")
+			break
+		}
+	}
+
+	for _, p := range userPaths {
+		if u, ok := lookupObject(payload, p); ok {
+			user := buildUser(u)
+			if user != nil {
+				out.User = user
+				out.UserPath = strings.Join(p, ".")
+				break
+			}
+		}
+	}
+
+	if cookies := parseSetCookies(resp.Headers); len(cookies) > 0 {
+		out.Cookies = cookies
+	}
+
+	if out.Token == "" && out.User == nil && len(out.Cookies) == 0 {
+		return nil, false
+	}
+	return out, true
+}
+
+func extractFromHeaders(resp core.AuthResponse) *core.AuthExtraction {
+	cookies := parseSetCookies(resp.Headers)
+	if len(cookies) == 0 {
+		return nil
+	}
+	return &core.AuthExtraction{Cookies: cookies}
+}
+
+func parseSetCookies(h http.Header) []http.Cookie {
+	if h == nil {
+		return nil
+	}
+	resp := http.Response{Header: h}
+	cs := resp.Cookies()
+	out := make([]http.Cookie, 0, len(cs))
+	for _, c := range cs {
+		if c == nil {
+			continue
+		}
+		out = append(out, *c)
+	}
+	return out
+}
+
+func lookupString(m map[string]any, path []string) (string, bool) {
+	v, ok := lookup(m, path)
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(s), s != ""
+}
+
+func lookupObject(m map[string]any, path []string) (map[string]any, bool) {
+	v, ok := lookup(m, path)
+	if !ok {
+		return nil, false
+	}
+	obj, ok := v.(map[string]any)
+	return obj, ok
+}
+
+func lookup(m map[string]any, path []string) (any, bool) {
+	var cur any = m
+	for _, key := range path {
+		obj, ok := cur.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		v, exists := obj[key]
+		if !exists {
+			return nil, false
+		}
+		cur = v
+	}
+	return cur, true
+}
+
+func buildUser(obj map[string]any) *core.AuthUser {
+	if obj == nil {
+		return nil
+	}
+	user := &core.AuthUser{}
+	user.ID = firstString(obj, "id", "uuid", "sub")
+	user.Name = firstString(obj, "name", "full_name", "fullname", "display_name", "displayName")
+	user.Username = firstString(obj, "username", "user_name", "userName", "login", "handle")
+	user.Email = firstString(obj, "email", "email_address", "mail")
+	user.Role = firstString(obj, "role", "role_name", "type")
+	if user.ID == "" && user.Name == "" && user.Username == "" && user.Email == "" {
+		return nil
+	}
+	if raw, err := json.Marshal(obj); err == nil {
+		user.Raw = string(raw)
+	}
+	return user
+}
+
+func firstString(obj map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := obj[k]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 func lowerSlice(in []string) []string {

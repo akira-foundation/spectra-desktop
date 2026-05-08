@@ -23,6 +23,15 @@ func (s *Scanner) Drivers() []FrameworkDriver {
 	return s.drivers
 }
 
+func (s *Scanner) ResolveByName(name string) (FrameworkDriver, error) {
+	for _, d := range s.drivers {
+		if d.Name() == name {
+			return d, nil
+		}
+	}
+	return nil, ErrNoDriver
+}
+
 func (s *Scanner) Resolve(projectPath string) (FrameworkDriver, DetectionResult, error) {
 	var best FrameworkDriver
 	var bestResult DetectionResult

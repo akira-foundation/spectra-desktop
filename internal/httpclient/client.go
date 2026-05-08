@@ -58,6 +58,9 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 		}
 		httpReq.Header.Set(k, v)
 	}
+	for i := range req.Cookies {
+		httpReq.AddCookie(&req.Cookies[i])
+	}
 	if body != nil && httpReq.Header.Get("Content-Type") == "" {
 		httpReq.Header.Set("Content-Type", "application/json")
 	}

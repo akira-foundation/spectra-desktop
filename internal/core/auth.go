@@ -40,12 +40,22 @@ type AuthRoleHint struct {
 	Reason     string
 }
 
+type AuthUser struct {
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Role     string `json:"role,omitempty"`
+	Raw      string `json:"raw,omitempty"`
+}
+
 type AuthContext struct {
 	Scheme    AuthScheme
 	Token     string
 	TokenPath string
 	Cookies   []http.Cookie
 	Headers   map[string]string
+	User      *AuthUser
 	ExpiresAt *time.Time
 }
 
@@ -53,6 +63,8 @@ type AuthExtraction struct {
 	Token     string
 	TokenPath string
 	Cookies   []http.Cookie
+	User      *AuthUser
+	UserPath  string
 	ExpiresAt *time.Time
 }
 

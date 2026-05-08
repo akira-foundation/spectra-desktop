@@ -26,8 +26,20 @@ type Endpoint struct {
 	Framework     string            `json:"framework,omitempty"`
 	Confidence    float64           `json:"confidence,omitempty"`
 	RequestSchema string            `json:"requestSchema,omitempty"`
-	AuthRole      AuthRole          `json:"authRole,omitempty"`
-	AuthHint      string            `json:"authHint,omitempty"`
+	AuthRole         AuthRole `json:"authRole,omitempty"`
+	AuthHint         string   `json:"authHint,omitempty"`
+	AuthRoleOverride AuthRole `json:"authRoleOverride,omitempty"`
+	TokenPathOverride string  `json:"tokenPathOverride,omitempty"`
+}
+
+func (e Endpoint) EffectiveAuthRole() AuthRole {
+	if e.AuthRoleOverride != "" {
+		if e.AuthRoleOverride == "none" {
+			return AuthRoleNone
+		}
+		return e.AuthRoleOverride
+	}
+	return e.AuthRole
 }
 
 type Parameter struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -40,9 +41,44 @@ func (r *EndpointRepository) List(ctx context.Context, projectID string) ([]core
 	return out, nil
 }
 
+func (r *EndpointRepository) GetByID(ctx context.Context, id string) (*core.Endpoint, error) {
+	var row model.Endpoint
+	err := r.db.NewSelect().Model(&row).Where("id = ?", id).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	ep := row.ToCore()
+	return &ep, nil
+}
+
 func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endpoints []core.Endpoint) error {
 	now := time.Now().UTC()
 	return r.db.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
+		var existing []model.Endpoint
+		if err := tx.NewSelect().
+			Model(&existing).
+			Column("method", "path", "auth_role_override", "token_path_override").
+			Where("project_id = ?", projectID).
+			Scan(ctx); err != nil {
+			return err
+		}
+		overrides := make(map[string]struct {
+			Role      string
+			TokenPath string
+		}, len(existing))
+		for _, e := range existing {
+			if e.AuthRoleOverride == "" && e.TokenPathOverride == "" {
+				continue
+			}
+			overrides[e.Method+" "+e.Path] = struct {
+				Role      string
+				TokenPath string
+			}{e.AuthRoleOverride, e.TokenPathOverride}
+		}
+
 		if _, err := tx.NewDelete().
 			Model((*model.Endpoint)(nil)).
 			Where("project_id = ?", projectID).
@@ -55,11 +91,26 @@ func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endp
 		rows := make([]model.Endpoint, 0, len(endpoints))
 		for i, ep := range endpoints {
 			ep.ID = projectID + "#" + strconv.Itoa(i)
+			if o, ok := overrides[string(ep.Method)+" "+ep.Path]; ok {
+				ep.AuthRoleOverride = core.AuthRole(o.Role)
+				ep.TokenPathOverride = o.TokenPath
+			}
 			rows = append(rows, model.EndpointFromCore(projectID, ep, now, now))
 		}
 		_, err := tx.NewInsert().Model(&rows).Exec(ctx)
 		return err
 	})
+}
+
+func (r *EndpointRepository) UpdateAuthOverride(ctx context.Context, endpointID string, role core.AuthRole, tokenPath string) error {
+	_, err := r.db.NewUpdate().
+		Model((*model.Endpoint)(nil)).
+		Set("auth_role_override = ?", string(role)).
+		Set("token_path_override = ?", tokenPath).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", endpointID).
+		Exec(ctx)
+	return err
 }
 
 func (r *EndpointRepository) DeleteByProject(ctx context.Context, projectID string) error {
