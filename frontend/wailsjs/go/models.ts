@@ -22,12 +22,14 @@ export namespace app {
 	}
 	export class ExecuteRequestInput {
 	    projectID: string;
+	    endpointID?: string;
 	    method: string;
 	    path: string;
 	    headers?: Record<string, string>;
 	    body?: string;
 	    baseUrl?: string;
 	    timeoutMs?: number;
+	    skipAuth?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExecuteRequestInput(source);
@@ -36,13 +38,65 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectID = source["projectID"];
+	        this.endpointID = source["endpointID"];
 	        this.method = source["method"];
 	        this.path = source["path"];
 	        this.headers = source["headers"];
 	        this.body = source["body"];
 	        this.baseUrl = source["baseUrl"];
 	        this.timeoutMs = source["timeoutMs"];
+	        this.skipAuth = source["skipAuth"];
 	    }
+	}
+	export class ProjectAuthState {
+	    projectID: string;
+	    scheme: string;
+	    hasToken: boolean;
+	    tokenPreview?: string;
+	    tokenPath?: string;
+	    user?: core.AuthUser;
+	    hasCookies: boolean;
+	    // Go type: time
+	    expiresAt?: any;
+	    capturedFromEndpoint?: string;
+	    // Go type: time
+	    capturedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectAuthState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
+	        this.scheme = source["scheme"];
+	        this.hasToken = source["hasToken"];
+	        this.tokenPreview = source["tokenPreview"];
+	        this.tokenPath = source["tokenPath"];
+	        this.user = this.convertValues(source["user"], core.AuthUser);
+	        this.hasCookies = source["hasCookies"];
+	        this.expiresAt = this.convertValues(source["expiresAt"], null);
+	        this.capturedFromEndpoint = source["capturedFromEndpoint"];
+	        this.capturedAt = this.convertValues(source["capturedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ProjectInfo {
 	    path: string;
@@ -88,11 +142,65 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class SetEndpointAuthInput {
+	    endpointID: string;
+	    role: string;
+	    tokenPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SetEndpointAuthInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.role = source["role"];
+	        this.tokenPath = source["tokenPath"];
+	    }
+	}
+	export class SetProjectAuthInput {
+	    projectID: string;
+	    scheme: string;
+	    token: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SetProjectAuthInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
+	        this.scheme = source["scheme"];
+	        this.token = source["token"];
+	    }
+	}
 
 }
 
 export namespace core {
 	
+	export class AuthUser {
+	    id?: string;
+	    name?: string;
+	    username?: string;
+	    email?: string;
+	    role?: string;
+	    raw?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AuthUser(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.username = source["username"];
+	        this.email = source["email"];
+	        this.role = source["role"];
+	        this.raw = source["raw"];
+	    }
+	}
 	export class DetectionResult {
 	    detected: boolean;
 	    confidence: number;
@@ -159,6 +267,8 @@ export namespace core {
 	    requestSchema?: string;
 	    authRole?: string;
 	    authHint?: string;
+	    authRoleOverride?: string;
+	    tokenPathOverride?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Endpoint(source);
@@ -181,6 +291,8 @@ export namespace core {
 	        this.requestSchema = source["requestSchema"];
 	        this.authRole = source["authRole"];
 	        this.authHint = source["authHint"];
+	        this.authRoleOverride = source["authRoleOverride"];
+	        this.tokenPathOverride = source["tokenPathOverride"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -28,6 +30,7 @@ type App struct {
 	projects  domain.ProjectRepository
 	settings  domain.SettingsRepository
 	endpoints domain.EndpointRepository
+	auth      domain.AuthRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
 }
@@ -52,6 +55,7 @@ func New() (*App, error) {
 		projects:  repository.NewProjectRepository(store.DB),
 		settings:  repository.NewSettingsRepository(store.DB),
 		endpoints: repository.NewEndpointRepository(store.DB),
+		auth:      repository.NewAuthRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
 	}, nil
@@ -188,14 +192,102 @@ func (a *App) UpdateProjectBaseURL(projectID, baseURL string) error {
 	return a.projects.UpdateBaseURL(a.ctx, projectID, baseURL)
 }
 
+type ProjectAuthState struct {
+	ProjectID            string         `json:"projectID"`
+	Scheme               string         `json:"scheme"`
+	HasToken             bool           `json:"hasToken"`
+	TokenPreview         string         `json:"tokenPreview,omitempty"`
+	TokenPath            string         `json:"tokenPath,omitempty"`
+	User                 *core.AuthUser `json:"user,omitempty"`
+	HasCookies           bool           `json:"hasCookies"`
+	ExpiresAt            *time.Time     `json:"expiresAt,omitempty"`
+	CapturedFromEndpoint string         `json:"capturedFromEndpoint,omitempty"`
+	CapturedAt           time.Time      `json:"capturedAt"`
+}
+
+func (a *App) GetProjectAuth(projectID string) (*ProjectAuthState, error) {
+	rec, err := a.auth.Get(a.ctx, projectID)
+	if err != nil || rec == nil {
+		return nil, err
+	}
+	state := &ProjectAuthState{
+		ProjectID:            rec.ProjectID,
+		Scheme:               rec.Scheme,
+		HasToken:             rec.Token != "",
+		TokenPath:            rec.TokenPath,
+		HasCookies:           rec.CookiesJSON != "" && rec.CookiesJSON != "[]",
+		ExpiresAt:            rec.ExpiresAt,
+		CapturedFromEndpoint: rec.CapturedFromEndpoint,
+		CapturedAt:           rec.CapturedAt,
+	}
+	if rec.Token != "" {
+		state.TokenPreview = previewToken(rec.Token)
+	}
+	if rec.UserJSON != "" {
+		var user core.AuthUser
+		if err := json.Unmarshal([]byte(rec.UserJSON), &user); err == nil {
+			state.User = &user
+		}
+	}
+	return state, nil
+}
+
+func (a *App) ClearProjectAuth(projectID string) error {
+	return a.auth.Clear(a.ctx, projectID)
+}
+
+type SetProjectAuthInput struct {
+	ProjectID string `json:"projectID"`
+	Scheme    string `json:"scheme"`
+	Token     string `json:"token"`
+}
+
+func (a *App) SetProjectAuthManual(input SetProjectAuthInput) error {
+	if input.ProjectID == "" {
+		return fmt.Errorf("project id required")
+	}
+	scheme := input.Scheme
+	if scheme == "" {
+		scheme = string(core.AuthSchemeBearer)
+	}
+	rec := domain.ProjectAuth{
+		ProjectID: input.ProjectID,
+		Scheme:    scheme,
+		Token:     strings.TrimSpace(input.Token),
+	}
+	return a.auth.Save(a.ctx, rec)
+}
+
+type SetEndpointAuthInput struct {
+	EndpointID string `json:"endpointID"`
+	Role       string `json:"role"`
+	TokenPath  string `json:"tokenPath"`
+}
+
+func (a *App) SetEndpointAuth(input SetEndpointAuthInput) error {
+	if input.EndpointID == "" {
+		return fmt.Errorf("endpoint id required")
+	}
+	return a.endpoints.UpdateAuthOverride(a.ctx, input.EndpointID, core.AuthRole(input.Role), input.TokenPath)
+}
+
+func previewToken(token string) string {
+	if len(token) <= 12 {
+		return token
+	}
+	return token[:6] + "…" + token[len(token)-4:]
+}
+
 type ExecuteRequestInput struct {
-	ProjectID string            `json:"projectID"`
-	Method    string            `json:"method"`
-	Path      string            `json:"path"`
-	Headers   map[string]string `json:"headers,omitempty"`
-	Body      string            `json:"body,omitempty"`
-	BaseURL   string            `json:"baseUrl,omitempty"`
-	TimeoutMs int               `json:"timeoutMs,omitempty"`
+	ProjectID  string            `json:"projectID"`
+	EndpointID string            `json:"endpointID,omitempty"`
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	Body       string            `json:"body,omitempty"`
+	BaseURL    string            `json:"baseUrl,omitempty"`
+	TimeoutMs  int               `json:"timeoutMs,omitempty"`
+	SkipAuth   bool              `json:"skipAuth,omitempty"`
 }
 
 func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, error) {
@@ -216,13 +308,189 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	}
 
 	timeout := time.Duration(input.TimeoutMs) * time.Millisecond
-	return a.http.Send(a.ctx, httpclient.Request{
+
+	headers := input.Headers
+	var cookies []http.Cookie
+	if !input.SkipAuth && input.ProjectID != "" {
+		merged, ck := a.applyProjectAuth(input.ProjectID, headers)
+		headers = merged
+		cookies = ck
+	}
+
+	resp, err := a.http.Send(a.ctx, httpclient.Request{
 		Method:  input.Method,
 		URL:     target,
-		Headers: input.Headers,
+		Headers: headers,
 		Body:    input.Body,
+		Cookies: cookies,
 		Timeout: timeout,
 	})
+	if err != nil {
+		return resp, err
+	}
+
+	if input.ProjectID != "" && input.EndpointID != "" {
+		a.captureAuthFromResponse(input.ProjectID, input.EndpointID, resp)
+	}
+	return resp, nil
+}
+
+func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[string]string, []http.Cookie) {
+	rec, err := a.auth.Get(a.ctx, projectID)
+	if err != nil || rec == nil {
+		return base, nil
+	}
+	headers := map[string]string{}
+	for k, v := range base {
+		headers[k] = v
+	}
+	if rec.Token != "" {
+		if _, exists := headers["Authorization"]; !exists {
+			scheme := rec.Scheme
+			if scheme == "" || scheme == string(core.AuthSchemeBearer) {
+				headers["Authorization"] = "Bearer " + rec.Token
+			}
+		}
+	}
+	if rec.HeadersJSON != "" {
+		var extra map[string]string
+		if err := json.Unmarshal([]byte(rec.HeadersJSON), &extra); err == nil {
+			for k, v := range extra {
+				if _, exists := headers[k]; !exists {
+					headers[k] = v
+				}
+			}
+		}
+	}
+	var cookies []http.Cookie
+	if rec.CookiesJSON != "" {
+		_ = json.Unmarshal([]byte(rec.CookiesJSON), &cookies)
+	}
+	return headers, cookies
+}
+
+func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpclient.Response) {
+	if resp == nil || resp.Status >= 400 {
+		return
+	}
+	driver, err := a.scanner.ResolveByName(a.scannerNameFor(projectID))
+	if err != nil || driver == nil {
+		driver = nil
+	}
+
+	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
+	if err != nil || ep == nil {
+		return
+	}
+	role := ep.EffectiveAuthRole()
+	if role != core.AuthRoleLogin && role != core.AuthRoleRefresh {
+		return
+	}
+
+	cap, ok := authCapabilityFor(driver)
+	if !ok {
+		return
+	}
+
+	authResp := core.AuthResponse{
+		Status:  resp.Status,
+		Headers: toHTTPHeader(resp.Headers),
+		Body:    []byte(resp.Body),
+	}
+	extraction, ok := cap.ExtractCredentials(authResp)
+	if !ok || extraction == nil {
+		extraction = &core.AuthExtraction{}
+	}
+	if ep.TokenPathOverride != "" {
+		if token, path, found := extractTokenAtPath(authResp.Body, ep.TokenPathOverride); found {
+			extraction.Token = token
+			extraction.TokenPath = path
+		}
+	}
+	if extraction.Token == "" && extraction.User == nil && len(extraction.Cookies) == 0 {
+		return
+	}
+
+	rec := domain.ProjectAuth{
+		ProjectID:            projectID,
+		Scheme:               string(cap.DefaultScheme()),
+		Token:                extraction.Token,
+		TokenPath:            extraction.TokenPath,
+		ExpiresAt:            extraction.ExpiresAt,
+		CapturedFromEndpoint: endpointID,
+	}
+	if extraction.User != nil {
+		if raw, err := json.Marshal(extraction.User); err == nil {
+			rec.UserJSON = string(raw)
+		}
+	}
+	if len(extraction.Cookies) > 0 {
+		if raw, err := json.Marshal(extraction.Cookies); err == nil {
+			rec.CookiesJSON = string(raw)
+		}
+	}
+	if err := a.auth.Save(a.ctx, rec); err != nil {
+		log.Printf("save project auth: %v", err)
+	}
+}
+
+func (a *App) scannerNameFor(projectID string) string {
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil {
+		return ""
+	}
+	return project.Framework
+}
+
+func authCapabilityFor(driver core.FrameworkDriver) (core.AuthCapable, bool) {
+	if driver == nil {
+		return laravel.AuthCapability{}, true
+	}
+	if cap, ok := driver.(core.AuthCapable); ok {
+		return cap, true
+	}
+	if driver.Name() == laravel.DriverName {
+		return laravel.AuthCapability{}, true
+	}
+	return nil, false
+}
+
+func extractTokenAtPath(body []byte, path string) (string, string, bool) {
+	if len(body) == 0 || path == "" {
+		return "", "", false
+	}
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return "", "", false
+	}
+	parts := strings.Split(path, ".")
+	cur := payload
+	for _, p := range parts {
+		obj, ok := cur.(map[string]any)
+		if !ok {
+			return "", "", false
+		}
+		v, exists := obj[p]
+		if !exists {
+			return "", "", false
+		}
+		cur = v
+	}
+	s, ok := cur.(string)
+	if !ok || s == "" {
+		return "", "", false
+	}
+	return s, path, true
+}
+
+func toHTTPHeader(in map[string][]string) http.Header {
+	h := http.Header{}
+	for k, vs := range in {
+		for _, v := range vs {
+			h.Add(k, v)
+		}
+	}
+	return h
 }
 
 func joinURL(base, path string) (string, error) {

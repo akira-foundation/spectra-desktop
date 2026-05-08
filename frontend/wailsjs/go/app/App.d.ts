@@ -6,6 +6,8 @@ import {httpclient} from '../models';
 import {domain} from '../models';
 import {workspace} from '../models';
 
+export function ClearProjectAuth(arg1:string):Promise<void>;
+
 export function DeleteProject(arg1:string):Promise<void>;
 
 export function DetectFramework(arg1:string):Promise<string>;
@@ -17,6 +19,8 @@ export function Drivers():Promise<Array<string>>;
 export function ExecuteRequest(arg1:app.ExecuteRequestInput):Promise<httpclient.Response>;
 
 export function GetActiveProjectID():Promise<string>;
+
+export function GetProjectAuth(arg1:string):Promise<app.ProjectAuthState>;
 
 export function GetProjectStats(arg1:string):Promise<domain.ProjectStats>;
 
@@ -41,5 +45,9 @@ export function ScanWorkspace(arg1:string):Promise<Array<core.Endpoint>>;
 export function SelectProjectFolder():Promise<string>;
 
 export function SetActiveProjectID(arg1:string):Promise<void>;
+
+export function SetEndpointAuth(arg1:app.SetEndpointAuthInput):Promise<void>;
+
+export function SetProjectAuthManual(arg1:app.SetProjectAuthInput):Promise<void>;
 
 export function UpdateProjectBaseURL(arg1:string,arg2:string):Promise<void>;
