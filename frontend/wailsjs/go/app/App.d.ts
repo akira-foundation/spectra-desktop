@@ -6,6 +6,8 @@ import {httpclient} from '../models';
 import {domain} from '../models';
 import {workspace} from '../models';
 
+export function ClearHistory(arg1:string):Promise<void>;
+
 export function ClearProjectAuth(arg1:string):Promise<void>;
 
 export function DeleteProject(arg1:string):Promise<void>;
@@ -20,6 +22,8 @@ export function ExecuteRequest(arg1:app.ExecuteRequestInput):Promise<httpclient.
 
 export function GetActiveProjectID():Promise<string>;
 
+export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
+
 export function GetProjectAuth(arg1:string):Promise<app.ProjectAuthState>;
 
 export function GetProjectStats(arg1:string):Promise<domain.ProjectStats>;
@@ -29,6 +33,8 @@ export function GetProjectStatsReport(arg1:string):Promise<core.StatsReport>;
 export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
 export function ListEndpoints(arg1:string):Promise<Array<core.Endpoint>>;
+
+export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryListItem>>;
 
 export function ListProjects():Promise<Array<domain.Project>>;
 

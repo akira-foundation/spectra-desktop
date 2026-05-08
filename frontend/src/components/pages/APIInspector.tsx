@@ -3,6 +3,8 @@ import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
+import { useHistoryStore } from '@/store/historyStore'
+import { historyService } from '@/services/historyService'
 import toast from 'react-hot-toast'
 import {
   EndpointList,
@@ -257,12 +259,34 @@ export function APIInspector() {
       .then(async () => {
         if (!activeProjectId) return
         await refreshAuth(activeProjectId)
+        await useHistoryStore.getState().refresh(activeProjectId)
         const next = useAuthStore.getState().byProject[activeProjectId]
         if (next?.tokenPreview && next.tokenPreview !== prevToken) {
           const who = next.user?.name || next.user?.username || next.user?.email || 'user'
           toast.success(`Token captured · ${who}`)
         }
       })
+  }
+
+  const handleReplay = async (entryId: string) => {
+    try {
+      const detail = await historyService.get(entryId)
+      if (!detail) return
+      setRequestBody(detail.requestBody ?? '')
+      setBodyTouched(true)
+      try {
+        const parsed = JSON.parse(detail.requestHeaders || '{}') as Record<string, string>
+        const next = Object.entries(parsed).map(([key, value]) => ({
+          key,
+          value,
+          enabled: true,
+        }))
+        setHeaders(next)
+      } catch {}
+      toast.success('Loaded from history. Press Execute to replay.')
+    } catch (err) {
+      console.error('replay failed:', err)
+    }
   }
 
   const executeRef = useRef(handleExecute)
@@ -358,11 +382,17 @@ export function APIInspector() {
                   <RunnerErrorBlock code={runner.error.code} message={runner.error.message} />
                 </div>
               ) : runner.response ? (
-                <ResponsePanel responseData={parseBody(runner.response.body ?? '')} />
+                <ResponsePanel
+                  responseData={parseBody(runner.response.body ?? '')}
+                  responseHeaders={runner.response.headers as Record<string, string[]>}
+                  onReplay={handleReplay}
+                />
               ) : (
-                <div className="bg-transparent flex items-center justify-center">
-                  <ResponseEmptyState />
-                </div>
+                <ResponsePanel
+                  responseData={null}
+                  responseHeaders={undefined}
+                  onReplay={handleReplay}
+                />
               )}
             </div>
           </>
