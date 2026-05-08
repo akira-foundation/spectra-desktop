@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
+import { useAuthStore } from '@/store/authStore'
+import toast from 'react-hot-toast'
 import {
   EndpointList,
   AuthenticationDrawer,
@@ -60,6 +62,12 @@ export function APIInspector() {
   const persistedHeaders = useUIStore((s) => s.requestHeadersByEndpoint)
   const persistBody = useUIStore((s) => s.setRequestBody)
   const persistHeaders = useUIStore((s) => s.setRequestHeaders)
+  const loadAuth = useAuthStore((s) => s.load)
+  const refreshAuth = useAuthStore((s) => s.refresh)
+
+  useEffect(() => {
+    if (activeProjectId) void loadAuth(activeProjectId)
+  }, [activeProjectId, loadAuth])
 
   const groups = useMemo(() => groupEndpoints(allEndpoints), [allEndpoints])
 
@@ -116,6 +124,11 @@ export function APIInspector() {
   const requestSchema: RequestSchema | null = useMemo(
     () => parseRequestSchema(rawSchema),
     [rawSchema],
+  )
+
+  const selectedRaw = useMemo(
+    () => (selectedTag ? allEndpoints.find((e) => e.id === selectedTag) ?? null : null),
+    [selectedTag, allEndpoints],
   )
 
   useEffect(() => {
@@ -213,13 +226,27 @@ export function APIInspector() {
       if (!k) continue
       headerMap[k] = h.value
     }
-    void runner.execute({
-      projectID: activeProjectId,
-      method: selected.method,
-      path: resolvedPath,
-      headers: headerMap,
-      body: requestBody,
-    })
+    const prevToken = activeProjectId
+      ? useAuthStore.getState().byProject[activeProjectId]?.tokenPreview ?? null
+      : null
+    void runner
+      .execute({
+        projectID: activeProjectId,
+        endpointID: selected.id,
+        method: selected.method,
+        path: resolvedPath,
+        headers: headerMap,
+        body: requestBody,
+      })
+      .then(async () => {
+        if (!activeProjectId) return
+        await refreshAuth(activeProjectId)
+        const next = useAuthStore.getState().byProject[activeProjectId]
+        if (next?.tokenPreview && next.tokenPreview !== prevToken) {
+          const who = next.user?.name || next.user?.username || next.user?.email || 'user'
+          toast.success(`Token captured · ${who}`)
+        }
+      })
   }
 
   const executeRef = useRef(handleExecute)
@@ -324,12 +351,20 @@ export function APIInspector() {
         <EndpointInfoSheet
           open={infoOpen}
           onOpenChange={setInfoOpen}
+          endpointId={selected.id}
           method={selected.method}
           path={selected.path}
           controller={selected.controller}
           middleware={selected.middleware}
           authRequired={selected.authRequired}
           schema={requestSchema}
+          authRole={selectedRaw?.authRole}
+          authHint={selectedRaw?.authHint}
+          authRoleOverride={selectedRaw?.authRoleOverride}
+          tokenPathOverride={selectedRaw?.tokenPathOverride}
+          onAuthOverrideSaved={() => {
+            if (activeProjectId) void useEndpointsStore.getState().load(activeProjectId)
+          }}
         />
       )}
     </div>

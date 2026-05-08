@@ -1,4 +1,5 @@
-import { Code2, FileText, Shield, KeyRound, FileCheck, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Code2, FileText, Shield, KeyRound, FileCheck, Sparkles, LogIn } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { sourceLabel, type RequestSchema } from '@/lib/request-schema'
 import {
@@ -7,12 +8,17 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { cn } from '@/lib/utils'
+import { SetEndpointAuth } from '../../../wailsjs/go/app/App'
+import { app } from '../../../wailsjs/go/models'
 
 interface EndpointInfoSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  endpointId?: string
   method?: string
   path?: string
   controller?: string
@@ -21,11 +27,17 @@ interface EndpointInfoSheetProps {
   middleware?: string[]
   authRequired?: boolean
   schema?: RequestSchema | null
+  authRole?: string
+  authHint?: string
+  authRoleOverride?: string
+  tokenPathOverride?: string
+  onAuthOverrideSaved?: () => void
 }
 
 export function EndpointInfoSheet({
   open,
   onOpenChange,
+  endpointId,
   method,
   path,
   controller,
@@ -34,8 +46,40 @@ export function EndpointInfoSheet({
   middleware,
   authRequired,
   schema,
+  authRole,
+  authHint,
+  authRoleOverride,
+  tokenPathOverride,
+  onAuthOverrideSaved,
 }: EndpointInfoSheetProps) {
   const { getMethodColor } = useHttpMethod()
+  const [roleDraft, setRoleDraft] = useState(authRoleOverride ?? authRole ?? '')
+  const [pathDraft, setPathDraft] = useState(tokenPathOverride ?? '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setRoleDraft(authRoleOverride ?? authRole ?? '')
+    setPathDraft(tokenPathOverride ?? '')
+  }, [endpointId, authRole, authRoleOverride, tokenPathOverride])
+
+  const handleSaveAuth = async () => {
+    if (!endpointId) return
+    setSaving(true)
+    try {
+      await SetEndpointAuth(
+        app.SetEndpointAuthInput.createFrom({
+          endpointID: endpointId,
+          role: roleDraft,
+          tokenPath: pathDraft.trim(),
+        }),
+      )
+      onAuthOverrideSaved?.()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const effectiveRole = authRoleOverride && authRoleOverride !== '' ? authRoleOverride : authRole
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -113,6 +157,69 @@ export function EndpointInfoSheet({
                   />
                   {authRequired ? 'Required' : 'Public'}
                 </span>
+              </Row>
+            )}
+
+            {endpointId && (
+              <Row icon={LogIn} label="Auth role">
+                <div className="space-y-2">
+                  {effectiveRole && (
+                    <div className="flex items-center gap-2 text-[12px]">
+                      <span
+                        className={cn(
+                          'inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border capitalize',
+                          authRoleOverride
+                            ? 'border-primary/30 bg-primary/10 text-primary'
+                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
+                        )}
+                      >
+                        {effectiveRole}
+                      </span>
+                      {authRoleOverride && (
+                        <span className="text-[10.5px] text-muted-foreground">manual override</span>
+                      )}
+                    </div>
+                  )}
+                  {authHint && (
+                    <p className="text-[10.5px] text-muted-foreground leading-relaxed">{authHint}</p>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-[10.5px] font-medium text-muted-foreground">
+                      Mark as
+                    </label>
+                    <select
+                      value={roleDraft}
+                      onChange={(e) => setRoleDraft(e.target.value)}
+                      className="w-full h-7 text-[11.5px] bg-muted/40 border border-border/40 rounded-md px-2"
+                    >
+                      <option value="">Auto ({authRole || 'none'})</option>
+                      <option value="login">Login</option>
+                      <option value="logout">Logout</option>
+                      <option value="refresh">Refresh</option>
+                      <option value="csrf">CSRF</option>
+                      <option value="none">Not auth</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10.5px] font-medium text-muted-foreground">
+                      Token JSONPath (override)
+                    </label>
+                    <Input
+                      value={pathDraft}
+                      onChange={(e) => setPathDraft(e.target.value)}
+                      placeholder="data.token"
+                      className="h-7 text-[11.5px] font-mono"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAuth}
+                    disabled={saving}
+                    className="w-full h-7 text-[11px]"
+                  >
+                    {saving ? 'Saving...' : 'Save auth config'}
+                  </Button>
+                </div>
               </Row>
             )}
 

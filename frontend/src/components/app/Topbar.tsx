@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
+import { useAuthStore } from '@/store/authStore'
 import { Search, RefreshCw, Lock, User, Key, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
@@ -34,6 +35,17 @@ export function Topbar() {
   const authConfig =
     authMethodConfig[activeAuthMethod as keyof typeof authMethodConfig] ?? { label: 'Auth', icon: Lock }
   const AuthIcon = authConfig.icon
+
+  const projectAuth = useAuthStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? null : null,
+  )
+  const authLabel = (() => {
+    if (projectAuth?.user) {
+      const u = projectAuth.user
+      return u.name || u.username || u.email || u.id || authConfig.label
+    }
+    return authConfig.label
+  })()
 
   const activeProject = projects.find((p) => p.id === activeProjectId)
   const openAddProject = () => setAddProjectOpen(true)
@@ -87,7 +99,10 @@ export function Topbar() {
           className="h-7 px-2 text-[11px] gap-1.5 text-foreground/85 dark:text-white/85 hover:bg-foreground/10 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
         >
           <AuthIcon className="w-3.5 h-3.5" />
-          <span>{authConfig.label}</span>
+          <span>{authLabel}</span>
+          {projectAuth?.hasToken && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          )}
         </Button>
         <ThemeSwitcher />
       </div>
