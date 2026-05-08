@@ -2,6 +2,8 @@ package laravel
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 
 	"spectra-desktop/internal/core"
 )
@@ -31,7 +33,43 @@ func (d *Driver) Scan(ctx context.Context, projectPath string) ([]core.Endpoint,
 	if len(endpoints) == 0 {
 		return nil, ErrNoRoutes
 	}
+	enrichSchemas(projectPath, endpoints)
 	return endpoints, nil
+}
+
+func enrichSchemas(projectPath string, endpoints []core.Endpoint) {
+	for i := range endpoints {
+		ep := &endpoints[i]
+		if ep.Handler == "" || ep.Handler == "Closure" {
+			continue
+		}
+		methodName := ""
+		if at := strings.LastIndex(ep.Handler, "@"); at > 0 && at+1 < len(ep.Handler) {
+			methodName = strings.TrimSpace(ep.Handler[at+1:])
+		}
+		if methodName == "" {
+			methodName = "__invoke"
+		}
+		schema := tryInferSchema(projectPath, ep.Handler, methodName)
+		if schema == nil {
+			continue
+		}
+		raw, err := json.Marshal(schema)
+		if err != nil {
+			continue
+		}
+		ep.RequestSchema = string(raw)
+	}
+}
+
+func tryInferSchema(projectPath, handler, methodName string) *RequestSchema {
+	if schema, err := inferFromFormRequest(projectPath, handler, methodName); err == nil && schema != nil {
+		return schema
+	}
+	if schema, err := inferFromInlineValidation(projectPath, handler, methodName); err == nil && schema != nil {
+		return schema
+	}
+	return nil
 }
 
 func (d *Driver) Defaults() core.DriverDefaults {

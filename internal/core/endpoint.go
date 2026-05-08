@@ -23,8 +23,9 @@ type Endpoint struct {
 	Tags       []string          `json:"tags,omitempty"`
 	Source     EndpointSource    `json:"source"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
-	Framework  string            `json:"framework,omitempty"`
-	Confidence float64           `json:"confidence,omitempty"`
+	Framework     string            `json:"framework,omitempty"`
+	Confidence    float64           `json:"confidence,omitempty"`
+	RequestSchema string            `json:"requestSchema,omitempty"`
 }
 
 type Parameter struct {

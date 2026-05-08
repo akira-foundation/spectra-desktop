@@ -156,6 +156,7 @@ export namespace core {
 	    metadata?: Record<string, string>;
 	    framework?: string;
 	    confidence?: number;
+	    requestSchema?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Endpoint(source);
@@ -175,6 +176,7 @@ export namespace core {
 	        this.metadata = source["metadata"];
 	        this.framework = source["framework"];
 	        this.confidence = source["confidence"];
+	        this.requestSchema = source["requestSchema"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

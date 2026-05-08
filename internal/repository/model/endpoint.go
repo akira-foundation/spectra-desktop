@@ -23,9 +23,10 @@ type Endpoint struct {
 	Tags       string    `bun:"tags,notnull,default:'[]'"`
 	SourceFile string    `bun:"source_file,notnull,default:''"`
 	SourceLine int       `bun:"source_line,notnull,default:0"`
-	Framework  string    `bun:"framework,notnull,default:''"`
-	Confidence float64   `bun:"confidence,notnull,default:0"`
-	ScannedAt  time.Time `bun:"scanned_at,notnull"`
+	Framework     string    `bun:"framework,notnull,default:''"`
+	Confidence    float64   `bun:"confidence,notnull,default:0"`
+	RequestSchema string    `bun:"request_schema,notnull,default:''"`
+	ScannedAt     time.Time `bun:"scanned_at,notnull"`
 	CreatedAt  time.Time `bun:"created_at,notnull"`
 	UpdatedAt  time.Time `bun:"updated_at,notnull"`
 }
@@ -44,8 +45,9 @@ func (e Endpoint) ToCore() core.Endpoint {
 			File: e.SourceFile,
 			Line: e.SourceLine,
 		},
-		Framework:  e.Framework,
-		Confidence: e.Confidence,
+		Framework:     e.Framework,
+		Confidence:    e.Confidence,
+		RequestSchema: e.RequestSchema,
 	}
 }
 
@@ -62,9 +64,10 @@ func EndpointFromCore(projectID string, ep core.Endpoint, scannedAt time.Time, n
 		Tags:       encodeStringSlice(ep.Tags),
 		SourceFile: ep.Source.File,
 		SourceLine: ep.Source.Line,
-		Framework:  ep.Framework,
-		Confidence: ep.Confidence,
-		ScannedAt:  scannedAt,
+		Framework:     ep.Framework,
+		Confidence:    ep.Confidence,
+		RequestSchema: ep.RequestSchema,
+		ScannedAt:     scannedAt,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}

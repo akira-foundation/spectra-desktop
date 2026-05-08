@@ -1,5 +1,6 @@
-import { Code2, FileText, Shield, KeyRound } from 'lucide-react'
+import { Code2, FileText, Shield, KeyRound, FileCheck, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { sourceLabel, type RequestSchema } from '@/lib/request-schema'
 import {
   Drawer,
   DrawerContent,
@@ -19,6 +20,7 @@ interface EndpointInfoSheetProps {
   sourceLine?: number
   middleware?: string[]
   authRequired?: boolean
+  schema?: RequestSchema | null
 }
 
 export function EndpointInfoSheet({
@@ -31,6 +33,7 @@ export function EndpointInfoSheet({
   sourceLine,
   middleware,
   authRequired,
+  schema,
 }: EndpointInfoSheetProps) {
   const { getMethodColor } = useHttpMethod()
 
@@ -110,6 +113,48 @@ export function EndpointInfoSheet({
                   />
                   {authRequired ? 'Required' : 'Public'}
                 </span>
+              </Row>
+            )}
+
+            {schema && schema.fields.length > 0 && (
+              <Row
+                icon={schema.confidence === 'high' ? FileCheck : Sparkles}
+                label="Validation"
+                count={schema.fields.length}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border',
+                        schema.confidence === 'high'
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                          : 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+                      )}
+                    >
+                      {sourceLabel(schema.source)}
+                    </span>
+                    <span className="text-[10.5px] text-muted-foreground capitalize">
+                      {schema.confidence} confidence
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {schema.fields.map((f) => (
+                      <li
+                        key={f.name}
+                        className="flex items-center gap-2 text-[11.5px] font-mono"
+                      >
+                        <span className="text-foreground/85 truncate">{f.name}</span>
+                        {f.required && (
+                          <span className="text-destructive text-[10px]">*</span>
+                        )}
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          {f.type}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </Row>
             )}
           </dl>
