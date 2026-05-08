@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { CheckCircle2, AlertCircle, Loader2, Folder } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
+import { useStatsStore } from '@/store/statsStore'
 
 interface StatusBarProps {
   sdkStatus?: 'connected' | 'disconnected' | 'syncing' | 'error'
@@ -15,6 +17,14 @@ export function StatusBar({
   const projects = useProjectStore((s) => s.projects)
   const activeId = useProjectStore((s) => s.activeProjectId)
   const active = projects.find((p) => p.id === activeId)
+  const statsReport = useStatsStore((s) =>
+    activeId ? s.reportByProject[activeId] ?? null : null,
+  )
+  const loadReport = useStatsStore((s) => s.loadReport)
+  useEffect(() => {
+    if (activeId) void loadReport(activeId)
+  }, [activeId, loadReport])
+  const statCards = (statsReport?.cards ?? []).filter((c) => c.value > 0).slice(0, 5)
 
   const formatTime = (date: Date | null | undefined) => {
     if (!date) return 'Never'
@@ -66,6 +76,19 @@ export function StatusBar({
         <span>Sync · {formatTime(lastSyncTime)}</span>
         <span className="opacity-50">·</span>
         <span>Core · {coreStatus === 'ready' ? 'Ready' : 'Init'}</span>
+        {statCards.length > 0 && (
+          <>
+            <span className="opacity-50">·</span>
+            <span className="flex items-center gap-2">
+              {statCards.map((c) => (
+                <span key={c.key} className="tabular-nums">
+                  <span className="font-medium">{c.value}</span>
+                  <span className="opacity-60 ml-0.5">{c.label.toLowerCase()}</span>
+                </span>
+              ))}
+            </span>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-3 min-w-0 ml-auto">
         {active && (

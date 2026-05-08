@@ -129,10 +129,10 @@ export function Dashboard() {
     <div className="space-y-5 p-6">
       <header className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold text-base">
-          {activeProject.name[0]}
+          {activeProject.name[0]?.toUpperCase()}
         </div>
         <div className="flex-1">
-          <h1 className="text-xl font-semibold tracking-tight">{activeProject.name}</h1>
+          <h1 className="text-xl font-semibold tracking-tight capitalize">{activeProject.name}</h1>
           <p className="text-foreground/60 text-[12px]">
             {activeProject.framework}
             {activeProject.frameworkVersion ? ` · ${activeProject.frameworkVersion}` : ''}
@@ -140,12 +140,6 @@ export function Dashboard() {
           </p>
         </div>
       </header>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        {cards.length > 0
-          ? cards.map((card) => <Stat key={card.key} card={card} />)
-          : Array.from({ length: 5 }).map((_, i) => <StatSkeleton key={i} />)}
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatusCard metrics={metrics} />
