@@ -128,6 +128,7 @@ function DiffView({ snapshotId }: DiffViewProps) {
   const removed = diff.removed ?? []
   const changed = diff.changed ?? []
   const empty = added.length === 0 && removed.length === 0 && changed.length === 0
+  const isFirst = !diff.previousID
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -150,9 +151,16 @@ function DiffView({ snapshotId }: DiffViewProps) {
       </div>
       <div className="flex-1 overflow-auto">
         {empty ? (
-          <p className="p-6 text-[12px] text-muted-foreground italic text-center">
-            No changes since the previous snapshot.
-          </p>
+          <div className="p-8 text-center space-y-1">
+            <p className="text-[12.5px] font-medium text-foreground/85">
+              {isFirst ? 'First snapshot' : 'No changes'}
+            </p>
+            <p className="text-[11.5px] text-muted-foreground">
+              {isFirst
+                ? 'No prior snapshot to compare against.'
+                : 'API definition matches the previous scan.'}
+            </p>
+          </div>
         ) : (
           <div className="p-3 space-y-4">
             {added.length > 0 && (
