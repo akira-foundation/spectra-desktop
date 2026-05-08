@@ -1,4 +1,4 @@
-import { RotateCcw, Play, Send, FileCheck, Sparkles } from 'lucide-react'
+import { RotateCcw, Play, Send, FileCheck, Sparkles, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useState } from 'react'
@@ -119,6 +119,17 @@ export function RequestPanel({
             >
               Form
             </button>
+            {schema && schema.fields.length > 0 && (
+              <button
+                type="button"
+                onClick={onResetBody}
+                title="Regenerate example data"
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground hover:bg-accent/60 rounded-sm transition-colors"
+              >
+                <Wand2 className="w-3 h-3" />
+                Regenerate
+              </button>
+            )}
             {schema && schema.fields.length > 0 && (
               <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
             )}

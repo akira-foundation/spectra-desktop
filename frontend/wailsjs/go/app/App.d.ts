@@ -54,6 +54,8 @@ export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
 
+export function RegenerateExampleBody(arg1:string):Promise<string>;
+
 export function SaveEnvironment(arg1:app.SaveEnvironmentInput):Promise<app.EnvironmentDTO>;
 
 export function SaveOpenAPIToFile(arg1:string):Promise<string>;

@@ -993,6 +993,39 @@ func (a *App) SaveOpenAPIToFile(projectID string) (string, error) {
 	return target, nil
 }
 
+func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
+	if endpointID == "" {
+		return "{}", nil
+	}
+	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
+	if err != nil || ep == nil {
+		return "{}", err
+	}
+	if ep.RequestSchema == "" {
+		return "{}", nil
+	}
+	var raw struct {
+		Fields []struct {
+			Name     string   `json:"name"`
+			Type     string   `json:"type"`
+			Required bool     `json:"required"`
+			Rules    []string `json:"rules,omitempty"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal([]byte(ep.RequestSchema), &raw); err != nil {
+		return "{}", err
+	}
+	out := make(map[string]any, len(raw.Fields))
+	for _, f := range raw.Fields {
+		out[f.Name] = laravel.RegenerateValue(f.Name, f.Type, f.Rules)
+	}
+	body, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return "{}", err
+	}
+	return string(body), nil
+}
+
 func envToDTO(e domain.Environment) EnvironmentDTO {
 	return EnvironmentDTO{
 		ID:        e.ID,

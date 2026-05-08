@@ -256,12 +256,26 @@ export function APIInspector() {
     if (persistKey) persistBody(persistKey, value)
   }
 
-  const handleResetBody = () => {
-    if (requestSchema && requestSchema.fields.length > 0) {
-      setRequestBody(JSON.stringify(buildExampleBody(requestSchema.fields), null, 2))
-    } else {
+  const handleResetBody = async () => {
+    if (!requestSchema || requestSchema.fields.length === 0) {
       setRequestBody('')
+      setBodyTouched(false)
+      return
     }
+    if (selectedRaw?.id) {
+      try {
+        const { RegenerateExampleBody } = await import('../../../wailsjs/go/app/App')
+        const body = await RegenerateExampleBody(selectedRaw.id)
+        if (body) {
+          setRequestBody(body)
+          setBodyTouched(false)
+          return
+        }
+      } catch (err) {
+        console.error('regenerate failed:', err)
+      }
+    }
+    setRequestBody(JSON.stringify(buildExampleBody(requestSchema.fields), null, 2))
     setBodyTouched(false)
   }
 

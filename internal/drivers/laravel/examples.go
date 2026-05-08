@@ -11,6 +11,11 @@ func init() {
 	gofakeit.Seed(0)
 }
 
+func RegenerateValue(name, fieldType string, rules []string) any {
+	gofakeit.Seed(time.Now().UnixNano())
+	return generateExample(name, fieldType, rules)
+}
+
 func generateExample(name, fieldType string, rules []string) any {
 	lowerName := strings.ToLower(name)
 	_ = rules
