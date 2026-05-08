@@ -268,6 +268,22 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class RegenerateFieldInput {
+	    name: string;
+	    type: string;
+	    rules?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RegenerateFieldInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.rules = source["rules"];
+	    }
+	}
 	export class SaveEnvironmentInput {
 	    id?: string;
 	    projectID: string;

@@ -993,30 +993,36 @@ func (a *App) SaveOpenAPIToFile(projectID string) (string, error) {
 	return target, nil
 }
 
+type RegenerateFieldInput struct {
+	Name  string   `json:"name"`
+	Type  string   `json:"type"`
+	Rules []string `json:"rules,omitempty"`
+}
+
 func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
 	if endpointID == "" {
 		return "{}", nil
 	}
 	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
-	if err != nil || ep == nil {
+	if err != nil || ep == nil || ep.RequestSchema == "" {
 		return "{}", err
 	}
-	if ep.RequestSchema == "" {
-		return "{}", nil
-	}
 	var raw struct {
-		Fields []struct {
-			Name     string   `json:"name"`
-			Type     string   `json:"type"`
-			Required bool     `json:"required"`
-			Rules    []string `json:"rules,omitempty"`
-		} `json:"fields"`
+		Fields []RegenerateFieldInput `json:"fields"`
 	}
 	if err := json.Unmarshal([]byte(ep.RequestSchema), &raw); err != nil {
 		return "{}", err
 	}
-	out := make(map[string]any, len(raw.Fields))
-	for _, f := range raw.Fields {
+	return regenerateBody(raw.Fields)
+}
+
+func (a *App) RegenerateBodyFromFields(fields []RegenerateFieldInput) (string, error) {
+	return regenerateBody(fields)
+}
+
+func regenerateBody(fields []RegenerateFieldInput) (string, error) {
+	out := make(map[string]any, len(fields))
+	for _, f := range fields {
 		out[f.Name] = laravel.RegenerateValue(f.Name, f.Type, f.Rules)
 	}
 	body, err := json.MarshalIndent(out, "", "  ")
