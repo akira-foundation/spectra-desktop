@@ -45,13 +45,13 @@ export function ProjectSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-white/10 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[state=open]:bg-white/10 text-white/90">
+          <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-foreground/10 dark:hover:bg-white/10 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[state=open]:bg-foreground/10 dark:data-[state=open]:bg-white/10 text-foreground dark:text-white/90">
             <ProjectAvatar name={activeProject.name} />
             <span className="text-[12px] font-semibold tracking-tight truncate max-w-[160px]">
               {activeProject.name}
             </span>
             <FrameworkChip framework={activeProject.framework} />
-            <ChevronsUpDown className="w-3 h-3 text-white/60" />
+            <ChevronsUpDown className="w-3 h-3 text-muted-foreground dark:text-white/60" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-[18rem]">
@@ -136,7 +136,7 @@ function ProjectRow({ project, active, onSelect, onDelete }: ProjectRowProps) {
 function FrameworkChip({ framework }: { framework: string }) {
   if (!framework || framework === 'other') return null
   return (
-    <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border border-white/15 bg-white/10 text-white/85 capitalize">
+    <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border border-foreground/15 dark:border-white/15 bg-foreground/10 dark:bg-white/10 text-foreground/85 dark:text-white/85 capitalize">
       {framework}
     </span>
   )

@@ -15,7 +15,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="h-screen w-screen flex flex-col bg-transparent text-foreground overflow-hidden">
+      <div className="h-screen w-screen flex flex-col bg-[#e5e5e5] dark:bg-transparent text-foreground overflow-hidden">
         <CommandPalette />
         <AddProjectDialog />
         <DrawerMenu />
