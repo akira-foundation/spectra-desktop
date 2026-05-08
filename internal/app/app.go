@@ -713,7 +713,7 @@ func (a *App) recordSnapshot(projectID string, endpoints []core.Endpoint) error 
 			Handler:    ep.Handler,
 			Middleware: ep.Middleware,
 			AuthRole:   string(ep.AuthRole),
-			SchemaHash: hashString(ep.RequestSchema),
+			SchemaHash: stableSchemaHash(ep.RequestSchema),
 		})
 	}
 	payload, err := json.Marshal(items)
@@ -747,6 +747,32 @@ func hashString(s string) string {
 	}
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+// stableSchemaHash strips per-scan noise (gofakeit examples) so a
+// schema with the same shape produces the same hash across scans.
+func stableSchemaHash(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	var s struct {
+		Source     string `json:"source"`
+		Confidence string `json:"confidence"`
+		Fields     []struct {
+			Name     string   `json:"name"`
+			Type     string   `json:"type"`
+			Required bool     `json:"required"`
+			Rules    []string `json:"rules,omitempty"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal([]byte(raw), &s); err != nil {
+		return hashString(raw)
+	}
+	canonical, err := json.Marshal(s)
+	if err != nil {
+		return hashString(raw)
+	}
+	return hashString(string(canonical))
 }
 
 type SnapshotSummary struct {
