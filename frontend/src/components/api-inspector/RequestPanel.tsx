@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react'
-import { RotateCcw, Play, Send } from 'lucide-react'
+import { RotateCcw, Play, Send, FileCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { ParamsEditor } from './ParamsEditor'
+import { JsonEditor } from './JsonEditor'
+import { HeadersEditor, type HeaderRow } from './HeadersEditor'
 import type { QueryParam } from '@/lib/route-params'
+import type { RequestSchema } from '@/lib/request-schema'
+import { sourceLabel } from '@/lib/request-schema'
+import { cn } from '@/lib/utils'
 
 interface RequestPanelProps {
-  requestBody: any
+  requestBody: string
+  onRequestBodyChange: (value: string) => void
+  onResetBody: () => void
+  bodyTouched: boolean
+  schema: RequestSchema | null
   routeParams: string[]
   routeValues: string[]
   onRouteValueChange: (index: number, value: string) => void
@@ -17,12 +22,20 @@ interface RequestPanelProps {
   onQueryAdd: () => void
   onQueryChange: (index: number, patch: Partial<QueryParam>) => void
   onQueryRemove: (index: number) => void
+  headers: HeaderRow[]
+  onHeaderAdd: () => void
+  onHeaderChange: (index: number, patch: Partial<HeaderRow>) => void
+  onHeaderRemove: (index: number) => void
   onExecute: () => void
   executing?: boolean
 }
 
 export function RequestPanel({
   requestBody,
+  onRequestBodyChange,
+  onResetBody,
+  bodyTouched,
+  schema,
   routeParams,
   routeValues,
   onRouteValueChange,
@@ -30,18 +43,14 @@ export function RequestPanel({
   onQueryAdd,
   onQueryChange,
   onQueryRemove,
+  headers,
+  onHeaderAdd,
+  onHeaderChange,
+  onHeaderRemove,
   onExecute,
   executing = false,
 }: RequestPanelProps) {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.classList.contains('dark'))
-    check()
-    const observer = new MutationObserver(check)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [])
+  const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
 
   return (
     <div className="flex flex-col min-w-0 border-r border-border bg-transparent">
@@ -52,7 +61,14 @@ export function RequestPanel({
             Request
           </h3>
         </div>
-        <Button variant="ghost" size="icon-sm" className="h-6 w-6">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="h-6 w-6"
+          onClick={onResetBody}
+          disabled={!schema || schema.fields.length === 0}
+          title={schema ? 'Regenerate body from schema' : 'No schema'}
+        >
           <RotateCcw className="w-3 h-3 text-muted-foreground" />
         </Button>
       </div>
@@ -71,37 +87,23 @@ export function RequestPanel({
         </TabsList>
 
         <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-2 mb-2">
             <button className="px-2 py-0.5 text-[10.5px] bg-primary/15 text-primary rounded-sm hover:bg-primary/25 transition-colors">
               JSON
             </button>
             <button className="px-2 py-0.5 text-[10.5px] text-muted-foreground hover:bg-accent/60 rounded-sm transition-colors">
               Form
             </button>
+            {schema && schema.fields.length > 0 && (
+              <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
+            )}
           </div>
-          <div className="flex-1 overflow-auto rounded-md border border-border/40 bg-muted/20 p-2">
-            <SyntaxHighlighter
-              language="json"
-              style={isDark ? vscDarkPlus : oneLight}
-              customStyle={{
-                margin: 0,
-                fontSize: '11.5px',
-                background: 'transparent',
-                padding: 0,
-                fontFamily: 'var(--font-mono)',
-              }}
-              codeTagProps={{
-                style: {
-                  background: 'transparent',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '11.5px',
-                },
-              }}
-              showLineNumbers={false}
-              wrapLines
-            >
-              {JSON.stringify(requestBody, null, 2)}
-            </SyntaxHighlighter>
+          <div className="flex-1 min-h-0">
+            <JsonEditor
+              value={requestBody}
+              onChange={onRequestBodyChange}
+              placeholder="{}"
+            />
           </div>
         </TabsContent>
 
@@ -116,8 +118,13 @@ export function RequestPanel({
             onQueryRemove={onQueryRemove}
           />
         </TabsContent>
-        <TabsContent value="headers" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
-          No headers
+        <TabsContent value="headers" className="flex-1 p-3 overflow-auto mt-0">
+          <HeadersEditor
+            headers={headers}
+            onAdd={onHeaderAdd}
+            onChange={onHeaderChange}
+            onRemove={onHeaderRemove}
+          />
         </TabsContent>
         <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
           No cookies
@@ -147,5 +154,34 @@ export function RequestPanel({
         </button>
       </div>
     </div>
+  )
+}
+
+interface SchemaBadgeProps {
+  schema: RequestSchema
+  requiredCount: number
+  touched: boolean
+}
+
+function SchemaBadge({ schema, requiredCount, touched }: SchemaBadgeProps) {
+  const Icon = schema.confidence === 'high' ? FileCheck : Sparkles
+  const tone =
+    schema.confidence === 'high'
+      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+      : 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+  return (
+    <span
+      className={cn(
+        'ml-auto inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border',
+        tone,
+      )}
+      title={`${sourceLabel(schema.source)} · ${schema.confidence} confidence`}
+    >
+      <Icon className="w-3 h-3" />
+      {sourceLabel(schema.source)}
+      <span className="text-muted-foreground/80">·</span>
+      <span>{requiredCount} required</span>
+      {touched && <span className="text-muted-foreground/70 ml-0.5">· edited</span>}
+    </span>
   )
 }

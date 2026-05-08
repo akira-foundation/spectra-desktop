@@ -1,28 +1,17 @@
-import { useState, useEffect } from 'react'
 import { Copy, Download } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { Button } from '@/components/ui/button'
+import { JsonEditor } from './JsonEditor'
 
 interface ResponsePanelProps {
   responseData: any
 }
 
 export function ResponsePanel({ responseData }: ResponsePanelProps) {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.classList.contains('dark'))
-    check()
-    const observer = new MutationObserver(check)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [])
+  const formatted = formatBody(responseData)
 
   return (
-    <div className="flex flex-col min-w-0 bg-transparent">
+    <div className="flex flex-col min-w-0 min-h-0 h-full bg-transparent">
       <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
         <div className="flex items-center gap-1.5">
           <Download className="w-3.5 h-3.5 text-muted-foreground" />
@@ -53,36 +42,15 @@ export function ResponsePanel({ responseData }: ResponsePanelProps) {
           ))}
         </TabsList>
 
-        <TabsContent value="json" className="flex-1 p-3 overflow-auto mt-0">
-          <div className="rounded-md border border-border/40 bg-muted/20 p-2">
-            <SyntaxHighlighter
-              language="json"
-              style={isDark ? vscDarkPlus : oneLight}
-              customStyle={{
-                background: 'transparent',
-                margin: 0,
-                fontSize: '11.5px',
-                padding: 0,
-                fontFamily: 'var(--font-mono)',
-              }}
-              codeTagProps={{
-                style: {
-                  background: 'transparent',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '11.5px',
-                },
-              }}
-              showLineNumbers={false}
-              wrapLines
-            >
-              {JSON.stringify(responseData, null, 2)}
-            </SyntaxHighlighter>
+        <TabsContent value="json" className="flex-1 min-h-0 p-3 overflow-hidden mt-0">
+          <div className="h-full min-h-0 overflow-auto">
+            <JsonEditor value={formatted} onChange={() => undefined} readOnly />
           </div>
         </TabsContent>
 
         <TabsContent value="raw" className="flex-1 p-3 overflow-auto mt-0">
           <pre className="text-[11.5px] text-foreground font-mono whitespace-pre-wrap">
-            {JSON.stringify(responseData, null, 2)}
+            {formatted}
           </pre>
         </TabsContent>
         <TabsContent value="headers" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
@@ -94,4 +62,14 @@ export function ResponsePanel({ responseData }: ResponsePanelProps) {
       </Tabs>
     </div>
   )
+}
+
+function formatBody(data: unknown): string {
+  if (data == null) return ''
+  if (typeof data === 'string') return data
+  try {
+    return JSON.stringify(data, null, 2)
+  } catch {
+    return String(data)
+  }
 }
