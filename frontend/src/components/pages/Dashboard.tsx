@@ -625,12 +625,23 @@ function LatencyCard({ metrics }: { metrics: DashboardMetrics | null }) {
             <span>Min {lat.min}ms</span>
             <span>Max {lat.max}ms</span>
           </div>
+          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+            <span className="text-emerald-500/80">p50</span> typical ·{' '}
+            <span className="text-amber-500/80">p95</span> slow tail ·{' '}
+            <span className="text-rose-500/80">p99</span> worst case
+          </p>
         </div>
       ) : (
         <p className="text-[11.5px] italic text-muted-foreground">No latency data yet.</p>
       )}
     </Card>
   )
+}
+
+const LATENCY_LEGEND: Record<string, string> = {
+  p50: 'Median — half of requests faster',
+  p95: '95% of requests faster',
+  p99: '99% of requests faster (worst-case tail)',
 }
 
 function LatencyStat({ label, value, tone }: { label: string; value: number; tone: 'emerald' | 'amber' | 'rose' }) {
@@ -640,9 +651,15 @@ function LatencyStat({ label, value, tone }: { label: string; value: number; ton
     rose: 'text-rose-500',
   }[tone]
   return (
-    <div className="rounded-md border border-border/40 bg-muted/20 px-2 py-1.5">
+    <div
+      className="rounded-md border border-border/40 bg-muted/20 px-2 py-1.5"
+      title={LATENCY_LEGEND[label]}
+    >
       <p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={cn('text-[14px] font-semibold tabular-nums', toneClass)}>{value}<span className="text-[10px] text-muted-foreground/80 ml-0.5">ms</span></p>
+      <p className={cn('text-[14px] font-semibold tabular-nums', toneClass)}>
+        {value}
+        <span className="text-[10px] text-muted-foreground/80 ml-0.5">ms</span>
+      </p>
     </div>
   )
 }
