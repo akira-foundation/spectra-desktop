@@ -3,17 +3,21 @@ import {
   ScanActiveProject,
   ListEndpoints,
   GetProjectStats,
+  GetProjectStatsReport,
 } from '../../wailsjs/go/app/App'
 import type { core, domain } from '../../wailsjs/go/models'
 
 export type ScannedEndpoint = core.Endpoint
 export type ProjectStats = domain.ProjectStats
+export type StatsReport = core.StatsReport
+export type StatCard = core.StatCard
 
 export interface ScannerService {
   scanProject(projectId: string): Promise<ScannedEndpoint[]>
   scanActive(): Promise<ScannedEndpoint[]>
   listEndpoints(projectId: string): Promise<ScannedEndpoint[]>
   getStats(projectId: string): Promise<ProjectStats>
+  getStatsReport(projectId: string): Promise<StatsReport>
 }
 
 export const scannerService: ScannerService = {
@@ -31,5 +35,8 @@ export const scannerService: ScannerService = {
   },
   async getStats(projectId) {
     return GetProjectStats(projectId)
+  },
+  async getStatsReport(projectId) {
+    return GetProjectStatsReport(projectId)
   },
 }

@@ -1,17 +1,52 @@
+import { useEffect } from 'react'
 import { useProjectStore } from '@/store/projectStore'
-import { Navigation, Code, Database, Cpu, AlertCircle } from 'lucide-react'
+import { useStatsStore } from '@/store/statsStore'
+import {
+  Navigation,
+  Code,
+  Database,
+  Cpu,
+  AlertCircle,
+  FileCheck,
+  Briefcase,
+  Mail,
+  Wrench,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Welcome } from '@/components/pages/Welcome'
+import type { StatCard } from '@/services/scannerService'
+
+const KIND_ICON: Record<string, LucideIcon> = {
+  routes: Navigation,
+  controllers: Code,
+  middleware: Cpu,
+  models: Database,
+  form_requests: FileCheck,
+  jobs: Briefcase,
+  mailers: Mail,
+  services: Wrench,
+  errors: AlertCircle,
+}
 
 export function Dashboard() {
   const activeProjectId = useProjectStore((state) => state.activeProjectId)
   const projects = useProjectStore((state) => state.projects)
   const activeProject = projects.find((p) => p.id === activeProjectId)
+  const loadReport = useStatsStore((s) => s.loadReport)
+  const report = useStatsStore((s) =>
+    activeProjectId ? s.reportByProject[activeProjectId] ?? null : null,
+  )
+
+  useEffect(() => {
+    if (activeProjectId) void loadReport(activeProjectId)
+  }, [activeProjectId, loadReport])
 
   if (!activeProject) {
     return <Welcome />
   }
+
+  const cards = report?.cards ?? []
 
   return (
     <div className="space-y-6 p-6">
@@ -27,13 +62,15 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <Stat icon={Navigation} label="Routes" value={activeProject.stats.routes} />
-        <Stat icon={Database} label="Models" value={activeProject.stats.models} />
-        <Stat icon={Cpu} label="Middleware" value={activeProject.stats.middleware} />
-        <Stat icon={Code} label="Controllers" value={activeProject.stats.controllers} />
-        <Stat icon={AlertCircle} label="Errors" value={activeProject.stats.errors} />
-      </div>
+      {cards.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {cards.map((card) => (
+            <Stat key={card.key} card={card} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-[12px] text-muted-foreground italic">Loading stats…</div>
+      )}
 
       <section className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-3">
         <h2 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -88,21 +125,20 @@ export function Dashboard() {
 }
 
 interface StatProps {
-  icon: LucideIcon
-  label: string
-  value: number
+  card: StatCard
 }
 
-function Stat({ icon: Icon, label, value }: StatProps) {
+function Stat({ card }: StatProps) {
+  const Icon = KIND_ICON[card.kind] ?? Navigation
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3" title={card.hint ?? ''}>
       <div className="flex items-center justify-between">
         <p className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
+          {card.label}
         </p>
         <Icon className="w-3.5 h-3.5 text-primary/70" />
       </div>
-      <p className="text-2xl font-semibold mt-1.5 tabular-nums">{value}</p>
+      <p className="text-2xl font-semibold mt-1.5 tabular-nums">{card.value}</p>
     </div>
   )
 }

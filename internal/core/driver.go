@@ -23,9 +23,17 @@ type DetectionResult struct {
 }
 
 type DriverCapabilities struct {
-	ScanRoutes      bool `json:"scanRoutes"`
-	ScanControllers bool `json:"scanControllers"`
-	ResolveAuth     bool `json:"resolveAuth"`
-	WatchChanges    bool `json:"watchChanges"`
-	RunRequests     bool `json:"runRequests"`
+	ScanRoutes      bool     `json:"scanRoutes"`
+	ScanControllers bool     `json:"scanControllers"`
+	ResolveAuth     bool     `json:"resolveAuth"`
+	WatchChanges    bool     `json:"watchChanges"`
+	RunRequests     bool     `json:"runRequests"`
+	Stats           []string `json:"stats,omitempty"`
+	HasModels       bool     `json:"hasModels,omitempty"`
+	HasControllers  bool     `json:"hasControllers,omitempty"`
+	HasMiddleware   bool     `json:"hasMiddleware,omitempty"`
+	HasFormRequests bool     `json:"hasFormRequests,omitempty"`
+	HasJobs         bool     `json:"hasJobs,omitempty"`
+	HasMailers      bool     `json:"hasMailers,omitempty"`
+	HasServices     bool     `json:"hasServices,omitempty"`
 }

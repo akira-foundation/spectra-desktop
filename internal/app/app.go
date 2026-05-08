@@ -780,6 +780,39 @@ func (a *App) GetProjectStats(projectID string) (domain.ProjectStats, error) {
 	return a.endpoints.Stats(a.ctx, projectID)
 }
 
+func (a *App) GetProjectStatsReport(projectID string) (core.StatsReport, error) {
+	if projectID == "" {
+		return core.StatsReport{}, nil
+	}
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil {
+		return core.StatsReport{}, err
+	}
+	driver, err := a.scanner.ResolveByName(project.Framework)
+	if err != nil {
+		return core.StatsReport{}, nil
+	}
+	cap, ok := driver.(core.StatsCapable)
+	if !ok {
+		return a.fallbackStatsReport(projectID)
+	}
+	return cap.Stats(a.ctx, project.Path)
+}
+
+func (a *App) fallbackStatsReport(projectID string) (core.StatsReport, error) {
+	stats, err := a.endpoints.Stats(a.ctx, projectID)
+	if err != nil {
+		return core.StatsReport{}, err
+	}
+	return core.StatsReport{
+		Cards: []core.StatCard{
+			{Key: "routes", Kind: core.StatRoutes, Label: "Routes", Value: stats.Routes},
+			{Key: "controllers", Kind: core.StatControllers, Label: "Controllers", Value: stats.Controllers},
+			{Key: "middleware", Kind: core.StatMiddleware, Label: "Middleware", Value: stats.Middleware},
+		},
+	}, nil
+}
+
 func (a *App) DetectProject(id string) (core.DetectionResult, error) {
 	project, err := a.projects.GetByID(a.ctx, id)
 	if err != nil {

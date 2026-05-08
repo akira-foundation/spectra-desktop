@@ -95,9 +95,14 @@ func (d *Driver) Defaults() core.DriverDefaults {
 func (d *Driver) Capabilities() core.DriverCapabilities {
 	return core.DriverCapabilities{
 		ScanRoutes:      true,
-		ScanControllers: false,
-		ResolveAuth:     false,
+		ScanControllers: true,
+		ResolveAuth:     true,
 		WatchChanges:    false,
-		RunRequests:     false,
+		RunRequests:     true,
+		Stats:           []string{"routes", "controllers", "middleware", "form_requests", "models"},
+		HasModels:       true,
+		HasControllers:  true,
+		HasMiddleware:   true,
+		HasFormRequests: true,
 	}
 }

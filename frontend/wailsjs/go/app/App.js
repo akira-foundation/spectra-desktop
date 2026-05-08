@@ -38,6 +38,10 @@ export function GetProjectStats(arg1) {
   return window['go']['app']['App']['GetProjectStats'](arg1);
 }
 
+export function GetProjectStatsReport(arg1) {
+  return window['go']['app']['App']['GetProjectStatsReport'](arg1);
+}
+
 export function InspectProject(arg1) {
   return window['go']['app']['App']['InspectProject'](arg1);
 }
