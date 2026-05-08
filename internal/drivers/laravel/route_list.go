@@ -51,9 +51,53 @@ func runArtisanRouteList(ctx context.Context, projectPath string) ([]rawRoute, e
 		return nil, ErrNoRoutes
 	}
 
+	jsonBytes := extractJSONArray(out)
+	if jsonBytes == nil {
+		return nil, fmt.Errorf("%w: no JSON array found in output", ErrInvalidJSON)
+	}
+
 	var routes []rawRoute
-	if err := json.Unmarshal(out, &routes); err != nil {
+	if err := json.Unmarshal(jsonBytes, &routes); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidJSON, err)
 	}
 	return routes, nil
+}
+
+func extractJSONArray(data []byte) []byte {
+	start := bytes.IndexByte(data, '[')
+	if start == -1 {
+		return nil
+	}
+	depth := 0
+	inString := false
+	escape := false
+	for i := start; i < len(data); i++ {
+		c := data[i]
+		if escape {
+			escape = false
+			continue
+		}
+		if inString {
+			if c == '\\' {
+				escape = true
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				return data[start : i+1]
+			}
+		}
+	}
+	return nil
 }
