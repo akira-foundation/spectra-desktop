@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -35,6 +35,26 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
 
   const filtered = useMemo(() => filterEndpoints(endpoints, query), [endpoints, query])
   const expanded = useMemo(() => filtered.map((c) => c.category.toLowerCase()), [filtered])
+  const activeCategory = useMemo(() => {
+    for (const c of filtered) {
+      if (c.items.some((i) => i.active)) return c.category.toLowerCase()
+    }
+    return null
+  }, [filtered])
+  const activeRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+    }
+  }, [activeCategory])
+  const initialOpen = useMemo(() => {
+    if (query) return expanded
+    const seed: string[] = []
+    if (activeCategory) seed.push(activeCategory)
+    const first = filtered[0]?.category.toLowerCase()
+    if (first && !seed.includes(first)) seed.push(first)
+    return seed
+  }, [query, expanded, activeCategory, filtered])
   const totalMatches = useMemo(
     () => filtered.reduce((sum, c) => sum + c.items.length, 0),
     [filtered],
@@ -72,9 +92,9 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
           </p>
         ) : (
           <Accordion
-            key={query}
+            key={`${query}|${activeCategory ?? ''}`}
             type="multiple"
-            defaultValue={query ? expanded : [filtered[0]?.category.toLowerCase()].filter(Boolean) as string[]}
+            defaultValue={initialOpen}
             className="w-full"
           >
             {filtered.map((category, index) => (
@@ -95,6 +115,7 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
                       {category.items.map((endpoint) => (
                         <button
                           key={endpoint.path + endpoint.method + endpoint.name}
+                          ref={endpoint.active ? activeRef : undefined}
                           onClick={() => onSelectEndpoint(endpoint.tag)}
                           className={cn(
                             'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
@@ -27,15 +27,14 @@ import {
   resolveRoutePath,
   type QueryParam,
 } from '@/lib/route-params'
+import type { HeaderRow } from '@/components/api-inspector/HeadersEditor'
 import { BaseURLBar } from '@/components/api-inspector/BaseURLBar'
 import { useRequestRunner } from '@/hooks/useRequestRunner'
-
-const sampleRequestBody = {
-  name: 'Bob Wilson',
-  email: 'user2059@example.com',
-  password: 'password205',
-  password_confirmation: 'password205',
-}
+import {
+  buildExampleBody,
+  parseRequestSchema,
+  type RequestSchema,
+} from '@/lib/request-schema'
 
 export function APIInspector() {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -53,6 +52,14 @@ export function APIInspector() {
 
   const activeAuthMethod = useUIStore((s) => s.activeAuthMethod)
   const setActiveAuthMethod = useUIStore((s) => s.setActiveAuthMethod)
+  const persistedTag = useUIStore((s) =>
+    activeProjectId ? s.selectedEndpointByProject[activeProjectId] ?? null : null,
+  )
+  const setSelectedEndpoint = useUIStore((s) => s.setSelectedEndpoint)
+  const persistedBodies = useUIStore((s) => s.requestBodyByEndpoint)
+  const persistedHeaders = useUIStore((s) => s.requestHeadersByEndpoint)
+  const persistBody = useUIStore((s) => s.setRequestBody)
+  const persistHeaders = useUIStore((s) => s.setRequestHeaders)
 
   const groups = useMemo(() => groupEndpoints(allEndpoints), [allEndpoints])
 
@@ -60,6 +67,9 @@ export function APIInspector() {
   const [routeValues, setRouteValues] = useState<string[]>([])
   const [queryParams, setQueryParams] = useState<QueryParam[]>([])
   const [infoOpen, setInfoOpen] = useState(false)
+  const [requestBody, setRequestBody] = useState<string>('')
+  const [bodyTouched, setBodyTouched] = useState(false)
+  const [headers, setHeaders] = useState<HeaderRow[]>([])
   const runner = useRequestRunner()
 
   useEffect(() => {
@@ -69,7 +79,7 @@ export function APIInspector() {
   }, [activeProjectId, status, load])
 
   useEffect(() => {
-    setSelectedTag(null)
+    setSelectedTag(persistedTag)
     setRouteValues([])
     setQueryParams([])
     runner.reset()
@@ -98,18 +108,51 @@ export function APIInspector() {
     [selected],
   )
 
+  const rawSchema = useMemo(() => {
+    if (!selectedTag) return null
+    return allEndpoints.find((e) => e.id === selectedTag)?.requestSchema ?? null
+  }, [selectedTag, allEndpoints])
+
+  const requestSchema: RequestSchema | null = useMemo(
+    () => parseRequestSchema(rawSchema),
+    [rawSchema],
+  )
+
   useEffect(() => {
     setRouteValues(routeParams.map(() => ''))
     setQueryParams([])
     runner.reset()
-  }, [selectedTag, routeParams.length])
+    if (!selectedTag) {
+      setRequestBody('')
+      setHeaders([])
+      setBodyTouched(false)
+      return
+    }
+    const stored = persistedBodies[selectedTag]
+    if (stored !== undefined) {
+      setRequestBody(stored)
+      setBodyTouched(true)
+    } else {
+      const parsed = parseRequestSchema(rawSchema)
+      if (parsed && parsed.fields.length > 0) {
+        setRequestBody(JSON.stringify(buildExampleBody(parsed.fields), null, 2))
+      } else {
+        setRequestBody('')
+      }
+      setBodyTouched(false)
+    }
+    setHeaders(persistedHeaders[selectedTag] ?? [])
+  }, [selectedTag, rawSchema])
 
   const resolvedPath = useMemo(() => {
     if (!selected) return ''
     return resolveRoutePath(selected.path, routeValues) + buildQueryString(queryParams)
   }, [selected, routeValues, queryParams])
 
-  const handleSelect = (tag: string) => setSelectedTag(tag)
+  const handleSelect = (tag: string) => {
+    setSelectedTag(tag)
+    if (activeProjectId) setSelectedEndpoint(activeProjectId, tag)
+  }
   const handleRetry = () => {
     if (activeProjectId) void scan(activeProjectId)
   }
@@ -125,16 +168,64 @@ export function APIInspector() {
   const handleQueryRemove = (index: number) => {
     setQueryParams((prev) => prev.filter((_, i) => i !== index))
   }
+  const handleHeaderAdd = () => {
+    setHeaders((prev) => {
+      const next = [...prev, { key: '', value: '', enabled: true }]
+      if (selectedTag) persistHeaders(selectedTag, next)
+      return next
+    })
+  }
+  const handleHeaderChange = (index: number, patch: Partial<HeaderRow>) => {
+    setHeaders((prev) => {
+      const next = prev.map((h, i) => (i === index ? { ...h, ...patch } : h))
+      if (selectedTag) persistHeaders(selectedTag, next)
+      return next
+    })
+  }
+  const handleHeaderRemove = (index: number) => {
+    setHeaders((prev) => {
+      const next = prev.filter((_, i) => i !== index)
+      if (selectedTag) persistHeaders(selectedTag, next)
+      return next
+    })
+  }
+  const handleBodyChange = (value: string) => {
+    setRequestBody(value)
+    setBodyTouched(true)
+    if (selectedTag) persistBody(selectedTag, value)
+  }
+
+  const handleResetBody = () => {
+    if (requestSchema && requestSchema.fields.length > 0) {
+      setRequestBody(JSON.stringify(buildExampleBody(requestSchema.fields), null, 2))
+    } else {
+      setRequestBody('')
+    }
+    setBodyTouched(false)
+  }
+
   const handleExecute = () => {
     if (!selected || !activeProjectId) return
+    const headerMap: Record<string, string> = {}
+    for (const h of headers) {
+      if (!h.enabled) continue
+      const k = h.key.trim()
+      if (!k) continue
+      headerMap[k] = h.value
+    }
     void runner.execute({
       projectID: activeProjectId,
       method: selected.method,
       path: resolvedPath,
-      headers: {},
-      body: '',
+      headers: headerMap,
+      body: requestBody,
     })
   }
+
+  const executeRef = useRef(handleExecute)
+  useEffect(() => {
+    executeRef.current = handleExecute
+  })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -142,12 +233,12 @@ export function APIInspector() {
       if ((e.metaKey || e.ctrlKey) && isEnter) {
         e.preventDefault()
         e.stopPropagation()
-        handleExecute()
+        executeRef.current()
       }
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [selected])
+  }, [])
 
   if (status === 'loading' || status === 'scanning') {
     return <CenterPane><ScanLoadingState /></CenterPane>
@@ -181,12 +272,20 @@ export function APIInspector() {
               statusCode={runner.response?.status ?? 0}
               responseTime={runner.response ? `${runner.response.durationMs}ms` : '—'}
               responseSize={runner.response ? formatSize(runner.response.sizeBytes) : '—'}
-              onInfoClick={hasMetadata(selected) ? () => setInfoOpen(true) : undefined}
+              onInfoClick={
+                hasMetadata(selected) || (requestSchema && requestSchema.fields.length > 0)
+                  ? () => setInfoOpen(true)
+                  : undefined
+              }
             />
 
             <div className="flex-1 grid grid-cols-2 overflow-hidden">
               <RequestPanel
-                requestBody={sampleRequestBody}
+                requestBody={requestBody}
+                onRequestBodyChange={handleBodyChange}
+                onResetBody={handleResetBody}
+                bodyTouched={bodyTouched}
+                schema={requestSchema}
                 routeParams={routeParams}
                 routeValues={routeValues}
                 onRouteValueChange={handleRouteValueChange}
@@ -194,6 +293,10 @@ export function APIInspector() {
                 onQueryAdd={handleQueryAdd}
                 onQueryChange={handleQueryChange}
                 onQueryRemove={handleQueryRemove}
+                headers={headers}
+                onHeaderAdd={handleHeaderAdd}
+                onHeaderChange={handleHeaderChange}
+                onHeaderRemove={handleHeaderRemove}
                 onExecute={handleExecute}
                 executing={runner.loading}
               />
@@ -226,6 +329,7 @@ export function APIInspector() {
           controller={selected.controller}
           middleware={selected.middleware}
           authRequired={selected.authRequired}
+          schema={requestSchema}
         />
       )}
     </div>

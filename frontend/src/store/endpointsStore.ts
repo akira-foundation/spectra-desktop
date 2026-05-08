@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { scannerService, type ScannedEndpoint } from '@/services/scannerService'
 
 export type ScanStatus = 'idle' | 'loading' | 'scanning' | 'ready' | 'empty' | 'error'
@@ -21,7 +22,9 @@ interface EndpointsState {
   getError: (projectId: string | null) => ScanError | null
 }
 
-export const useEndpointsStore = create<EndpointsState>((set, get) => ({
+export const useEndpointsStore = create<EndpointsState>()(
+  persist(
+    (set, get) => ({
   byProject: {},
   status: {},
   errors: {},
@@ -94,7 +97,24 @@ export const useEndpointsStore = create<EndpointsState>((set, get) => ({
     if (!projectId) return null
     return get().errors[projectId] ?? null
   },
-}))
+    }),
+    {
+      name: 'spectra:endpoints',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ byProject: state.byProject }),
+      version: 1,
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        const status: Record<string, ScanStatus> = {}
+        for (const id of Object.keys(state.byProject)) {
+          if ((state.byProject[id]?.length ?? 0) > 0) status[id] = 'ready'
+        }
+        state.status = status
+        state.errors = {}
+      },
+    },
+  ),
+)
 
 function toScanError(err: unknown): ScanError {
   const message = err instanceof Error ? err.message : String(err)
