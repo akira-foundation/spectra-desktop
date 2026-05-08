@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { useProjectStore } from '@/store/projectStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
+import { useUIStore } from '@/store/uiStore'
 import type { EnvironmentDTO } from '@/services/environmentService'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,17 @@ export function EnvironmentSwitcher() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editing, setEditing] = useState<EnvironmentDTO | null>(null)
   const [creating, setCreating] = useState(false)
+
+  const editingEnvId = useUIStore((s) => s.editingEnvId)
+  const setEditingEnvId = useUIStore((s) => s.setEditingEnvId)
+  useEffect(() => {
+    if (!editingEnvId) return
+    const env = envs.find((e) => e.id === editingEnvId)
+    if (env) {
+      setEditing(env)
+      setEditingEnvId(null)
+    }
+  }, [editingEnvId, envs, setEditingEnvId])
 
   const active = useMemo(
     () => envs.find((e) => e.id === project?.activeEnvironmentId) ?? null,
@@ -179,6 +191,74 @@ export function EnvironmentSwitcher() {
   )
 }
 
+function applyRename(input: string, from: string, to: string): string {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`\\{\\{\\s*${escaped}\\s*\\}\\}`, 'g')
+  return input.replace(re, `{{${to}}}`)
+}
+
+async function applyRenames(
+  projectId: string,
+  renames: Array<{ from: string; to: string }>,
+  baseUrl: string,
+  updateBaseURL: (id: string, url: string) => Promise<void>,
+) {
+  const { useUIStore } = await import('@/store/uiStore')
+  const ui = useUIStore.getState()
+
+  let nextBase = baseUrl
+  for (const r of renames) {
+    nextBase = applyRename(nextBase, r.from, r.to)
+  }
+  if (nextBase !== baseUrl) {
+    try {
+      await updateBaseURL(projectId, nextBase)
+    } catch (err) {
+      console.error('rename baseUrl failed:', err)
+    }
+  }
+
+  const bodies = { ...ui.requestBodyByEndpoint }
+  let bodiesChanged = false
+  for (const [k, body] of Object.entries(bodies)) {
+    if (!k.startsWith(projectId + '#')) continue
+    let next = body
+    for (const r of renames) {
+      next = applyRename(next, r.from, r.to)
+    }
+    if (next !== body) {
+      bodies[k] = next
+      bodiesChanged = true
+    }
+  }
+
+  const headers = { ...ui.requestHeadersByEndpoint }
+  let headersChanged = false
+  for (const [k, list] of Object.entries(headers)) {
+    if (!k.startsWith(projectId + '#')) continue
+    const nextList = list.map((h) => {
+      let key = h.key
+      let value = h.value
+      for (const r of renames) {
+        key = applyRename(key, r.from, r.to)
+        value = applyRename(value, r.from, r.to)
+      }
+      return { ...h, key, value }
+    })
+    if (nextList.some((h, i) => h.key !== list[i].key || h.value !== list[i].value)) {
+      headers[k] = nextList
+      headersChanged = true
+    }
+  }
+
+  if (bodiesChanged || headersChanged) {
+    useUIStore.setState({
+      requestBodyByEndpoint: bodies,
+      requestHeadersByEndpoint: headers,
+    })
+  }
+}
+
 interface EnvironmentEditorProps {
   open: boolean
   projectId: string
@@ -190,15 +270,21 @@ interface EnvironmentEditorProps {
 
 function EnvironmentEditor({ open, projectId, env, onClose, onSaved, onDelete }: EnvironmentEditorProps) {
   const saveEnv = useEnvironmentStore((s) => s.save)
+  const updateBaseURL = useProjectStore((s) => s.updateBaseURL)
+  const project = useProjectStore((s) => s.projects.find((p) => p.id === projectId))
   const [name, setName] = useState(env?.name ?? '')
-  const [rows, setRows] = useState<Array<{ key: string; value: string }>>([])
+  const [rows, setRows] = useState<Array<{ key: string; value: string; originalKey?: string }>>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setName(env?.name ?? '')
     const entries = Object.entries(env?.vars ?? {})
-    setRows(entries.length > 0 ? entries.map(([key, value]) => ({ key, value })) : [{ key: '', value: '' }])
+    setRows(
+      entries.length > 0
+        ? entries.map(([key, value]) => ({ key, value, originalKey: key }))
+        : [{ key: '', value: '' }],
+    )
   }, [open, env])
 
   const updateRow = (idx: number, patch: Partial<{ key: string; value: string }>) => {
@@ -211,10 +297,14 @@ function EnvironmentEditor({ open, projectId, env, onClose, onSaved, onDelete }:
     const trimmedName = name.trim()
     if (!trimmedName) return
     const vars: Record<string, string> = {}
+    const renames: Array<{ from: string; to: string }> = []
     for (const r of rows) {
       const k = r.key.trim()
       if (!k) continue
       vars[k] = r.value
+      if (r.originalKey && r.originalKey !== k) {
+        renames.push({ from: r.originalKey, to: k })
+      }
     }
     setSaving(true)
     try {
@@ -225,6 +315,9 @@ function EnvironmentEditor({ open, projectId, env, onClose, onSaved, onDelete }:
         vars,
         sortOrder: env?.sortOrder ?? 0,
       })
+      if (renames.length > 0) {
+        await applyRenames(projectId, renames, project?.baseUrl ?? '', updateBaseURL)
+      }
       await onSaved()
       onClose()
     } finally {

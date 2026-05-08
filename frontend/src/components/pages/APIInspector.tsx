@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
 import { useHistoryStore } from '@/store/historyStore'
+import { useEnvironmentStore } from '@/store/environmentStore'
 import { historyService } from '@/services/historyService'
 import toast from 'react-hot-toast'
 import {
@@ -80,6 +81,16 @@ export function APIInspector() {
   )
   const togglePinnedEndpoint = useUIStore((s) => s.togglePinnedEndpoint)
   const setGroupOrder = useUIStore((s) => s.setGroupOrder)
+
+  const project = useProjectStore((s) => s.projects.find((p) => p.id === activeProjectId))
+  const envs = useEnvironmentStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? null : null,
+  )
+  const activeEnv = envs?.find((e) => e.id === project?.activeEnvironmentId) ?? null
+  const variableNames = useMemo<Record<string, string>>(
+    () => activeEnv?.vars ?? {},
+    [activeEnv],
+  )
 
   const groups = useMemo(
     () =>
@@ -175,6 +186,19 @@ export function APIInspector() {
     }
     setHeaders(persistedHeaders[selectedTag] ?? [])
   }, [selectedTag, rawSchema])
+
+  const persistedBodyForSelected = selectedTag ? persistedBodies[selectedTag] : undefined
+  const persistedHeadersForSelected = selectedTag ? persistedHeaders[selectedTag] : undefined
+  useEffect(() => {
+    if (persistedBodyForSelected !== undefined) {
+      setRequestBody(persistedBodyForSelected)
+    }
+  }, [persistedBodyForSelected])
+  useEffect(() => {
+    if (persistedHeadersForSelected !== undefined) {
+      setHeaders(persistedHeadersForSelected)
+    }
+  }, [persistedHeadersForSelected])
 
   const resolvedPath = useMemo(() => {
     if (!selected) return ''
@@ -379,6 +403,7 @@ export function APIInspector() {
                 onResetBody={handleResetBody}
                 bodyTouched={bodyTouched}
                 schema={requestSchema}
+                variables={variableNames}
                 routeParams={routeParams}
                 routeValues={routeValues}
                 onRouteValueChange={handleRouteValueChange}

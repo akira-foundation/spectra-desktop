@@ -28,6 +28,8 @@ interface RequestPanelProps {
   onHeaderRemove: (index: number) => void
   onExecute: () => void
   executing?: boolean
+  variables?: Record<string, string>
+  scope?: string
 }
 
 export function RequestPanel({
@@ -49,6 +51,7 @@ export function RequestPanel({
   onHeaderRemove,
   onExecute,
   executing = false,
+  variables,
 }: RequestPanelProps) {
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
 
@@ -103,6 +106,7 @@ export function RequestPanel({
               value={requestBody}
               onChange={onRequestBodyChange}
               placeholder="{}"
+              variables={variables}
             />
           </div>
         </TabsContent>
@@ -116,6 +120,7 @@ export function RequestPanel({
             onQueryAdd={onQueryAdd}
             onQueryChange={onQueryChange}
             onQueryRemove={onQueryRemove}
+            variables={variables}
           />
         </TabsContent>
         <TabsContent value="headers" className="flex-1 p-3 overflow-auto mt-0">
@@ -124,6 +129,7 @@ export function RequestPanel({
             onAdd={onHeaderAdd}
             onChange={onHeaderChange}
             onRemove={onHeaderRemove}
+            variables={variables}
           />
         </TabsContent>
         <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">

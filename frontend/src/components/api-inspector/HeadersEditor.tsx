@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { VarInput } from './VarInput'
 
 export interface HeaderRow {
   key: string
@@ -12,9 +13,10 @@ interface HeadersEditorProps {
   onAdd: () => void
   onChange: (index: number, patch: Partial<HeaderRow>) => void
   onRemove: (index: number) => void
+  variables?: Record<string, string>
 }
 
-export function HeadersEditor({ headers, onAdd, onChange, onRemove }: HeadersEditorProps) {
+export function HeadersEditor({ headers, onAdd, onChange, onRemove, variables }: HeadersEditorProps) {
   return (
     <div className="space-y-2 min-w-0">
       <div className="flex items-center justify-between">
@@ -49,17 +51,19 @@ export function HeadersEditor({ headers, onAdd, onChange, onRemove }: HeadersEdi
                 className="h-3.5 w-3.5 accent-primary"
                 aria-label="Enable header"
               />
-              <Input
+              <VarInput
                 value={row.key}
-                onChange={(e) => onChange(idx, { key: e.target.value })}
+                onChange={(value) => onChange(idx, { key: value })}
                 placeholder="Header"
                 className="h-7 text-[12px] font-mono"
+                variables={variables}
               />
-              <Input
+              <VarInput
                 value={row.value}
-                onChange={(e) => onChange(idx, { value: e.target.value })}
+                onChange={(value) => onChange(idx, { value })}
                 placeholder="Value"
                 className="h-7 text-[12px] font-mono"
+                variables={variables}
               />
               <button
                 type="button"

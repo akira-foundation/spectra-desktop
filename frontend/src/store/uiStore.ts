@@ -15,6 +15,8 @@ export interface UIState {
   requestHeadersByEndpoint: Record<string, Array<{ key: string; value: string; enabled: boolean }>>
   pinnedEndpointsByProject: Record<string, string[]>
   groupOrderByProject: Record<string, string[]>
+  editingEnvId: string | null
+  setEditingEnvId: (id: string | null) => void
 
   setSelectedEndpoint: (projectId: string, tag: string | null) => void
   togglePinnedEndpoint: (projectId: string, endpointKey: string) => void
@@ -46,6 +48,8 @@ export const useUIStore = create<UIState>()(
       requestHeadersByEndpoint: {},
       pinnedEndpointsByProject: {},
       groupOrderByProject: {},
+      editingEnvId: null,
+      setEditingEnvId: (id) => set({ editingEnvId: id }),
 
       togglePinnedEndpoint: (projectId, endpointKey) =>
         set((state) => {

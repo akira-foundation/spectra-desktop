@@ -111,6 +111,19 @@
     --shadow-2xl: 0px 2px 3px 0px hsl(0 0% 0% / 0.40);
     --tracking-normal: -0.025em;
     --spacing: 0.27rem;
+
+    --var-pill-border: rgba(124, 58, 237, 0.55);
+    --var-pill-name-bg: rgba(124, 58, 237, 0.14);
+    --var-pill-name-fg: rgb(91, 33, 182);
+    --var-pill-name-border: rgba(124, 58, 237, 0.30);
+    --var-pill-value-bg: rgba(217, 119, 6, 0.18);
+    --var-pill-value-fg: rgb(120, 53, 15);
+    --var-pill-unset-border: rgba(225, 29, 72, 0.55);
+    --var-pill-unset-name-bg: rgba(225, 29, 72, 0.14);
+    --var-pill-unset-name-fg: rgb(159, 18, 57);
+    --var-pill-unset-name-border: rgba(225, 29, 72, 0.30);
+    --var-pill-unset-value-bg: rgba(225, 29, 72, 0.10);
+    --var-pill-unset-value-fg: rgb(159, 18, 57);
 }
 
 .dark {
@@ -164,6 +177,19 @@
     --shadow-lg: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 4px 6px -1px hsl(0 0% 0% / 0.16);
     --shadow-xl: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 8px 10px -1px hsl(0 0% 0% / 0.16);
     --shadow-2xl: 0px 2px 3px 0px hsl(0 0% 0% / 0.40);
+
+    --var-pill-border: rgba(168, 85, 247, 0.45);
+    --var-pill-name-bg: rgba(168, 85, 247, 0.20);
+    --var-pill-name-fg: rgb(216, 180, 254);
+    --var-pill-name-border: rgba(168, 85, 247, 0.30);
+    --var-pill-value-bg: rgba(234, 179, 8, 0.18);
+    --var-pill-value-fg: rgb(253, 224, 71);
+    --var-pill-unset-border: rgba(244, 63, 94, 0.45);
+    --var-pill-unset-name-bg: rgba(244, 63, 94, 0.20);
+    --var-pill-unset-name-fg: rgb(252, 165, 165);
+    --var-pill-unset-name-border: rgba(244, 63, 94, 0.30);
+    --var-pill-unset-value-bg: rgba(244, 63, 94, 0.12);
+    --var-pill-unset-value-fg: rgb(252, 165, 165);
 }
 
 @theme inline {

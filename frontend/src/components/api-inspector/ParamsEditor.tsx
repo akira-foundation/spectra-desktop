@@ -2,6 +2,7 @@ import { Plus, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import type { QueryParam } from '@/lib/route-params'
+import { VarInput } from './VarInput'
 
 interface ParamsEditorProps {
   routeParams: string[]
@@ -11,6 +12,7 @@ interface ParamsEditorProps {
   onQueryAdd: () => void
   onQueryChange: (index: number, patch: Partial<QueryParam>) => void
   onQueryRemove: (index: number) => void
+  variables?: Record<string, string>
 }
 
 export function ParamsEditor({
@@ -21,6 +23,7 @@ export function ParamsEditor({
   onQueryAdd,
   onQueryChange,
   onQueryRemove,
+  variables,
 }: ParamsEditorProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 min-w-0">
@@ -32,11 +35,12 @@ export function ParamsEditor({
             {routeParams.map((name, idx) => (
               <RowGrid key={`${name}-${idx}`}>
                 <KeyCell value={name} />
-                <Input
+                <VarInput
                   value={routeValues[idx] ?? ''}
-                  onChange={(e) => onRouteValueChange(idx, e.target.value)}
+                  onChange={(value) => onRouteValueChange(idx, value)}
                   placeholder={`Enter ${name}`}
                   className="h-7 text-[12px]"
+                  variables={variables}
                 />
               </RowGrid>
             ))}
@@ -64,18 +68,20 @@ export function ParamsEditor({
           <div className="space-y-1.5">
             {queryParams.map((row, idx) => (
               <RowGrid key={idx}>
-                <Input
+                <VarInput
                   value={row.key}
-                  onChange={(e) => onQueryChange(idx, { key: e.target.value })}
+                  onChange={(value) => onQueryChange(idx, { key: value })}
                   placeholder="key"
                   className="h-7 text-[12px] font-mono"
+                  variables={variables}
                 />
                 <div className="flex items-center gap-1">
-                  <Input
+                  <VarInput
                     value={row.value}
-                    onChange={(e) => onQueryChange(idx, { value: e.target.value })}
+                    onChange={(value) => onQueryChange(idx, { value })}
                     placeholder="value"
                     className="h-7 text-[12px] font-mono"
+                    variables={variables}
                   />
                   <button
                     type="button"

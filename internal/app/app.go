@@ -661,9 +661,31 @@ func substituteHeaderVars(headers map[string]string, vars map[string]string) map
 	}
 	out := make(map[string]string, len(headers))
 	for k, v := range headers {
-		out[k] = substituteVars(v, vars)
+		resolvedKey := substituteVars(k, vars)
+		if !isValidHeaderName(resolvedKey) {
+			continue
+		}
+		out[resolvedKey] = substituteVars(v, vars)
 	}
 	return out
+}
+
+func isValidHeaderName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		case strings.ContainsRune("!#$%&'*+-.^_`|~", rune(c)):
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func envToDTO(e domain.Environment) EnvironmentDTO {

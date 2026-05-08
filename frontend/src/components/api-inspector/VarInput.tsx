@@ -1,23 +1,58 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import CodeMirror, { EditorView, type ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { json } from '@codemirror/lang-json'
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete'
+import { keymap } from '@codemirror/view'
+import { Prec } from '@codemirror/state'
 import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
 import { useTheme } from '@/hooks/useTheme'
 import { variableDecorations, variableTheme, VAR_PILL_EVENT } from '@/lib/var-decoration'
+import { cn } from '@/lib/utils'
 import { VarPillPopover } from './VarPillPopover'
 
-interface JsonEditorProps {
+interface VarInputProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
   className?: string
-  readOnly?: boolean
+  disabled?: boolean
   variables?: Record<string, string>
   scope?: string
+  onKeyDown?: (e: React.KeyboardEvent) => void
+  onBlur?: (e: React.FocusEvent) => void
 }
 
-export function JsonEditor({ value, onChange, placeholder, className, readOnly, variables, scope }: JsonEditorProps) {
+export const VarInput = forwardRef<HTMLInputElement, VarInputProps>(function VarInput(
+  { value, onChange, placeholder, className, disabled, variables, scope, onKeyDown, onBlur },
+  _ref,
+) {
+  void _ref
+  const cmRef = useRef<ReactCodeMirrorRef>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [popover, setPopover] = useState<{
+    name: string
+    value?: string
+    rect: { left: number; top: number; bottom: number }
+    from: number
+    to: number
+  } | null>(null)
+  const onChangeRef = useRef(onChange)
+  const onKeyDownRef = useRef(onKeyDown)
+  const onBlurRef = useRef(onBlur)
+  const variablesRef = useRef<Record<string, string>>(variables ?? {})
+  const scopeRef = useRef<string>(scope ?? 'env')
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onKeyDownRef.current = onKeyDown
+    onBlurRef.current = onBlur
+  })
+  useEffect(() => {
+    variablesRef.current = variables ?? {}
+  }, [variables])
+  useEffect(() => {
+    scopeRef.current = scope ?? 'env'
+  }, [scope])
+
   const theme = useTheme((s) => s.theme)
   const isDark =
     theme === 'dark' ||
@@ -25,34 +60,28 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-color-scheme: dark)').matches)
 
-  const onChangeRef = useRef(onChange)
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  const cmRef = useRef<ReactCodeMirrorRef>(null)
-  const variablesRef = useRef<Record<string, string>>(variables ?? {})
-  const scopeRef = useRef<string>(scope ?? 'env')
-  useEffect(() => {
-    variablesRef.current = variables ?? {}
-    const view = cmRef.current?.view
-    if (view) {
-      view.dispatch({ effects: [] })
-    }
-  }, [variables])
-  useEffect(() => {
-    scopeRef.current = scope ?? 'env'
-    const view = cmRef.current?.view
-    if (view) view.dispatch({ effects: [] })
-  }, [scope])
-
   const extensions = useMemo(
     () => [
-      json(),
       EditorView.lineWrapping,
+      EditorView.contentAttributes.of({ spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Enter',
+            run: () => {
+              onKeyDownRef.current?.({
+                key: 'Enter',
+                preventDefault: () => {},
+              } as unknown as React.KeyboardEvent)
+              return true
+            },
+          },
+        ]),
+      ),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) {
-          onChangeRef.current(u.state.doc.toString())
+          const text = u.state.doc.toString().replace(/\n/g, '')
+          onChangeRef.current(text)
         }
       }),
       autocompletion({
@@ -87,11 +116,17 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
       }),
       variableDecorations(() => variablesRef.current),
       EditorView.theme({
-        '&': { backgroundColor: 'transparent', height: '100%' },
-        '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
-        '.cm-content': { padding: '8px 4px', fontFamily: 'var(--font-mono)' },
+        '&': { backgroundColor: 'transparent' },
+        '.cm-scroller': { overflow: 'hidden' },
+        '.cm-content': {
+          padding: '5px 8px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '12px',
+          minHeight: '18px',
+          caretColor: 'var(--foreground)',
+        },
+        '.cm-line': { padding: '0' },
         '.cm-focused': { outline: 'none' },
-        '.cm-line': { padding: '0 4px' },
         ...variableTheme,
       }),
     ],
@@ -103,20 +138,9 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
     if (!view) return
     const current = view.state.doc.toString()
     if (current !== value) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-      })
+      view.dispatch({ changes: { from: 0, to: current.length, insert: value } })
     }
   }, [value])
-
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [popover, setPopover] = useState<{
-    name: string
-    value?: string
-    rect: { left: number; top: number; bottom: number }
-    from: number
-    to: number
-  } | null>(null)
 
   useEffect(() => {
     const node = containerRef.current
@@ -159,7 +183,13 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full overflow-auto rounded-md border border-border/40 bg-muted/20 ${className ?? ''}`}
+      className={cn(
+        'w-full rounded-md border border-border/50 bg-input/40 dark:bg-input/30 text-foreground transition-colors outline-none',
+        'hover:border-border focus-within:border-border',
+        disabled && 'opacity-60 pointer-events-none',
+        className,
+      )}
+      onBlur={(e) => onBlurRef.current?.(e)}
     >
       <CodeMirror
         ref={cmRef}
@@ -167,15 +197,25 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
         placeholder={placeholder}
         theme={isDark ? vscodeDark : vscodeLight}
         extensions={extensions}
+        editable={!disabled}
         basicSetup={{
           lineNumbers: false,
           foldGutter: false,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
           autocompletion: true,
+          history: false,
+          drawSelection: true,
+          dropCursor: false,
+          allowMultipleSelections: false,
+          indentOnInput: false,
+          syntaxHighlighting: false,
+          bracketMatching: false,
+          closeBrackets: false,
+          rectangularSelection: false,
+          crosshairCursor: false,
+          highlightSelectionMatches: false,
         }}
-        readOnly={readOnly}
-        style={{ fontSize: '11.5px', height: '100%' }}
       />
       {popover && (
         <VarPillPopover
@@ -189,4 +229,4 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
       )}
     </div>
   )
-}
+})

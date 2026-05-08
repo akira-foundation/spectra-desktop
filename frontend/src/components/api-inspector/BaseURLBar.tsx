@@ -29,6 +29,9 @@ import type { ScannedEndpoint } from "@/services/scannerService";
 import { useHttpMethod } from "@/hooks/useHttpMethod";
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { VarInput } from "./VarInput";
+import { VarText } from "./VarText";
+import { useEnvironmentStore } from "@/store/environmentStore";
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = [];
 
@@ -43,6 +46,11 @@ export function BaseURLBar() {
       ? (s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS)
       : EMPTY_ENDPOINTS,
   );
+  const envs = useEnvironmentStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? null : null,
+  );
+  const activeEnv = envs?.find((e) => e.id === project?.activeEnvironmentId) ?? null;
+  const variableNames = activeEnv?.vars ?? {};
 
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(project?.baseUrl ?? "");
@@ -98,14 +106,15 @@ export function BaseURLBar() {
       </span>
       {editing ? (
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Input
+          <VarInput
             ref={inputRef}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(v)}
             onKeyDown={onKey}
             placeholder="http://localhost:8000"
             className="h-7 text-[12px] font-mono"
             disabled={busy}
+            variables={variableNames}
           />
           <Button
             size="sm"
@@ -133,7 +142,9 @@ export function BaseURLBar() {
           className="flex-1 min-w-0 text-left font-mono text-[12px] text-foreground/85 hover:text-foreground truncate"
           title={project.baseUrl || "Click to set base URL"}
         >
-          {project.baseUrl || (
+          {project.baseUrl ? (
+            <VarText value={project.baseUrl} variables={variableNames} />
+          ) : (
             <span className="text-muted-foreground italic">
               click to set base URL
             </span>
