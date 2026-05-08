@@ -5,13 +5,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light'
+import { ParamsEditor } from './ParamsEditor'
+import type { QueryParam } from '@/lib/route-params'
 
 interface RequestPanelProps {
   requestBody: any
+  routeParams: string[]
+  routeValues: string[]
+  onRouteValueChange: (index: number, value: string) => void
+  queryParams: QueryParam[]
+  onQueryAdd: () => void
+  onQueryChange: (index: number, patch: Partial<QueryParam>) => void
+  onQueryRemove: (index: number) => void
   onExecute: () => void
 }
 
-export function RequestPanel({ requestBody, onExecute }: RequestPanelProps) {
+export function RequestPanel({
+  requestBody,
+  routeParams,
+  routeValues,
+  onRouteValueChange,
+  queryParams,
+  onQueryAdd,
+  onQueryChange,
+  onQueryRemove,
+  onExecute,
+}: RequestPanelProps) {
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
@@ -77,8 +96,16 @@ export function RequestPanel({ requestBody, onExecute }: RequestPanelProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="params" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
-          No parameters
+        <TabsContent value="params" className="flex-1 p-3 overflow-auto mt-0">
+          <ParamsEditor
+            routeParams={routeParams}
+            routeValues={routeValues}
+            onRouteValueChange={onRouteValueChange}
+            queryParams={queryParams}
+            onQueryAdd={onQueryAdd}
+            onQueryChange={onQueryChange}
+            onQueryRemove={onQueryRemove}
+          />
         </TabsContent>
         <TabsContent value="headers" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
           No headers

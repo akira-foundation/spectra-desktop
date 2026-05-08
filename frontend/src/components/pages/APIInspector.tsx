@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import {
   EndpointList,
@@ -10,6 +10,12 @@ import {
 import { EndpointMetadata } from '@/components/api-inspector/EndpointMetadata'
 import { EndpointEmptyState } from '@/components/api-inspector/EndpointEmptyState'
 import { ResponseEmptyState } from '@/components/api-inspector/ResponseEmptyState'
+import {
+  buildQueryString,
+  extractRouteParams,
+  resolveRoutePath,
+  type QueryParam,
+} from '@/lib/route-params'
 
 interface MockEndpoint {
   method: string
@@ -99,6 +105,8 @@ const endpoints: MockCategory[] = [
 export function APIInspector() {
   const [selectedTag, setSelectedTag] = useState<string>('auth.register')
   const [hasResponse, setHasResponse] = useState(true)
+  const [routeValues, setRouteValues] = useState<string[]>([])
+  const [queryParams, setQueryParams] = useState<QueryParam[]>([])
   const activeAuthMethod = useUIStore((state) => state.activeAuthMethod)
   const setActiveAuthMethod = useUIStore((state) => state.setActiveAuthMethod)
 
@@ -135,9 +143,40 @@ export function APIInspector() {
     return null
   }, [selectedTag])
 
+  const routeParams = useMemo(
+    () => (selected ? extractRouteParams(selected.path) : []),
+    [selected],
+  )
+
+  useEffect(() => {
+    setRouteValues(routeParams.map(() => ''))
+    setQueryParams([])
+  }, [selectedTag, routeParams.length])
+
+  const resolvedPath = useMemo(() => {
+    if (!selected) return ''
+    return resolveRoutePath(selected.path, routeValues) + buildQueryString(queryParams)
+  }, [selected, routeValues, queryParams])
+
+  const handleRouteValueChange = (index: number, value: string) => {
+    setRouteValues((prev) => prev.map((v, i) => (i === index ? value : v)))
+  }
+
+  const handleQueryAdd = () => {
+    setQueryParams((prev) => [...prev, { key: '', value: '' }])
+  }
+
+  const handleQueryChange = (index: number, patch: Partial<QueryParam>) => {
+    setQueryParams((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)))
+  }
+
+  const handleQueryRemove = (index: number) => {
+    setQueryParams((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleExecute = () => {
     setHasResponse(true)
-    console.log('Execute request')
+    console.log('Execute request', resolvedPath)
   }
 
   return (
@@ -156,7 +195,7 @@ export function APIInspector() {
           <>
             <EndpointHeader
               method={selected.method}
-              path={selected.path}
+              path={resolvedPath}
               statusCode={hasResponse ? 201 : 0}
               responseTime={hasResponse ? '260ms' : '—'}
               responseSize={hasResponse ? '0.16KB' : '—'}
@@ -171,7 +210,17 @@ export function APIInspector() {
             />
 
             <div className="flex-1 grid grid-cols-2 overflow-hidden">
-              <RequestPanel requestBody={requestBody} onExecute={handleExecute} />
+              <RequestPanel
+                requestBody={requestBody}
+                routeParams={routeParams}
+                routeValues={routeValues}
+                onRouteValueChange={handleRouteValueChange}
+                queryParams={queryParams}
+                onQueryAdd={handleQueryAdd}
+                onQueryChange={handleQueryChange}
+                onQueryRemove={handleQueryRemove}
+                onExecute={handleExecute}
+              />
               {hasResponse ? (
                 <ResponsePanel responseData={responseData} />
               ) : (
