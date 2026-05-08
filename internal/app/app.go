@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +43,8 @@ type App struct {
 	envs      domain.EnvironmentRepository
 	snapshots domain.SnapshotRepository
 	tests     domain.TestRepository
+	captures  domain.CaptureRepository
+	captured  *capturedStore
 	metrics   *repository.MetricsRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
@@ -72,6 +75,8 @@ func New() (*App, error) {
 		envs:      repository.NewEnvironmentRepository(store.DB),
 		snapshots: repository.NewSnapshotRepository(store.DB),
 		tests:     repository.NewTestRepository(store.DB),
+		captures:  repository.NewCaptureRepository(store.DB),
+		captured:  newCapturedStore(),
 		metrics:   repository.NewMetricsRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
@@ -433,6 +438,7 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	var testResults []assertions.Result
 	if input.ProjectID != "" && resp != nil && sendErr == nil {
 		testResults = a.runTestsForRequest(input, resp)
+		a.runCapturesForRequest(input, resp)
 	}
 
 	if input.ProjectID != "" {
@@ -657,18 +663,24 @@ func (a *App) SetActiveEnvironment(projectID, envID string) error {
 }
 
 func (a *App) resolveEnvVars(projectID string) map[string]string {
+	out := map[string]string{}
 	if projectID == "" {
-		return map[string]string{}
+		return out
 	}
 	project, err := a.projects.GetByID(a.ctx, projectID)
-	if err != nil || project == nil || project.ActiveEnvironmentID == "" {
-		return map[string]string{}
+	if err == nil && project != nil && project.ActiveEnvironmentID != "" {
+		if env, err := a.envs.GetByID(a.ctx, project.ActiveEnvironmentID); err == nil && env != nil {
+			for k, v := range env.Vars {
+				out[k] = v
+			}
+		}
 	}
-	env, err := a.envs.GetByID(a.ctx, project.ActiveEnvironmentID)
-	if err != nil || env == nil {
-		return map[string]string{}
+	if a.captured != nil {
+		for k, v := range a.captured.values(projectID) {
+			out[k] = v
+		}
 	}
-	return env.Vars
+	return out
 }
 
 var varPattern = regexp.MustCompile(`\{\{\s*([A-Za-z0-9_.\-]+)\s*\}\}`)
@@ -1488,6 +1500,192 @@ func (a *App) SaveEndpointTests(input SaveTestsInput) error {
 		})
 	}
 	return a.tests.Replace(a.ctx, input.ProjectID, input.EndpointKey, tests)
+}
+
+type EndpointCaptureDTO struct {
+	ID     string `json:"id,omitempty"`
+	Name   string `json:"name"`
+	Source string `json:"source"`
+	Path   string `json:"path"`
+}
+
+type SaveCapturesInput struct {
+	ProjectID   string               `json:"projectID"`
+	EndpointKey string               `json:"endpointKey"`
+	Captures    []EndpointCaptureDTO `json:"captures"`
+}
+
+type CapturedValueDTO struct {
+	Name           string `json:"name"`
+	Value          string `json:"value"`
+	EndpointKey    string `json:"endpointKey,omitempty"`
+	CapturedAt     int64  `json:"capturedAt,omitempty"`
+}
+
+func (a *App) ListEndpointCaptures(projectID, endpointKey string) ([]EndpointCaptureDTO, error) {
+	if projectID == "" || endpointKey == "" {
+		return []EndpointCaptureDTO{}, nil
+	}
+	rows, err := a.captures.List(a.ctx, projectID, endpointKey)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]EndpointCaptureDTO, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, EndpointCaptureDTO{
+			ID:     r.ID,
+			Name:   r.Name,
+			Source: r.Source,
+			Path:   r.Path,
+		})
+	}
+	return out, nil
+}
+
+func (a *App) SaveEndpointCaptures(input SaveCapturesInput) error {
+	if input.ProjectID == "" || input.EndpointKey == "" {
+		return fmt.Errorf("project id and endpoint key required")
+	}
+	captures := make([]domain.EndpointCapture, 0, len(input.Captures))
+	for i, c := range input.Captures {
+		captures = append(captures, domain.EndpointCapture{
+			ID:        c.ID,
+			Name:      c.Name,
+			Source:    c.Source,
+			Path:      c.Path,
+			SortOrder: i,
+		})
+	}
+	return a.captures.Replace(a.ctx, input.ProjectID, input.EndpointKey, captures)
+}
+
+func (a *App) ListCapturedValues(projectID string) []CapturedValueDTO {
+	if projectID == "" || a.captured == nil {
+		return []CapturedValueDTO{}
+	}
+	return a.captured.list(projectID)
+}
+
+func (a *App) ClearCapturedValues(projectID string) {
+	if projectID == "" || a.captured == nil {
+		return
+	}
+	a.captured.clear(projectID)
+}
+
+func (a *App) runCapturesForRequest(input ExecuteRequestInput, resp *httpclient.Response) {
+	if input.ProjectID == "" || a.captured == nil {
+		return
+	}
+	key := endpointTestKey(input.Method, input.Path)
+	rows, err := a.captures.List(a.ctx, input.ProjectID, key)
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	var bodyValue any
+	if resp != nil && resp.Body != "" {
+		_ = json.Unmarshal([]byte(resp.Body), &bodyValue)
+	}
+	headers := toHTTPHeader(resp.Headers)
+	for _, c := range rows {
+		if c.Name == "" {
+			continue
+		}
+		val, ok := extractCaptureValue(c.Source, c.Path, bodyValue, headers)
+		if !ok {
+			continue
+		}
+		a.captured.set(input.ProjectID, c.Name, val, key)
+	}
+}
+
+func extractCaptureValue(source, path string, body any, headers http.Header) (string, bool) {
+	switch source {
+	case "header":
+		if v := headers.Get(path); v != "" {
+			return v, true
+		}
+		return "", false
+	case "body", "":
+		v, ok := lookupJSONPath(body, path)
+		if !ok {
+			return "", false
+		}
+		return formatCapturedValue(v), true
+	}
+	return "", false
+}
+
+func formatCapturedValue(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case nil:
+		return ""
+	default:
+		buf, err := json.Marshal(x)
+		if err != nil {
+			return fmt.Sprintf("%v", x)
+		}
+		return string(buf)
+	}
+}
+
+func lookupJSONPath(root any, path string) (any, bool) {
+	path = strings.TrimSpace(path)
+	if path == "" || path == "$" {
+		return root, true
+	}
+	path = strings.TrimPrefix(path, "$")
+	path = strings.TrimPrefix(path, ".")
+	cur := root
+	tokens := splitJSONPath(path)
+	for _, p := range tokens {
+		switch v := cur.(type) {
+		case map[string]any:
+			next, ok := v[p]
+			if !ok {
+				return nil, false
+			}
+			cur = next
+		case []any:
+			idx, err := strconv.Atoi(p)
+			if err != nil || idx < 0 || idx >= len(v) {
+				return nil, false
+			}
+			cur = v[idx]
+		default:
+			return nil, false
+		}
+	}
+	return cur, true
+}
+
+func splitJSONPath(path string) []string {
+	if path == "" {
+		return nil
+	}
+	out := []string{}
+	cur := []byte{}
+	flush := func() {
+		if len(cur) > 0 {
+			out = append(out, strings.Trim(string(cur), `"'`))
+			cur = cur[:0]
+		}
+	}
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		switch c {
+		case '.', '[':
+			flush()
+		case ']':
+			flush()
+		default:
+			cur = append(cur, c)
+		}
+	}
+	flush()
+	return out
 }
 
 func envToDTO(e domain.Environment) EnvironmentDTO {

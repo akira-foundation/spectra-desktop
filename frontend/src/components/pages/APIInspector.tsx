@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useHistoryStore } from '@/store/historyStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
 import { historyService } from '@/services/historyService'
+import { capturesService, type CapturedValue } from '@/services/capturesService'
 import toast from 'react-hot-toast'
 import {
   EndpointList,
@@ -89,9 +90,14 @@ export function APIInspector() {
     activeProjectId ? s.byProject[activeProjectId] ?? null : null,
   )
   const activeEnv = envs?.find((e) => e.id === project?.activeEnvironmentId) ?? null
+  const [capturedValues, setCapturedValues] = useState<CapturedValue[]>([])
   const variableNames = useMemo<Record<string, string>>(
-    () => activeEnv?.vars ?? {},
-    [activeEnv],
+    () => {
+      const merged: Record<string, string> = { ...(activeEnv?.vars ?? {}) }
+      for (const c of capturedValues) merged[c.name] = c.value
+      return merged
+    },
+    [activeEnv, capturedValues],
   )
 
   const groups = useMemo(
@@ -130,6 +136,10 @@ export function APIInspector() {
     setRouteValues([])
     setQueryParams([])
     runner.reset()
+    setCapturedValues([])
+    if (activeProjectId) {
+      void capturesService.listValues(activeProjectId).then(setCapturedValues).catch(() => {})
+    }
   }, [activeProjectId])
 
   const decoratedGroups = useMemo(
@@ -368,6 +378,10 @@ export function APIInspector() {
             setLastTestResults(detail?.testResults ?? [])
           } catch {}
         }
+        try {
+          const vals = await capturesService.listValues(activeProjectId)
+          setCapturedValues(vals)
+        } catch {}
       })
   }
 
@@ -482,6 +496,7 @@ export function APIInspector() {
                 }
                 autoAuth={authState ? { scheme: authState.scheme, tokenPreview: authState.tokenPreview } : null}
                 onOpenAuth={() => setAuthDrawerOpen(true)}
+                capturedValues={capturedValues}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}

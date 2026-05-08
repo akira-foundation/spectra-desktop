@@ -24,6 +24,24 @@ export namespace app {
 	        this.logoutRoute = source["logoutRoute"];
 	    }
 	}
+	export class CapturedValueDTO {
+	    name: string;
+	    value: string;
+	    endpointKey?: string;
+	    capturedAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CapturedValueDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.value = source["value"];
+	        this.endpointKey = source["endpointKey"];
+	        this.capturedAt = source["capturedAt"];
+	    }
+	}
 	export class EndpointMetricDTO {
 	    endpointID: string;
 	    method: string;
@@ -143,6 +161,24 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class EndpointCaptureDTO {
+	    id?: string;
+	    name: string;
+	    source: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointCaptureDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.source = source["source"];
+	        this.path = source["path"];
+	    }
 	}
 	
 	export class EndpointTestDTO {
@@ -483,6 +519,40 @@ export namespace app {
 		}
 	}
 	
+	export class SaveCapturesInput {
+	    projectID: string;
+	    endpointKey: string;
+	    captures: EndpointCaptureDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveCapturesInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
+	        this.endpointKey = source["endpointKey"];
+	        this.captures = this.convertValues(source["captures"], EndpointCaptureDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SaveEnvironmentInput {
 	    id?: string;
 	    projectID: string;

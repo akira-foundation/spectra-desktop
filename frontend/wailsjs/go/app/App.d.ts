@@ -6,6 +6,8 @@ import {httpclient} from '../models';
 import {domain} from '../models';
 import {workspace} from '../models';
 
+export function ClearCapturedValues(arg1:string):Promise<void>;
+
 export function ClearHistory(arg1:string):Promise<void>;
 
 export function ClearProjectAuth(arg1:string):Promise<void>;
@@ -40,6 +42,10 @@ export function GetSnapshotDiff(arg1:string):Promise<app.SnapshotDiff>;
 
 export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
+export function ListCapturedValues(arg1:string):Promise<Array<app.CapturedValueDTO>>;
+
+export function ListEndpointCaptures(arg1:string,arg2:string):Promise<Array<app.EndpointCaptureDTO>>;
+
 export function ListEndpointTests(arg1:string,arg2:string):Promise<Array<app.EndpointTestDTO>>;
 
 export function ListEndpoints(arg1:string):Promise<Array<core.Endpoint>>;
@@ -61,6 +67,8 @@ export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<ap
 export function RegenerateBodyValues(arg1:app.RegenerateBodyInput):Promise<string>;
 
 export function RegenerateExampleBody(arg1:string):Promise<string>;
+
+export function SaveEndpointCaptures(arg1:app.SaveCapturesInput):Promise<void>;
 
 export function SaveEndpointTests(arg1:app.SaveTestsInput):Promise<void>;
 
