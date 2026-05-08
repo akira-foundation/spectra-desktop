@@ -24,6 +24,127 @@ export namespace app {
 	        this.logoutRoute = source["logoutRoute"];
 	    }
 	}
+	export class EndpointMetricDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    count: number;
+	    errors: number;
+	    avgMs: number;
+	    errorRate: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointMetricDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.count = source["count"];
+	        this.errors = source["errors"];
+	        this.avgMs = source["avgMs"];
+	        this.errorRate = source["errorRate"];
+	    }
+	}
+	export class VolumePoint {
+	    day: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VolumePoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.day = source["day"];
+	        this.count = source["count"];
+	    }
+	}
+	export class LatencyDTO {
+	    count: number;
+	    avg: number;
+	    min: number;
+	    max: number;
+	    p50: number;
+	    p95: number;
+	    p99: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LatencyDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.count = source["count"];
+	        this.avg = source["avg"];
+	        this.min = source["min"];
+	        this.max = source["max"];
+	        this.p50 = source["p50"];
+	        this.p95 = source["p95"];
+	        this.p99 = source["p99"];
+	    }
+	}
+	export class StatusBucketDTO {
+	    bucket: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StatusBucketDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.count = source["count"];
+	    }
+	}
+	export class DashboardMetrics {
+	    statusBuckets: StatusBucketDTO[];
+	    latency: LatencyDTO;
+	    volume: VolumePoint[];
+	    totalRuns: number;
+	    errorRate: number;
+	    topSlow: EndpointMetricDTO[];
+	    topFailing: EndpointMetricDTO[];
+	    topUsed: EndpointMetricDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DashboardMetrics(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.statusBuckets = this.convertValues(source["statusBuckets"], StatusBucketDTO);
+	        this.latency = this.convertValues(source["latency"], LatencyDTO);
+	        this.volume = this.convertValues(source["volume"], VolumePoint);
+	        this.totalRuns = source["totalRuns"];
+	        this.errorRate = source["errorRate"];
+	        this.topSlow = this.convertValues(source["topSlow"], EndpointMetricDTO);
+	        this.topFailing = this.convertValues(source["topFailing"], EndpointMetricDTO);
+	        this.topUsed = this.convertValues(source["topUsed"], EndpointMetricDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class EnvironmentDTO {
 	    id: string;
 	    projectID: string;
@@ -174,6 +295,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	export class ProjectAuthState {
 	    projectID: string;
 	    scheme: string;
@@ -460,6 +582,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 
 }
 

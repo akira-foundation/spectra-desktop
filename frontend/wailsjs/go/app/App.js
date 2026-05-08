@@ -42,6 +42,10 @@ export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
 
+export function GetDashboardMetrics(arg1) {
+  return window['go']['app']['App']['GetDashboardMetrics'](arg1);
+}
+
 export function GetHistoryEntry(arg1) {
   return window['go']['app']['App']['GetHistoryEntry'](arg1);
 }

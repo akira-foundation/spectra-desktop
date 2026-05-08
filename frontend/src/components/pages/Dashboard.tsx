@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, Tooltip as RechartsTooltip, XAxis } from 'recharts'
+import { metricsService, type DashboardMetrics, type EndpointMetricDTO } from '@/services/metricsService'
 import { useProjectStore } from '@/store/projectStore'
 import { useStatsStore } from '@/store/statsStore'
 import { useAuthStore } from '@/store/authStore'
@@ -26,6 +28,11 @@ import {
   Plus,
   Minus,
   Pencil,
+  Activity,
+  Timer,
+  AlertTriangle,
+  Zap,
+  TrendingUp,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Welcome } from '@/components/pages/Welcome'
@@ -86,6 +93,8 @@ export function Dashboard() {
   )
   const setSelectedEndpoint = useUIStore((s) => s.setSelectedEndpoint)
 
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+
   useEffect(() => {
     if (!activeProjectId) return
     void loadReport(activeProjectId)
@@ -93,6 +102,7 @@ export function Dashboard() {
     void loadEnvs(activeProjectId)
     void loadHistory(activeProjectId)
     void loadSnapshots(activeProjectId)
+    void metricsService.get(activeProjectId).then((m) => setMetrics(m))
   }, [activeProjectId, loadReport, loadAuth, loadEnvs, loadHistory, loadSnapshots])
 
   const pinnedEndpoints = useMemo(() => {
@@ -133,6 +143,36 @@ export function Dashboard() {
         {cards.length > 0
           ? cards.map((card) => <Stat key={card.key} card={card} />)
           : Array.from({ length: 5 }).map((_, i) => <StatSkeleton key={i} />)}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <StatusCard metrics={metrics} />
+        <LatencyCard metrics={metrics} />
+        <VolumeCard metrics={metrics} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <EndpointTopCard
+          title="Slowest"
+          icon={Timer}
+          entries={metrics?.topSlow ?? []}
+          metric="ms"
+          onOpen={(id) => goToInspector(id)}
+        />
+        <EndpointTopCard
+          title="Failing"
+          icon={AlertTriangle}
+          entries={metrics?.topFailing ?? []}
+          metric="errorRate"
+          onOpen={(id) => goToInspector(id)}
+        />
+        <EndpointTopCard
+          title="Most used"
+          icon={Zap}
+          entries={metrics?.topUsed ?? []}
+          metric="count"
+          onOpen={(id) => goToInspector(id)}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -500,4 +540,201 @@ function formatDate(date: Date): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  '2xx': '#10b981',
+  '3xx': '#3b82f6',
+  '4xx': '#f59e0b',
+  '5xx': '#ef4444',
+  err: '#ef4444',
+}
+
+function StatusCard({ metrics }: { metrics: DashboardMetrics | null }) {
+  const buckets = (metrics?.statusBuckets ?? []).filter((b) => b.count > 0)
+  const total = buckets.reduce((sum, b) => sum + b.count, 0)
+  const errorRate = metrics ? metrics.errorRate * 100 : 0
+  return (
+    <Card title="Response status" icon={Activity}>
+      {total === 0 ? (
+        <p className="text-[11.5px] italic text-muted-foreground">No requests yet.</p>
+      ) : (
+        <div className="flex items-center gap-3">
+          <div className="w-24 h-24 shrink-0 relative">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={buckets}
+                  dataKey="count"
+                  innerRadius={28}
+                  outerRadius={42}
+                  paddingAngle={2}
+                  stroke="none"
+                >
+                  {buckets.map((b) => (
+                    <Cell key={b.bucket} fill={STATUS_COLORS[b.bucket] ?? '#6b7280'} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[14px] font-semibold tabular-nums">{total}</span>
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">runs</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-1">
+            {buckets.map((b) => (
+              <div key={b.bucket} className="flex items-center gap-2 text-[11px]">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: STATUS_COLORS[b.bucket] ?? '#6b7280' }}
+                />
+                <span className="font-mono uppercase">{b.bucket}</span>
+                <span className="ml-auto tabular-nums text-muted-foreground">{b.count}</span>
+              </div>
+            ))}
+            <div className="pt-1 mt-1 border-t border-border/40 flex items-center justify-between text-[10.5px]">
+              <span className="text-muted-foreground">Error rate</span>
+              <span className={cn('font-mono tabular-nums', errorRate > 10 ? 'text-rose-500' : errorRate > 0 ? 'text-amber-500' : 'text-emerald-500')}>
+                {errorRate.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function LatencyCard({ metrics }: { metrics: DashboardMetrics | null }) {
+  const lat = metrics?.latency
+  const has = lat && lat.count > 0
+  return (
+    <Card title="Latency" icon={Timer}>
+      {has ? (
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <LatencyStat label="p50" value={lat.p50} tone="emerald" />
+            <LatencyStat label="p95" value={lat.p95} tone="amber" />
+            <LatencyStat label="p99" value={lat.p99} tone="rose" />
+          </div>
+          <div className="flex items-center justify-between text-[10.5px] text-muted-foreground pt-1 border-t border-border/40">
+            <span>Avg {lat.avg}ms</span>
+            <span>Min {lat.min}ms</span>
+            <span>Max {lat.max}ms</span>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11.5px] italic text-muted-foreground">No latency data yet.</p>
+      )}
+    </Card>
+  )
+}
+
+function LatencyStat({ label, value, tone }: { label: string; value: number; tone: 'emerald' | 'amber' | 'rose' }) {
+  const toneClass = {
+    emerald: 'text-emerald-500',
+    amber: 'text-amber-500',
+    rose: 'text-rose-500',
+  }[tone]
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 px-2 py-1.5">
+      <p className="text-[9.5px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={cn('text-[14px] font-semibold tabular-nums', toneClass)}>{value}<span className="text-[10px] text-muted-foreground/80 ml-0.5">ms</span></p>
+    </div>
+  )
+}
+
+function VolumeCard({ metrics }: { metrics: DashboardMetrics | null }) {
+  const volume = metrics?.volume ?? []
+  const total = volume.reduce((s, v) => s + v.count, 0)
+  return (
+    <Card title="Volume · 7d" icon={TrendingUp}>
+      {total === 0 ? (
+        <p className="text-[11.5px] italic text-muted-foreground">No requests in last 7 days.</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[20px] font-semibold tabular-nums">{total}</span>
+            <span className="text-[10.5px] text-muted-foreground">total runs</span>
+          </div>
+          <div className="h-16">
+            <ResponsiveContainer>
+              <AreaChart data={volume} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <RechartsTooltip
+                  contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', fontSize: '11px', borderRadius: 4, padding: '4px 8px' }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}
+                  formatter={(v) => [`${v} runs`, '']}
+                />
+                <XAxis dataKey="day" hide />
+                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={1.5} fill="url(#volumeGradient)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+interface EndpointTopCardProps {
+  title: string
+  icon: LucideIcon
+  entries: EndpointMetricDTO[]
+  metric: 'ms' | 'count' | 'errorRate'
+  onOpen: (id: string) => void
+}
+
+function EndpointTopCard({ title, icon, entries, metric, onOpen }: EndpointTopCardProps) {
+  const { getMethodColor } = useHttpMethod()
+  const formatMetric = (e: EndpointMetricDTO) => {
+    switch (metric) {
+      case 'ms':
+        return `${e.avgMs}ms`
+      case 'count':
+        return `${e.count}`
+      case 'errorRate':
+        return `${(e.errorRate * 100).toFixed(0)}%`
+    }
+  }
+  return (
+    <Card title={title} icon={icon}>
+      {entries.length === 0 ? (
+        <p className="text-[11.5px] italic text-muted-foreground">No data yet.</p>
+      ) : (
+        <ul className="space-y-px">
+          {entries.map((e) => (
+            <li key={e.endpointID}>
+              <button
+                type="button"
+                onClick={() => onOpen(e.endpointID)}
+                className="w-full flex items-center gap-2 px-1 py-1 rounded hover:bg-accent/40 transition-colors"
+              >
+                <span
+                  className={cn(
+                    'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
+                    getMethodColor(e.method),
+                  )}
+                >
+                  {e.method}
+                </span>
+                <span className="text-[11.5px] font-mono truncate flex-1 text-left text-foreground/85">
+                  {e.path}
+                </span>
+                <span className="text-[10.5px] font-mono tabular-nums text-foreground/85 shrink-0">
+                  {formatMetric(e)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
 }
