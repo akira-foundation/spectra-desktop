@@ -48,6 +48,8 @@ export function AddProject() {
       path: projectData.path,
       framework: projectData.framework,
       frameworkVersion: projectData.frameworkVersion,
+      apiFilterMode: 'auto',
+      apiFilterValue: '',
     })
     setCurrentStep('success')
   }

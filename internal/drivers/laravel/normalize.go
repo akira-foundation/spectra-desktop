@@ -2,6 +2,7 @@ package laravel
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"spectra-desktop/internal/core"
@@ -11,6 +12,7 @@ const driverConfidence = 0.95
 
 func normalize(raws []rawRoute) []core.Endpoint {
 	endpoints := make([]core.Endpoint, 0, len(raws))
+	seen := make(map[string]int)
 	for _, raw := range raws {
 		methods := splitMethods(raw.Method)
 		path := normalizePath(raw.URI)
@@ -19,8 +21,19 @@ func normalize(raws []rawRoute) []core.Endpoint {
 		name := strings.TrimSpace(raw.Name)
 
 		for _, method := range methods {
+			key := method + ":" + path
+			id := key
+			if name != "" {
+				id = key + "#" + name
+			}
+			if count, ok := seen[id]; ok {
+				seen[id] = count + 1
+				id = id + "@" + strconv.Itoa(count+1)
+			} else {
+				seen[id] = 1
+			}
 			endpoints = append(endpoints, core.Endpoint{
-				ID:         method + ":" + path,
+				ID:         id,
 				Method:     core.HTTPMethod(method),
 				Path:       path,
 				Name:       name,

@@ -69,10 +69,14 @@ func (r *ProjectRepository) Save(ctx context.Context, input domain.ProjectInput)
 		return nil, err
 	}
 
+	mode, value := normalizeAPIFilter(input.APIFilterMode, input.APIFilterValue)
+
 	if existing != nil {
 		existing.Name = strings.TrimSpace(input.Name)
 		existing.Framework = input.Framework
 		existing.FrameworkVersion = input.FrameworkVersion
+		existing.APIFilterMode = mode
+		existing.APIFilterValue = value
 		existing.UpdatedAt = now
 
 		row := model.FromDomain(*existing)
@@ -94,6 +98,8 @@ func (r *ProjectRepository) Save(ctx context.Context, input domain.ProjectInput)
 		Framework:        input.Framework,
 		FrameworkVersion: input.FrameworkVersion,
 		Status:           string(domain.ProjectStatusDisconnected),
+		APIFilterMode:    mode,
+		APIFilterValue:   value,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -159,4 +165,19 @@ func (r *ProjectRepository) MarkSynced(ctx context.Context, id string) error {
 		return domain.ErrProjectNotFound
 	}
 	return nil
+}
+
+func normalizeAPIFilter(mode, value string) (string, string) {
+	mode = strings.TrimSpace(strings.ToLower(mode))
+	value = strings.TrimSpace(value)
+	switch mode {
+	case domain.APIFilterModeMiddleware, domain.APIFilterModePrefix, domain.APIFilterModeAll:
+		// ok
+	default:
+		mode = domain.APIFilterModeAuto
+	}
+	if mode == domain.APIFilterModeAll {
+		value = ""
+	}
+	return mode, value
 }

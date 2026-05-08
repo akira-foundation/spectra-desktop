@@ -11,6 +11,13 @@ const (
 	ProjectStatusError        ProjectStatus = "error"
 )
 
+const (
+	APIFilterModeAuto       = "auto"
+	APIFilterModeMiddleware = "middleware"
+	APIFilterModePrefix     = "prefix"
+	APIFilterModeAll        = "all"
+)
+
 type Project struct {
 	ID               string        `json:"id"`
 	Name             string        `json:"name"`
@@ -18,6 +25,8 @@ type Project struct {
 	Framework        string        `json:"framework"`
 	FrameworkVersion string        `json:"frameworkVersion"`
 	Status           ProjectStatus `json:"status"`
+	APIFilterMode    string        `json:"apiFilterMode"`
+	APIFilterValue   string        `json:"apiFilterValue"`
 	CreatedAt        time.Time     `json:"createdAt"`
 	UpdatedAt        time.Time     `json:"updatedAt"`
 	LastSyncedAt     *time.Time    `json:"lastSyncedAt,omitempty"`
@@ -29,4 +38,6 @@ type ProjectInput struct {
 	Path             string `json:"path"`
 	Framework        string `json:"framework"`
 	FrameworkVersion string `json:"frameworkVersion"`
+	APIFilterMode    string `json:"apiFilterMode"`
+	APIFilterValue   string `json:"apiFilterValue"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -52,7 +53,8 @@ func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endp
 			return nil
 		}
 		rows := make([]model.Endpoint, 0, len(endpoints))
-		for _, ep := range endpoints {
+		for i, ep := range endpoints {
+			ep.ID = projectID + "#" + strconv.Itoa(i)
 			rows = append(rows, model.EndpointFromCore(projectID, ep, now, now))
 		}
 		_, err := tx.NewInsert().Model(&rows).Exec(ctx)

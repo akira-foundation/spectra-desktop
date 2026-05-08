@@ -46,6 +46,10 @@ export function OpenProject(arg1) {
   return window['go']['app']['App']['OpenProject'](arg1);
 }
 
+export function PreviewAPIRoutes(arg1, arg2, arg3) {
+  return window['go']['app']['App']['PreviewAPIRoutes'](arg1, arg2, arg3);
+}
+
 export function SaveProject(arg1) {
   return window['go']['app']['App']['SaveProject'](arg1);
 }

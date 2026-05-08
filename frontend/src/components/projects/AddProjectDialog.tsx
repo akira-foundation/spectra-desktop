@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, FolderSearch, Loader2, AlertTriangle } from 'lucide-react'
+import { FolderOpen, FolderSearch, Loader2, AlertTriangle, Filter, Check } from 'lucide-react'
 import { Drivers } from '../../../wailsjs/go/app/App'
 import {
   Dialog,
@@ -10,37 +10,47 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useUIStore } from '@/store/uiStore'
 import { useAddProject } from '@/hooks/useAddProject'
 import { DetectionBadge } from './DetectionBadge'
 import { ProjectAvatar } from './ProjectAvatar'
 import { InspectionProgress } from './InspectionProgress'
-import type { ProjectInfo } from '@/services/projectService'
+import type { ProjectInfo, APIDetection, APIFilterMode } from '@/services/projectService'
+import { cn } from '@/lib/utils'
 
 const SUPPORTED_FRAMEWORKS = new Set(['laravel'])
 
 export function AddProjectDialog() {
   const open = useUIStore((s) => s.isAddProjectOpen)
   const setOpen = useUIStore((s) => s.setAddProjectOpen)
-  const close = () => setOpen(false)
   const {
     status,
     info,
+    detection,
+    filterMode,
+    filterValue,
+    previewing,
     error,
     pipeline,
     pickFolder,
+    setFilterMode,
+    setFilterValue,
+    applyFilter,
     confirm,
     reset,
-  } = useAddProject(close)
+  } = useAddProject(() => handleOpenChange(false))
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value)
     if (!value) reset()
   }
+  const close = () => handleOpenChange(false)
 
   const isLoading = status === 'picking' || status === 'inspecting' || status === 'saving'
   const supported = info ? isSupported(info) : false
-  const canConfirm = status === 'ready' && supported
+  const hasRoutes = (detection?.count ?? 0) > 0
+  const canConfirm = status === 'ready' && supported && hasRoutes
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -48,7 +58,7 @@ export function AddProjectDialog() {
         <DialogHeader>
           <DialogTitle className="text-base">Add Project</DialogTitle>
           <DialogDescription className="text-[12.5px]">
-            Spectra inspects the folder and detects the framework.
+            Spectra inspects the folder, detects the framework and the API routes.
           </DialogDescription>
         </DialogHeader>
 
@@ -60,15 +70,27 @@ export function AddProjectDialog() {
           />
         )}
 
-        {info && status === 'inspecting' && (
-          <InspectionProgress steps={pipeline} />
-        )}
+        {info && status === 'inspecting' && <InspectionProgress steps={pipeline} />}
 
         {info && (status === 'ready' || status === 'saving' || status === 'error') && (
           <ProjectPreview info={info} onChange={pickFolder} disabled={isLoading} />
         )}
 
-        {info && status === 'ready' && !supported && <UnsupportedWarning framework={info.framework} />}
+        {info && status === 'ready' && supported && (
+          <APIDetectionPanel
+            detection={detection}
+            filterMode={filterMode}
+            filterValue={filterValue}
+            previewing={previewing}
+            onModeChange={setFilterMode}
+            onValueChange={setFilterValue}
+            onApply={applyFilter}
+          />
+        )}
+
+        {info && status === 'ready' && !supported && (
+          <UnsupportedWarning framework={info.framework} />
+        )}
 
         {!info && <SupportedFrameworks />}
 
@@ -82,12 +104,7 @@ export function AddProjectDialog() {
           <Button variant="outline" size="sm" onClick={close} disabled={status === 'saving'}>
             Cancel
           </Button>
-          <Button
-            size="sm"
-            onClick={confirm}
-            disabled={!canConfirm}
-            className="min-w-[120px]"
-          >
+          <Button size="sm" onClick={confirm} disabled={!canConfirm} className="min-w-[120px]">
             {status === 'saving' ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -191,7 +208,9 @@ function ProjectPreview({ info, onChange, disabled }: ProjectPreviewProps) {
         </button>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Framework</span>
+        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+          Framework
+        </span>
         <DetectionBadge
           framework={info.framework}
           detected={info.detection?.detected ?? false}
@@ -199,6 +218,154 @@ function ProjectPreview({ info, onChange, disabled }: ProjectPreviewProps) {
         />
       </div>
     </div>
+  )
+}
+
+interface APIDetectionPanelProps {
+  detection: APIDetection | null
+  filterMode: APIFilterMode
+  filterValue: string
+  previewing: boolean
+  onModeChange: (mode: APIFilterMode) => void
+  onValueChange: (value: string) => void
+  onApply: () => void
+}
+
+function APIDetectionPanel({
+  detection,
+  filterMode,
+  filterValue,
+  previewing,
+  onModeChange,
+  onValueChange,
+  onApply,
+}: APIDetectionPanelProps) {
+  const count = detection?.count ?? 0
+  const total = detection?.totalCount ?? 0
+  const summaryTone =
+    count > 0 ? 'text-emerald-500' : filterMode === 'all' ? 'text-muted-foreground' : 'text-amber-500'
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3.5 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            API routes
+          </span>
+        </div>
+        <span className={cn('text-[11.5px] font-medium tabular-nums', summaryTone)}>
+          {count}
+          {total > 0 && total !== count && (
+            <span className="text-muted-foreground"> / {total}</span>
+          )}
+        </span>
+      </div>
+
+      {count === 0 && (
+        <p className="text-[11px] text-amber-500/90 leading-relaxed">
+          {total === 0
+            ? 'No routes found in this project. A project must expose routes to be added.'
+            : 'No API routes detected with the current rule. Choose how to identify them.'}
+        </p>
+      )}
+
+      <div className="space-y-1.5">
+        <ModeRadio
+          checked={filterMode === 'middleware'}
+          label="Middleware group"
+          hint="Match routes whose middleware contains a value"
+          onSelect={() => onModeChange('middleware')}
+        />
+        {filterMode === 'middleware' && (
+          <Input
+            value={filterValue}
+            onChange={(e) => onValueChange(e.target.value)}
+            placeholder="api"
+            className="h-7 text-[12px] font-mono"
+          />
+        )}
+
+        <ModeRadio
+          checked={filterMode === 'prefix'}
+          label="Path prefix"
+          hint="Routes whose path starts with /value"
+          onSelect={() => onModeChange('prefix')}
+        />
+        {filterMode === 'prefix' && (
+          <Input
+            value={filterValue}
+            onChange={(e) => onValueChange(e.target.value)}
+            placeholder="api"
+            className="h-7 text-[12px] font-mono"
+          />
+        )}
+
+        <ModeRadio
+          checked={filterMode === 'all'}
+          label="All routes"
+          hint="No filter — include every route"
+          onSelect={() => onModeChange('all')}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-muted-foreground">
+          {detection?.scanError
+            ? 'Scan error: see error below'
+            : detection
+            ? `Resolved via ${detection.mode}${detection.value ? ` "${detection.value}"` : ''}`
+            : 'Detection pending'}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onApply}
+          disabled={previewing}
+          className="h-7 text-[11px] gap-1.5"
+        >
+          {previewing ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Check className="w-3 h-3" />
+          )}
+          Try
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+interface ModeRadioProps {
+  checked: boolean
+  label: string
+  hint: string
+  onSelect: () => void
+}
+
+function ModeRadio({ checked, label, hint, onSelect }: ModeRadioProps) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'w-full text-left rounded-md border px-2.5 py-2 transition-colors',
+        checked
+          ? 'border-primary/60 bg-primary/5'
+          : 'border-border/60 hover:bg-accent/40 hover:border-border',
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            'w-3 h-3 rounded-full border shrink-0',
+            checked ? 'border-primary bg-primary/30' : 'border-border',
+          )}
+        />
+        <span className="text-[12px] font-medium">{label}</span>
+      </div>
+      <p className="text-[10.5px] text-muted-foreground mt-0.5 ml-5">{hint}</p>
+    </button>
   )
 }
 

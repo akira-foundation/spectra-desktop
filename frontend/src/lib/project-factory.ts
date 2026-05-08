@@ -17,6 +17,8 @@ export function projectInputFromInfo(info: ProjectInfo) {
     path: info.path,
     framework: info.framework || 'other',
     frameworkVersion: info.frameworkVersion || '',
+    apiFilterMode: info.apiDetection?.mode ?? 'auto',
+    apiFilterValue: info.apiDetection?.value ?? '',
   }
 }
 

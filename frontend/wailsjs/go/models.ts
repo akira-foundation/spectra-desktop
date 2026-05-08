@@ -1,11 +1,32 @@
 export namespace app {
 	
+	export class APIDetection {
+	    mode: string;
+	    value: string;
+	    count: number;
+	    totalCount: number;
+	    scanError?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new APIDetection(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.value = source["value"];
+	        this.count = source["count"];
+	        this.totalCount = source["totalCount"];
+	        this.scanError = source["scanError"];
+	    }
+	}
 	export class ProjectInfo {
 	    path: string;
 	    name: string;
 	    framework: string;
 	    frameworkVersion: string;
 	    detection: core.DetectionResult;
+	    apiDetection: APIDetection;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectInfo(source);
@@ -18,6 +39,7 @@ export namespace app {
 	        this.framework = source["framework"];
 	        this.frameworkVersion = source["frameworkVersion"];
 	        this.detection = this.convertValues(source["detection"], core.DetectionResult);
+	        this.apiDetection = this.convertValues(source["apiDetection"], APIDetection);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -158,6 +180,8 @@ export namespace domain {
 	    framework: string;
 	    frameworkVersion: string;
 	    status: string;
+	    apiFilterMode: string;
+	    apiFilterValue: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -177,6 +201,8 @@ export namespace domain {
 	        this.framework = source["framework"];
 	        this.frameworkVersion = source["frameworkVersion"];
 	        this.status = source["status"];
+	        this.apiFilterMode = source["apiFilterMode"];
+	        this.apiFilterValue = source["apiFilterValue"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastSyncedAt = this.convertValues(source["lastSyncedAt"], null);
@@ -206,6 +232,8 @@ export namespace domain {
 	    path: string;
 	    framework: string;
 	    frameworkVersion: string;
+	    apiFilterMode: string;
+	    apiFilterValue: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectInput(source);
@@ -218,6 +246,8 @@ export namespace domain {
 	        this.path = source["path"];
 	        this.framework = source["framework"];
 	        this.frameworkVersion = source["frameworkVersion"];
+	        this.apiFilterMode = source["apiFilterMode"];
+	        this.apiFilterValue = source["apiFilterValue"];
 	    }
 	}
 	export class ProjectStats {

@@ -91,6 +91,15 @@ type ProjectInfo struct {
 	Framework        string               `json:"framework"`
 	FrameworkVersion string               `json:"frameworkVersion"`
 	Detection        core.DetectionResult `json:"detection"`
+	APIDetection     APIDetection         `json:"apiDetection"`
+}
+
+type APIDetection struct {
+	Mode       string `json:"mode"`
+	Value      string `json:"value"`
+	Count      int    `json:"count"`
+	TotalCount int    `json:"totalCount"`
+	ScanError  string `json:"scanError,omitempty"`
 }
 
 func (a *App) InspectProject(path string) (ProjectInfo, error) {
@@ -104,11 +113,46 @@ func (a *App) InspectProject(path string) (ProjectInfo, error) {
 		Framework: "other",
 	}
 	driver, det, err := a.scanner.Resolve(ws.Path)
-	if err == nil {
-		info.Framework = driver.Name()
-		info.Detection = det
+	if err != nil {
+		return info, nil
+	}
+	info.Framework = driver.Name()
+	info.Detection = det
+
+	endpoints, scanErr := driver.Scan(a.ctx, ws.Path)
+	if scanErr != nil {
+		info.APIDetection = APIDetection{
+			Mode:      core.FilterModeAuto,
+			ScanError: scanErr.Error(),
+		}
+		return info, nil
+	}
+	result := core.ApplyFilter(endpoints, core.FilterModeAuto, "")
+	info.APIDetection = APIDetection{
+		Mode:       result.Mode,
+		Value:      result.Value,
+		Count:      len(result.Endpoints),
+		TotalCount: len(endpoints),
 	}
 	return info, nil
+}
+
+func (a *App) PreviewAPIRoutes(path, mode, value string) (APIDetection, error) {
+	driver, _, err := a.scanner.Resolve(path)
+	if err != nil {
+		return APIDetection{}, err
+	}
+	endpoints, err := driver.Scan(a.ctx, path)
+	if err != nil {
+		return APIDetection{Mode: mode, Value: value, ScanError: err.Error()}, nil
+	}
+	result := core.ApplyFilter(endpoints, mode, value)
+	return APIDetection{
+		Mode:       result.Mode,
+		Value:      result.Value,
+		Count:      len(result.Endpoints),
+		TotalCount: len(endpoints),
+	}, nil
 }
 
 func (a *App) Drivers() []string {
@@ -155,14 +199,15 @@ func (a *App) ScanWorkspace(projectID string) ([]core.Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	endpoints, err := driver.Scan(a.ctx, project.Path)
+	all, err := driver.Scan(a.ctx, project.Path)
 	if err != nil {
 		return nil, err
 	}
-	if err := a.endpoints.Replace(a.ctx, projectID, endpoints); err != nil {
+	filtered := core.ApplyFilter(all, project.APIFilterMode, project.APIFilterValue).Endpoints
+	if err := a.endpoints.Replace(a.ctx, projectID, filtered); err != nil {
 		return nil, fmt.Errorf("persist endpoints: %w", err)
 	}
-	return endpoints, nil
+	return filtered, nil
 }
 
 func (a *App) ScanActiveProject() ([]core.Endpoint, error) {

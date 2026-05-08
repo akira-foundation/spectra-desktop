@@ -17,6 +17,8 @@ type Project struct {
 	Framework        string     `bun:"framework,notnull"`
 	FrameworkVersion string     `bun:"framework_version,notnull,default:''"`
 	Status           string     `bun:"status,notnull,default:'disconnected'"`
+	APIFilterMode    string     `bun:"api_filter_mode,notnull,default:'auto'"`
+	APIFilterValue   string     `bun:"api_filter_value,notnull,default:''"`
 	CreatedAt        time.Time  `bun:"created_at,notnull"`
 	UpdatedAt        time.Time  `bun:"updated_at,notnull"`
 	LastSyncedAt     *time.Time `bun:"last_synced_at"`
@@ -30,6 +32,8 @@ func (p Project) ToDomain() domain.Project {
 		Framework:        p.Framework,
 		FrameworkVersion: p.FrameworkVersion,
 		Status:           domain.ProjectStatus(p.Status),
+		APIFilterMode:    p.APIFilterMode,
+		APIFilterValue:   p.APIFilterValue,
 		CreatedAt:        p.CreatedAt,
 		UpdatedAt:        p.UpdatedAt,
 		LastSyncedAt:     p.LastSyncedAt,
@@ -44,6 +48,8 @@ func FromDomain(p domain.Project) Project {
 		Framework:        p.Framework,
 		FrameworkVersion: p.FrameworkVersion,
 		Status:           string(p.Status),
+		APIFilterMode:    p.APIFilterMode,
+		APIFilterValue:   p.APIFilterValue,
 		CreatedAt:        p.CreatedAt,
 		UpdatedAt:        p.UpdatedAt,
 		LastSyncedAt:     p.LastSyncedAt,

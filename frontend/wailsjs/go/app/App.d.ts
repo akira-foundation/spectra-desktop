@@ -27,6 +27,8 @@ export function MarkProjectSynced(arg1:string):Promise<void>;
 
 export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
+export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
+
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
 export function ScanActiveProject():Promise<Array<core.Endpoint>>;
