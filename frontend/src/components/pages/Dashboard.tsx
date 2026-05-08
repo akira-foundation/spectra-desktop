@@ -38,8 +38,10 @@ import type { LucideIcon } from 'lucide-react'
 import { Welcome } from '@/components/pages/Welcome'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
-import type { StatCard } from '@/services/scannerService'
+import type { StatCard, ScannedEndpoint } from '@/services/scannerService'
 import { cn } from '@/lib/utils'
+
+const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
 
 const KIND_ICON: Record<string, LucideIcon> = {
   routes: Navigation,
@@ -85,7 +87,7 @@ export function Dashboard() {
   const loadSnapshots = useChangelogStore((s) => s.load)
 
   const allEndpoints = useEndpointsStore((s) =>
-    activeProjectId ? s.byProject[activeProjectId] ?? [] : [],
+    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS : EMPTY_ENDPOINTS,
   )
 
   const pinnedKeys = useUIStore((s) =>
