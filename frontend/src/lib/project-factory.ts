@@ -35,6 +35,7 @@ export function projectFromRecord(record: ProjectRecord): Project {
     baseUrl: record.baseUrl ?? '',
     loginEndpointId: record.loginEndpointId ?? '',
     loginTokenPath: record.loginTokenPath ?? '',
+    logoutEndpointId: record.logoutEndpointId ?? '',
     lastSyncTime: record.lastSyncedAt ? toDate(record.lastSyncedAt) : null,
     status: normalizeStatus(record.status),
     stats: { ...emptyStats },

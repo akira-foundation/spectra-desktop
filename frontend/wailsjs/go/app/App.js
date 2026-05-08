@@ -86,10 +86,10 @@ export function SetProjectAuthManual(arg1) {
   return window['go']['app']['App']['SetProjectAuthManual'](arg1);
 }
 
-export function UpdateProjectBaseURL(arg1, arg2) {
-  return window['go']['app']['App']['UpdateProjectBaseURL'](arg1, arg2);
+export function UpdateProjectAuthRoutes(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['UpdateProjectAuthRoutes'](arg1, arg2, arg3, arg4);
 }
 
-export function UpdateProjectLoginEndpoint(arg1, arg2, arg3) {
-  return window['go']['app']['App']['UpdateProjectLoginEndpoint'](arg1, arg2, arg3);
+export function UpdateProjectBaseURL(arg1, arg2) {
+  return window['go']['app']['App']['UpdateProjectBaseURL'](arg1, arg2);
 }

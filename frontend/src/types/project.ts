@@ -8,6 +8,7 @@ export interface Project {
   baseUrl: string
   loginEndpointId?: string
   loginTokenPath?: string
+  logoutEndpointId?: string
   lastSyncTime: Date | null
   status: 'connected' | 'disconnected' | 'syncing' | 'error'
   stats: {

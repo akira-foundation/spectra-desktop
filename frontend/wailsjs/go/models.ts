@@ -6,6 +6,8 @@ export namespace app {
 	    count: number;
 	    totalCount: number;
 	    scanError?: string;
+	    loginRoute?: string;
+	    logoutRoute?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new APIDetection(source);
@@ -18,6 +20,8 @@ export namespace app {
 	        this.count = source["count"];
 	        this.totalCount = source["totalCount"];
 	        this.scanError = source["scanError"];
+	        this.loginRoute = source["loginRoute"];
+	        this.logoutRoute = source["logoutRoute"];
 	    }
 	}
 	export class ExecuteRequestInput {
@@ -315,6 +319,7 @@ export namespace domain {
 	    baseUrl: string;
 	    loginEndpointId?: string;
 	    loginTokenPath?: string;
+	    logoutEndpointId?: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -339,6 +344,7 @@ export namespace domain {
 	        this.baseUrl = source["baseUrl"];
 	        this.loginEndpointId = source["loginEndpointId"];
 	        this.loginTokenPath = source["loginTokenPath"];
+	        this.logoutEndpointId = source["logoutEndpointId"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastSyncedAt = this.convertValues(source["lastSyncedAt"], null);

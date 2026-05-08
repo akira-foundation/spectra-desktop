@@ -38,6 +38,11 @@ export const useEndpointsStore = create<EndpointsState>()(
     try {
       const cached = await scannerService.listEndpoints(projectId)
       if (cached.length > 0) {
+        const hasAnyAuthRole = cached.some((e) => e.authRole)
+        if (!hasAnyAuthRole) {
+          await get().scan(projectId)
+          return
+        }
         set((s) => ({
           byProject: { ...s.byProject, [projectId]: cached },
           status: { ...s.status, [projectId]: 'ready' },
@@ -65,6 +70,10 @@ export const useEndpointsStore = create<EndpointsState>()(
         byProject: { ...s.byProject, [projectId]: endpoints },
         status: { ...s.status, [projectId]: endpoints.length === 0 ? 'empty' : 'ready' },
       }))
+      try {
+        const { useProjectStore } = await import('./projectStore')
+        await useProjectStore.getState().refreshProject(projectId)
+      } catch {}
     } catch (err) {
       set((s) => ({
         status: { ...s.status, [projectId]: 'error' },

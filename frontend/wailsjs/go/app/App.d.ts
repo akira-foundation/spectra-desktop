@@ -48,6 +48,6 @@ export function SetActiveProjectID(arg1:string):Promise<void>;
 
 export function SetProjectAuthManual(arg1:app.SetProjectAuthInput):Promise<void>;
 
-export function UpdateProjectBaseURL(arg1:string,arg2:string):Promise<void>;
+export function UpdateProjectAuthRoutes(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
-export function UpdateProjectLoginEndpoint(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function UpdateProjectBaseURL(arg1:string,arg2:string):Promise<void>;

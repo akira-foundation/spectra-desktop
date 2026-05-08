@@ -23,8 +23,9 @@ interface ProjectState {
   addProjectFromInput: (input: ProjectInput) => Promise<Project>
   removeProject: (id: string) => Promise<void>
   refreshDetection: (id: string) => Promise<void>
+  refreshProject: (id: string) => Promise<void>
   updateBaseURL: (id: string, baseUrl: string) => Promise<void>
-  updateLoginEndpoint: (id: string, endpointId: string, tokenPath: string) => Promise<void>
+  updateAuthRoutes: (id: string, loginId: string, logoutId: string, tokenPath: string) => Promise<void>
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -102,6 +103,44 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       delete detections[id]
       return { projects: filtered, activeProjectId: newActiveId, detections }
     })
+    try {
+      const { useEndpointsStore } = await import('./endpointsStore')
+      const { useUIStore } = await import('./uiStore')
+      const { useAuthStore } = await import('./authStore')
+      const { useStatsStore } = await import('./statsStore')
+      useEndpointsStore.getState().clear(id)
+      useAuthStore.setState((s) => {
+        const next = { ...s.byProject }
+        delete next[id]
+        return { byProject: next }
+      })
+      useStatsStore.setState((s) => {
+        const next = { ...s.byProject }
+        delete next[id]
+        const loading = { ...s.loading }
+        delete loading[id]
+        return { byProject: next, loading }
+      })
+      useUIStore.setState((s) => {
+        const sel = { ...s.selectedEndpointByProject }
+        delete sel[id]
+        const bodies = { ...s.requestBodyByEndpoint }
+        const headers = { ...s.requestHeadersByEndpoint }
+        for (const key of Object.keys(bodies)) {
+          if (key.startsWith(id + '#')) delete bodies[key]
+        }
+        for (const key of Object.keys(headers)) {
+          if (key.startsWith(id + '#')) delete headers[key]
+        }
+        return {
+          selectedEndpointByProject: sel,
+          requestBodyByEndpoint: bodies,
+          requestHeadersByEndpoint: headers,
+        }
+      })
+    } catch (err) {
+      console.error('cleanup project stores failed:', err)
+    }
     if (get().activeProjectId) {
       await projectStorageService.setActive(get().activeProjectId!).catch(() => undefined)
     } else {
@@ -116,13 +155,34 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }))
   },
 
-  updateLoginEndpoint: async (id, endpointId, tokenPath) => {
-    await projectStorageService.updateLoginEndpoint(id, endpointId, tokenPath)
+  updateAuthRoutes: async (id, loginId, logoutId, tokenPath) => {
+    await projectStorageService.updateAuthRoutes(id, loginId, logoutId, tokenPath)
     set((state) => ({
       projects: state.projects.map((p) =>
-        p.id === id ? { ...p, loginEndpointId: endpointId, loginTokenPath: tokenPath } : p,
+        p.id === id
+          ? {
+              ...p,
+              loginEndpointId: loginId,
+              loginTokenPath: tokenPath,
+              logoutEndpointId: logoutId,
+            }
+          : p,
       ),
     }))
+  },
+
+  refreshProject: async (id) => {
+    try {
+      const records = await projectStorageService.list()
+      const fresh = records.find((r) => r.id === id)
+      if (!fresh) return
+      const project = projectFromRecord(fresh)
+      set((state) => ({
+        projects: state.projects.map((p) => (p.id === id ? { ...project, stats: p.stats, lastSyncTime: p.lastSyncTime } : p)),
+      }))
+    } catch (err) {
+      console.error('refresh project failed:', err)
+    }
   },
 
   refreshDetection: async (id) => {
