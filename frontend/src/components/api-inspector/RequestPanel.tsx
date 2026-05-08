@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light'
+import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { ParamsEditor } from './ParamsEditor'
 import type { QueryParam } from '@/lib/route-params'
 
@@ -80,13 +80,20 @@ export function RequestPanel({
           <div className="flex-1 overflow-auto rounded-md border border-border/40 bg-muted/20 p-2">
             <SyntaxHighlighter
               language="json"
-              style={isDark ? vscDarkPlus : materialLight}
+              style={isDark ? vscDarkPlus : oneLight}
               customStyle={{
                 margin: 0,
                 fontSize: '11.5px',
                 background: 'transparent',
                 padding: 0,
                 fontFamily: 'var(--font-mono)',
+              }}
+              codeTagProps={{
+                style: {
+                  background: 'transparent',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                },
               }}
               showLineNumbers={false}
               wrapLines

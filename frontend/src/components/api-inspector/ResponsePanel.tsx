@@ -3,7 +3,7 @@ import { Copy, Download } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light'
+import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { Button } from '@/components/ui/button'
 
 interface ResponsePanelProps {
@@ -57,13 +57,20 @@ export function ResponsePanel({ responseData }: ResponsePanelProps) {
           <div className="rounded-md border border-border/40 bg-muted/20 p-2">
             <SyntaxHighlighter
               language="json"
-              style={isDark ? vscDarkPlus : materialLight}
+              style={isDark ? vscDarkPlus : oneLight}
               customStyle={{
                 background: 'transparent',
                 margin: 0,
                 fontSize: '11.5px',
                 padding: 0,
                 fontFamily: 'var(--font-mono)',
+              }}
+              codeTagProps={{
+                style: {
+                  background: 'transparent',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                },
               }}
               showLineNumbers={false}
               wrapLines
