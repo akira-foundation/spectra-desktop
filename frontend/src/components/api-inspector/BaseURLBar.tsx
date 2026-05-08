@@ -9,8 +9,11 @@ import {
 } from '@/components/ui/popover'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
+import type { ScannedEndpoint } from '@/services/scannerService'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { cn } from '@/lib/utils'
+
+const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
 
 export function BaseURLBar() {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -19,7 +22,7 @@ export function BaseURLBar() {
   const updateLoginEndpoint = useProjectStore((s) => s.updateLoginEndpoint)
   const project = projects.find((p) => p.id === activeProjectId)
   const allEndpoints = useEndpointsStore((s) =>
-    activeProjectId ? s.byProject[activeProjectId] ?? [] : [],
+    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS : EMPTY_ENDPOINTS,
   )
 
   const [editing, setEditing] = useState(false)
