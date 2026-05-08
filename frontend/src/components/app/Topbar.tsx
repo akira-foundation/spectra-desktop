@@ -3,7 +3,9 @@ import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
-import { Search, RefreshCw, Lock, User, Key, Shield } from 'lucide-react'
+import { Search, RefreshCw, Lock, User, Key, Shield, FileDown } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { SaveOpenAPIToFile } from '../../../wailsjs/go/app/App'
 import { Button } from '@/components/ui/button'
 import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
 import { ThemeSwitcher } from './ThemeSwitcher'
@@ -56,6 +58,17 @@ export function Topbar() {
     }
   }
 
+  const handleExport = async () => {
+    if (!activeProjectId) return
+    try {
+      const path = await SaveOpenAPIToFile(activeProjectId)
+      if (path) toast.success(`OpenAPI saved: ${path}`)
+    } catch (err) {
+      toast.error('Export failed')
+      console.error(err)
+    }
+  }
+
   return (
     <div
       className="h-10 flex items-center justify-between gap-3 pr-3 select-none bg-[#e5e5e5] dark:bg-transparent text-foreground/90 dark:text-white/90"
@@ -91,6 +104,17 @@ export function Topbar() {
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
           <span>{isScanning ? 'Scanning' : 'Sync'}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleExport}
+          disabled={!activeProjectId}
+          className="h-7 px-2 text-[11px] text-foreground/85 dark:text-white/85 hover:bg-foreground/10 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
+          title="Export OpenAPI spec"
+        >
+          <FileDown className="w-3.5 h-3.5" />
+          <span>OpenAPI</span>
         </Button>
         <Button
           variant="ghost"

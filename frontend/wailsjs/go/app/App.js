@@ -34,6 +34,10 @@ export function ExecuteRequest(arg1) {
   return window['go']['app']['App']['ExecuteRequest'](arg1);
 }
 
+export function ExportOpenAPI(arg1) {
+  return window['go']['app']['App']['ExportOpenAPI'](arg1);
+}
+
 export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
@@ -96,6 +100,10 @@ export function PreviewAPIRoutes(arg1, arg2, arg3) {
 
 export function SaveEnvironment(arg1) {
   return window['go']['app']['App']['SaveEnvironment'](arg1);
+}
+
+export function SaveOpenAPIToFile(arg1) {
+  return window['go']['app']['App']['SaveOpenAPIToFile'](arg1);
 }
 
 export function SaveProject(arg1) {

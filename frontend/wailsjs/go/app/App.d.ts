@@ -22,6 +22,8 @@ export function Drivers():Promise<Array<string>>;
 
 export function ExecuteRequest(arg1:app.ExecuteRequestInput):Promise<httpclient.Response>;
 
+export function ExportOpenAPI(arg1:string):Promise<string>;
+
 export function GetActiveProjectID():Promise<string>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
@@ -53,6 +55,8 @@ export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
 
 export function SaveEnvironment(arg1:app.SaveEnvironmentInput):Promise<app.EnvironmentDTO>;
+
+export function SaveOpenAPIToFile(arg1:string):Promise<string>;
 
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
