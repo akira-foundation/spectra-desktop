@@ -13,8 +13,12 @@ export interface UIState {
   selectedEndpointByProject: Record<string, string>
   requestBodyByEndpoint: Record<string, string>
   requestHeadersByEndpoint: Record<string, Array<{ key: string; value: string; enabled: boolean }>>
+  pinnedEndpointsByProject: Record<string, string[]>
+  groupOrderByProject: Record<string, string[]>
 
   setSelectedEndpoint: (projectId: string, tag: string | null) => void
+  togglePinnedEndpoint: (projectId: string, endpointKey: string) => void
+  setGroupOrder: (projectId: string, order: string[]) => void
   setRequestBody: (endpointId: string, body: string) => void
   clearRequestBody: (endpointId: string) => void
   setRequestHeaders: (endpointId: string, headers: Array<{ key: string; value: string; enabled: boolean }>) => void
@@ -40,6 +44,23 @@ export const useUIStore = create<UIState>()(
       selectedEndpointByProject: {},
       requestBodyByEndpoint: {},
       requestHeadersByEndpoint: {},
+      pinnedEndpointsByProject: {},
+      groupOrderByProject: {},
+
+      togglePinnedEndpoint: (projectId, endpointKey) =>
+        set((state) => {
+          const current = state.pinnedEndpointsByProject[projectId] ?? []
+          const next = current.includes(endpointKey)
+            ? current.filter((k) => k !== endpointKey)
+            : [...current, endpointKey]
+          return {
+            pinnedEndpointsByProject: { ...state.pinnedEndpointsByProject, [projectId]: next },
+          }
+        }),
+      setGroupOrder: (projectId, order) =>
+        set((state) => ({
+          groupOrderByProject: { ...state.groupOrderByProject, [projectId]: order },
+        })),
 
       setSelectedEndpoint: (projectId, tag) =>
         set((state) => {
@@ -86,6 +107,8 @@ export const useUIStore = create<UIState>()(
         selectedEndpointByProject: state.selectedEndpointByProject,
         requestBodyByEndpoint: state.requestBodyByEndpoint,
         requestHeadersByEndpoint: state.requestHeadersByEndpoint,
+        pinnedEndpointsByProject: state.pinnedEndpointsByProject,
+        groupOrderByProject: state.groupOrderByProject,
       }),
       version: 1,
     },

@@ -19,7 +19,7 @@ import {
   ScanErrorState,
   NoRoutesState,
 } from '@/components/api-inspector/ScanStates'
-import { groupEndpoints, type GroupedEndpoint } from '@/lib/group-endpoints'
+import { groupEndpoints, type GroupedEndpoint, PINNED_CATEGORY } from '@/lib/group-endpoints'
 import type { ScannedEndpoint } from '@/services/scannerService'
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
@@ -69,7 +69,23 @@ export function APIInspector() {
     if (activeProjectId) void loadAuth(activeProjectId)
   }, [activeProjectId, loadAuth])
 
-  const groups = useMemo(() => groupEndpoints(allEndpoints), [allEndpoints])
+  const pinnedKeys = useUIStore((s) =>
+    activeProjectId ? s.pinnedEndpointsByProject[activeProjectId] ?? null : null,
+  )
+  const groupOrder = useUIStore((s) =>
+    activeProjectId ? s.groupOrderByProject[activeProjectId] ?? null : null,
+  )
+  const togglePinnedEndpoint = useUIStore((s) => s.togglePinnedEndpoint)
+  const setGroupOrder = useUIStore((s) => s.setGroupOrder)
+
+  const groups = useMemo(
+    () =>
+      groupEndpoints(allEndpoints, {
+        pinnedKeys: pinnedKeys ?? [],
+        groupOrder: groupOrder ?? [],
+      }),
+    [allEndpoints, pinnedKeys, groupOrder],
+  )
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [routeValues, setRouteValues] = useState<string[]>([])
@@ -279,7 +295,13 @@ export function APIInspector() {
 
   return (
     <div className="h-full flex overflow-hidden">
-      <EndpointList endpoints={decoratedGroups} onSelectEndpoint={handleSelect} />
+      <EndpointList
+        endpoints={decoratedGroups}
+        onSelectEndpoint={handleSelect}
+        pinnedKeys={pinnedKeys ?? []}
+        onTogglePin={(key) => activeProjectId && togglePinnedEndpoint(activeProjectId, key)}
+        onReorder={(order) => activeProjectId && setGroupOrder(activeProjectId, order)}
+      />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <AuthenticationDrawer

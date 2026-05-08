@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X, Star, GripVertical } from 'lucide-react'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Separator } from '@/components/ui/separator'
 import {
   Accordion,
@@ -9,6 +24,7 @@ import {
 } from '@/components/ui/accordion'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { cn } from '@/lib/utils'
+import { PINNED_CATEGORY, endpointKey } from '@/lib/group-endpoints'
 
 interface Endpoint {
   method: string
@@ -27,11 +43,21 @@ interface EndpointCategory {
 interface EndpointListProps {
   endpoints: EndpointCategory[]
   onSelectEndpoint: (tag: string) => void
+  pinnedKeys?: string[]
+  onTogglePin?: (key: string) => void
+  onReorder?: (order: string[]) => void
 }
 
-export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps) {
+export function EndpointList({
+  endpoints,
+  onSelectEndpoint,
+  pinnedKeys = [],
+  onTogglePin,
+  onReorder,
+}: EndpointListProps) {
   const { getMethodColor } = useHttpMethod()
   const [query, setQuery] = useState('')
+  const pinnedSet = useMemo(() => new Set(pinnedKeys), [pinnedKeys])
 
   const filtered = useMemo(() => filterEndpoints(endpoints, query), [endpoints, query])
   const expanded = useMemo(() => filtered.map((c) => c.category.toLowerCase()), [filtered])
@@ -59,6 +85,23 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
     () => filtered.reduce((sum, c) => sum + c.items.length, 0),
     [filtered],
   )
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const draggables = filtered.filter((c) => c.category !== PINNED_CATEGORY)
+    const ids = draggables.map((c) => c.category)
+    const oldIndex = ids.indexOf(String(active.id))
+    const newIndex = ids.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(ids, oldIndex, newIndex)
+    onReorder?.(next)
+  }
+
+  const draggableCategories = filtered.filter((c) => c.category !== PINNED_CATEGORY)
+  const pinnedCategory = filtered.find((c) => c.category === PINNED_CATEGORY)
 
   return (
     <div className="w-64 shrink-0 border-r border-border flex flex-col bg-transparent">
@@ -97,61 +140,39 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
             defaultValue={initialOpen}
             className="w-full"
           >
-            {filtered.map((category, index) => (
-              <div key={category.category}>
-                <AccordionItem value={category.category.toLowerCase()} className="border-b-0">
-                  <AccordionTrigger className="px-3 py-2 hover:no-underline cursor-pointer text-foreground/70 hover:text-foreground">
-                    <div className="flex items-center gap-2 w-full pr-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider">
-                        {category.category}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/70 font-mono">
-                        {category.items.length}
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-2">
-                    <div className="space-y-px px-1">
-                      {category.items.map((endpoint) => (
-                        <button
-                          key={endpoint.path + endpoint.method + endpoint.name}
-                          ref={endpoint.active ? activeRef : undefined}
-                          onClick={() => onSelectEndpoint(endpoint.tag)}
-                          className={cn(
-                            'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
-                            'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',
-                            endpoint.active && 'bg-accent text-foreground',
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
-                                getMethodColor(endpoint.method),
-                              )}
-                            >
-                              {endpoint.method}
-                            </span>
-                            <span
-                              className={cn(
-                                'text-[12px] truncate flex-1',
-                                endpoint.active ? 'font-semibold' : 'font-medium',
-                              )}
-                            >
-                              {endpoint.name}
-                            </span>
-                          </div>
-                          <div className="ml-12 text-[10.5px] font-mono text-muted-foreground truncate mt-0.5">
-                            {endpoint.path}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                {index < filtered.length - 1 && <Separator className="my-1 opacity-50" />}
-              </div>
-            ))}
+            {pinnedCategory && (
+              <CategoryItem
+                category={pinnedCategory}
+                getMethodColor={getMethodColor}
+                onSelect={onSelectEndpoint}
+                pinnedSet={pinnedSet}
+                onTogglePin={onTogglePin}
+                activeRef={activeRef}
+                showSeparator={draggableCategories.length > 0}
+                isPinnedSection
+              />
+            )}
+
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext
+                items={draggableCategories.map((c) => c.category)}
+                strategy={verticalListSortingStrategy}
+              >
+                {draggableCategories.map((category, index) => (
+                  <SortableCategoryItem
+                    key={category.category}
+                    id={category.category}
+                    category={category}
+                    getMethodColor={getMethodColor}
+                    onSelect={onSelectEndpoint}
+                    pinnedSet={pinnedSet}
+                    onTogglePin={onTogglePin}
+                    activeRef={activeRef}
+                    showSeparator={index < draggableCategories.length - 1}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </Accordion>
         )}
       </div>
@@ -162,6 +183,163 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
         </div>
       )}
     </div>
+  )
+}
+
+interface CategoryItemProps {
+  category: EndpointCategory
+  getMethodColor: (method: string) => string
+  onSelect: (tag: string) => void
+  pinnedSet: Set<string>
+  onTogglePin?: (key: string) => void
+  activeRef: React.MutableRefObject<HTMLButtonElement | null>
+  showSeparator?: boolean
+  isPinnedSection?: boolean
+  dragHandleProps?: Record<string, unknown>
+  setNodeRef?: (node: HTMLElement | null) => void
+  style?: React.CSSProperties
+  isDragging?: boolean
+}
+
+function CategoryItem({
+  category,
+  getMethodColor,
+  onSelect,
+  pinnedSet,
+  onTogglePin,
+  activeRef,
+  showSeparator,
+  isPinnedSection,
+  dragHandleProps,
+  setNodeRef,
+  style,
+  isDragging,
+}: CategoryItemProps) {
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-60')}>
+      <AccordionItem value={category.category.toLowerCase()} className="border-b-0">
+        <div className="flex items-center group/cat">
+          {!isPinnedSection && dragHandleProps && (
+            <button
+              type="button"
+              {...dragHandleProps}
+              aria-label="Drag to reorder"
+              className="ml-1.5 inline-flex h-5 w-5 items-center justify-center text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-3 h-3" />
+            </button>
+          )}
+          <AccordionTrigger
+            className={cn(
+              'flex-1 px-3 py-2 hover:no-underline cursor-pointer text-foreground/70 hover:text-foreground',
+              isPinnedSection && 'text-amber-500/90 hover:text-amber-500',
+            )}
+          >
+            <div className="flex items-center gap-2 w-full pr-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                {category.category}
+              </span>
+              <span className="text-[10px] text-muted-foreground/70 font-mono">
+                {category.items.length}
+              </span>
+            </div>
+          </AccordionTrigger>
+        </div>
+        <AccordionContent className="pb-2">
+          <div className="space-y-px px-1">
+            {category.items.map((endpoint) => {
+              const key = endpointKey(endpoint.method, endpoint.path)
+              const isPinned = pinnedSet.has(key)
+              return (
+                <button
+                  key={endpoint.path + endpoint.method + endpoint.name}
+                  ref={endpoint.active ? activeRef : undefined}
+                  onClick={() => onSelect(endpoint.tag)}
+                  className={cn(
+                    'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
+                    'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',
+                    endpoint.active && 'bg-accent text-foreground',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
+                        getMethodColor(endpoint.method),
+                      )}
+                    >
+                      {endpoint.method}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[12px] truncate flex-1',
+                        endpoint.active ? 'font-semibold' : 'font-medium',
+                      )}
+                    >
+                      {endpoint.name}
+                    </span>
+                    {onTogglePin && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onTogglePin(key)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            onTogglePin(key)
+                          }
+                        }}
+                        aria-label={isPinned ? 'Unpin' : 'Pin'}
+                        className={cn(
+                          'inline-flex h-5 w-5 items-center justify-center rounded transition-opacity',
+                          isPinned
+                            ? 'text-amber-500 opacity-100'
+                            : 'text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-amber-500',
+                        )}
+                      >
+                        <Star className={cn('w-3 h-3', isPinned && 'fill-amber-500')} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="ml-12 text-[10.5px] font-mono text-muted-foreground truncate mt-0.5">
+                    {endpoint.path}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+      {showSeparator && <Separator className="my-1 opacity-50" />}
+    </div>
+  )
+}
+
+interface SortableProps extends Omit<CategoryItemProps, 'dragHandleProps' | 'setNodeRef' | 'style' | 'isDragging'> {
+  id: string
+}
+
+function SortableCategoryItem(props: SortableProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.id,
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  return (
+    <CategoryItem
+      {...props}
+      setNodeRef={setNodeRef}
+      style={style}
+      isDragging={isDragging}
+      dragHandleProps={{ ...attributes, ...listeners }}
+    />
   )
 }
 

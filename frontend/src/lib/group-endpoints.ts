@@ -32,20 +32,60 @@ const PREFIX_SKIP = new Set([
   'app',
 ])
 
-export function groupEndpoints(endpoints: ScannedEndpoint[]): EndpointGroup[] {
+export const PINNED_CATEGORY = '★ PINNED'
+
+export interface GroupOptions {
+  pinnedKeys?: string[]
+  groupOrder?: string[]
+}
+
+export function endpointKey(method: string, path: string): string {
+  return `${method} ${path}`
+}
+
+export function groupEndpoints(
+  endpoints: ScannedEndpoint[],
+  options: GroupOptions = {},
+): EndpointGroup[] {
   const buckets = new Map<string, GroupedEndpoint[]>()
+  const pinnedSet = new Set(options.pinnedKeys ?? [])
+  const pinnedItems: GroupedEndpoint[] = []
 
   for (const endpoint of endpoints) {
-    const category = pickCategory(endpoint)
     const grouped = toGrouped(endpoint)
+    if (pinnedSet.has(endpointKey(endpoint.method, endpoint.path))) {
+      pinnedItems.push(grouped)
+    }
+    const category = pickCategory(endpoint)
     const list = buckets.get(category) ?? []
     list.push(grouped)
     buckets.set(category, list)
   }
 
-  return [...buckets.entries()]
+  const groups: EndpointGroup[] = []
+  if (pinnedItems.length > 0) {
+    groups.push({
+      category: PINNED_CATEGORY,
+      count: pinnedItems.length,
+      items: sortItems(pinnedItems),
+    })
+  }
+
+  const userOrder = options.groupOrder ?? []
+  const seen = new Set<string>()
+  for (const cat of userOrder) {
+    const items = buckets.get(cat)
+    if (!items) continue
+    seen.add(cat)
+    groups.push({ category: cat, count: items.length, items: sortItems(items) })
+  }
+  const remaining = [...buckets.entries()]
+    .filter(([cat]) => !seen.has(cat))
     .map(([category, items]) => ({ category, count: items.length, items: sortItems(items) }))
     .sort((a, b) => a.category.localeCompare(b.category))
+  groups.push(...remaining)
+
+  return groups
 }
 
 function pickCategory(endpoint: ScannedEndpoint): string {

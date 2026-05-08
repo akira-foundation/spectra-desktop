@@ -132,10 +132,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         for (const key of Object.keys(headers)) {
           if (key.startsWith(id + '#')) delete headers[key]
         }
+        const pinned = { ...s.pinnedEndpointsByProject }
+        delete pinned[id]
+        const order = { ...s.groupOrderByProject }
+        delete order[id]
         return {
           selectedEndpointByProject: sel,
           requestBodyByEndpoint: bodies,
           requestHeadersByEndpoint: headers,
+          pinnedEndpointsByProject: pinned,
+          groupOrderByProject: order,
         }
       })
     } catch (err) {
