@@ -33,7 +33,7 @@ import {
   AlertTriangle,
   Zap,
   TrendingUp,
-  SlidersHorizontal,
+  CalendarDays,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { LucideIcon } from 'lucide-react'
@@ -793,7 +793,7 @@ function VolumeRangePicker({ value, onChange }: { value: 7 | 14 | 30; onChange: 
           className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/40"
           aria-label="Volume range"
         >
-          <SlidersHorizontal className="w-3 h-3" />
+          <CalendarDays className="w-3 h-3" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-32 p-1">
