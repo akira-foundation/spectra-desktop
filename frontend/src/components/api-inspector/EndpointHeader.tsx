@@ -21,7 +21,7 @@ export function EndpointHeader({
   const ok = statusCode >= 200 && statusCode < 300
 
   return (
-    <div className="h-10 px-3 border-b border-border/60 bg-card/30 flex items-center justify-between">
+    <div className="h-10 px-3 border-b border-border/60 bg-card/40 flex items-center justify-between">
       <div className="flex items-center gap-2 min-w-0">
         <span
           className={cn(

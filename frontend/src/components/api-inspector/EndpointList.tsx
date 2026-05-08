@@ -68,7 +68,7 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
                         className={cn(
                           'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
                           'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',
-                          endpoint.active && 'bg-accent/70 text-foreground',
+                          endpoint.active && 'bg-accent text-foreground',
                         )}
                       >
                         <div className="flex items-center gap-2">

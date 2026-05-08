@@ -29,7 +29,7 @@ export function EndpointMetadata({
   return (
     <div
       className={cn(
-        'border-b border-border/60 bg-card/30 px-3.5 py-2.5 grid grid-cols-2 gap-x-8 gap-y-2 text-[11.5px]',
+        'border-b border-border/60 bg-card/50 px-3.5 py-2 flex flex-col gap-1.5 text-[11.5px]',
         className,
       )}
     >
@@ -65,14 +65,16 @@ interface FieldProps {
 
 function Field({ icon: Icon, label, value, mono, tone = 'default' }: FieldProps) {
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-      <span className="w-[64px] shrink-0 text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
-        {label}
-      </span>
+    <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 min-w-0">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+        <span className="text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
+          {label}
+        </span>
+      </div>
       <span
         className={cn(
-          'truncate',
+          'truncate min-w-0',
           mono && 'font-mono text-[11px]',
           tone === 'muted' && 'text-muted-foreground',
           tone === 'primary' && 'text-primary',
@@ -87,16 +89,18 @@ function Field({ icon: Icon, label, value, mono, tone = 'default' }: FieldProps)
 
 function MiddlewareField({ middleware }: { middleware: string[] }) {
   return (
-    <div className="flex items-center gap-2 min-w-0 col-span-2">
-      <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-      <span className="w-[64px] shrink-0 text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
-        Middleware
-      </span>
+    <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 min-w-0">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Shield className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+        <span className="text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
+          Middleware
+        </span>
+      </div>
       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
         {middleware.map((m) => (
           <span
             key={m}
-            className="inline-flex items-center h-5 text-[10px] font-mono px-1.5 rounded border border-border/60 bg-muted/40 text-foreground/80"
+            className="inline-flex items-center h-[18px] text-[10px] font-mono px-1.5 rounded border border-border/60 bg-muted/40 text-foreground/80"
           >
             <Hash className="w-2.5 h-2.5 mr-0.5 text-muted-foreground/70" />
             {m}
