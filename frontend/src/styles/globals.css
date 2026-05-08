@@ -125,7 +125,7 @@
     --secondary: oklch(0.24 0.008 270);
     --secondary-foreground: oklch(0.94 0.005 270);
     --muted: oklch(0.22 0.006 270);
-    --muted-foreground: oklch(0.62 0.01 270);
+    --muted-foreground: oklch(0.66 0.01 270);
     --accent: oklch(0.26 0.01 270);
     --accent-foreground: oklch(0.94 0.005 270);
     --destructive: oklch(0.65 0.20 25);
@@ -258,22 +258,26 @@
     }
 
     ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
     }
     ::-webkit-scrollbar-track {
         background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-        background: var(--border);
-        border-radius: 8px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
+        background: transparent;
+        border-radius: 9999px;
+        transition: background 150ms ease;
+    }
+    *:hover > ::-webkit-scrollbar-thumb,
+    *:hover::-webkit-scrollbar-thumb {
+        background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: var(--muted-foreground);
-        background-clip: padding-box;
-        border: 2px solid transparent;
+        background: color-mix(in oklab, var(--muted-foreground) 55%, transparent) !important;
+    }
+    ::-webkit-scrollbar-corner {
+        background: transparent;
     }
 }
 

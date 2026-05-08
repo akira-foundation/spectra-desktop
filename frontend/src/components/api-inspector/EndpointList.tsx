@@ -33,8 +33,8 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
 
   return (
     <div className="w-64 shrink-0 border-r border-border/60 flex flex-col bg-sidebar/40 backdrop-blur-sm">
-      <div className="p-2.5 border-b border-border/50">
-        <div className="relative">
+      <div className="h-10 px-1.5 flex items-center border-b border-border/60 shrink-0">
+        <div className="relative w-full">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
@@ -66,8 +66,9 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
                         key={endpoint.path + endpoint.method}
                         onClick={() => onSelectEndpoint(endpoint.tag)}
                         className={cn(
-                          'group w-full text-left px-2 py-1.5 rounded-md transition-colors',
-                          endpoint.active ? 'bg-accent/80 text-foreground' : 'hover:bg-accent/40',
+                          'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
+                          'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',
+                          endpoint.active && 'bg-accent/70 text-foreground',
                         )}
                       >
                         <div className="flex items-center gap-2">
@@ -79,11 +80,16 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
                           >
                             {endpoint.method}
                           </span>
-                          <span className="text-[12px] font-medium truncate flex-1">
+                          <span
+                            className={cn(
+                              'text-[12px] truncate flex-1',
+                              endpoint.active ? 'font-semibold' : 'font-medium',
+                            )}
+                          >
                             {endpoint.name}
                           </span>
                         </div>
-                        <div className="ml-12 text-[10.5px] font-mono text-muted-foreground/80 truncate mt-0.5">
+                        <div className="ml-12 text-[10.5px] font-mono text-muted-foreground truncate mt-0.5">
                           {endpoint.path}
                         </div>
                       </button>

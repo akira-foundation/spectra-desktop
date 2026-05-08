@@ -20,13 +20,16 @@ export function EndpointMetadata({
   className,
 }: EndpointMetadataProps) {
   const hasAny =
-    controller || sourceFile || (middleware && middleware.length > 0) || authRequired !== undefined
+    controller ||
+    sourceFile ||
+    (middleware && middleware.length > 0) ||
+    authRequired !== undefined
   if (!hasAny) return null
 
   return (
     <div
       className={cn(
-        'border-b border-border/40 bg-card/20 px-3 py-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11.5px]',
+        'border-b border-border/60 bg-card/30 px-3.5 py-2.5 grid grid-cols-2 gap-x-8 gap-y-2 text-[11.5px]',
         className,
       )}
     >
@@ -35,15 +38,11 @@ export function EndpointMetadata({
         <Field
           icon={FileText}
           label="Source"
-          value={
-            sourceLine !== undefined ? `${sourceFile}:${sourceLine}` : sourceFile
-          }
+          value={sourceLine !== undefined ? `${sourceFile}:${sourceLine}` : sourceFile}
           mono
         />
       )}
-      {middleware && middleware.length > 0 && (
-        <MiddlewareField middleware={middleware} />
-      )}
+      {middleware && middleware.length > 0 && <MiddlewareField middleware={middleware} />}
       {authRequired !== undefined && (
         <Field
           icon={KeyRound}
@@ -67,8 +66,8 @@ interface FieldProps {
 function Field({ icon: Icon, label, value, mono, tone = 'default' }: FieldProps) {
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-      <span className="text-muted-foreground/80 uppercase tracking-wider text-[10px] shrink-0">
+      <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="w-[64px] shrink-0 text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
         {label}
       </span>
       <span
@@ -77,7 +76,7 @@ function Field({ icon: Icon, label, value, mono, tone = 'default' }: FieldProps)
           mono && 'font-mono text-[11px]',
           tone === 'muted' && 'text-muted-foreground',
           tone === 'primary' && 'text-primary',
-          tone === 'default' && 'text-foreground/90',
+          tone === 'default' && 'text-foreground/85',
         )}
       >
         {value}
@@ -89,17 +88,17 @@ function Field({ icon: Icon, label, value, mono, tone = 'default' }: FieldProps)
 function MiddlewareField({ middleware }: { middleware: string[] }) {
   return (
     <div className="flex items-center gap-2 min-w-0 col-span-2">
-      <Shield className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-      <span className="text-muted-foreground/80 uppercase tracking-wider text-[10px] shrink-0">
+      <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="w-[64px] shrink-0 text-muted-foreground uppercase tracking-wider text-[10px] font-medium">
         Middleware
       </span>
-      <div className="flex items-center gap-1 flex-wrap min-w-0">
+      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
         {middleware.map((m) => (
           <span
             key={m}
-            className="inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded border border-border/50 bg-muted/40 text-foreground/75"
+            className="inline-flex items-center h-5 text-[10px] font-mono px-1.5 rounded border border-border/60 bg-muted/40 text-foreground/80"
           >
-            <Hash className="w-2.5 h-2.5 mr-0.5 text-muted-foreground/60" />
+            <Hash className="w-2.5 h-2.5 mr-0.5 text-muted-foreground/70" />
             {m}
           </span>
         ))}
