@@ -34,7 +34,20 @@ func (d *Driver) Scan(ctx context.Context, projectPath string) ([]core.Endpoint,
 		return nil, ErrNoRoutes
 	}
 	enrichSchemas(projectPath, endpoints)
+	enrichAuthRoles(endpoints)
 	return endpoints, nil
+}
+
+func enrichAuthRoles(endpoints []core.Endpoint) {
+	cap := AuthCapability{}
+	for i := range endpoints {
+		hint := cap.DetectAuthRole(endpoints[i])
+		if hint.Role == core.AuthRoleNone {
+			continue
+		}
+		endpoints[i].AuthRole = hint.Role
+		endpoints[i].AuthHint = string(hint.Confidence) + ": " + hint.Reason
+	}
 }
 
 func enrichSchemas(projectPath string, endpoints []core.Endpoint) {

@@ -157,6 +157,8 @@ export namespace core {
 	    framework?: string;
 	    confidence?: number;
 	    requestSchema?: string;
+	    authRole?: string;
+	    authHint?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Endpoint(source);
@@ -177,6 +179,8 @@ export namespace core {
 	        this.framework = source["framework"];
 	        this.confidence = source["confidence"];
 	        this.requestSchema = source["requestSchema"];
+	        this.authRole = source["authRole"];
+	        this.authHint = source["authHint"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -1,0 +1,2 @@
+ALTER TABLE endpoints ADD COLUMN auth_role TEXT NOT NULL DEFAULT '';
+ALTER TABLE endpoints ADD COLUMN auth_hint TEXT NOT NULL DEFAULT '';

@@ -26,6 +26,8 @@ type Endpoint struct {
 	Framework     string            `json:"framework,omitempty"`
 	Confidence    float64           `json:"confidence,omitempty"`
 	RequestSchema string            `json:"requestSchema,omitempty"`
+	AuthRole      AuthRole          `json:"authRole,omitempty"`
+	AuthHint      string            `json:"authHint,omitempty"`
 }
 
 type Parameter struct {

@@ -26,6 +26,8 @@ type Endpoint struct {
 	Framework     string    `bun:"framework,notnull,default:''"`
 	Confidence    float64   `bun:"confidence,notnull,default:0"`
 	RequestSchema string    `bun:"request_schema,notnull,default:''"`
+	AuthRole      string    `bun:"auth_role,notnull,default:''"`
+	AuthHint      string    `bun:"auth_hint,notnull,default:''"`
 	ScannedAt     time.Time `bun:"scanned_at,notnull"`
 	CreatedAt  time.Time `bun:"created_at,notnull"`
 	UpdatedAt  time.Time `bun:"updated_at,notnull"`
@@ -48,6 +50,8 @@ func (e Endpoint) ToCore() core.Endpoint {
 		Framework:     e.Framework,
 		Confidence:    e.Confidence,
 		RequestSchema: e.RequestSchema,
+		AuthRole:      core.AuthRole(e.AuthRole),
+		AuthHint:      e.AuthHint,
 	}
 }
 
@@ -67,6 +71,8 @@ func EndpointFromCore(projectID string, ep core.Endpoint, scannedAt time.Time, n
 		Framework:     ep.Framework,
 		Confidence:    ep.Confidence,
 		RequestSchema: ep.RequestSchema,
+		AuthRole:      string(ep.AuthRole),
+		AuthHint:      ep.AuthHint,
 		ScannedAt:     scannedAt,
 		CreatedAt:  now,
 		UpdatedAt:  now,
