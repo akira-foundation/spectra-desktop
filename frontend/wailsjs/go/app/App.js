@@ -70,6 +70,10 @@ export function InspectProject(arg1) {
   return window['go']['app']['App']['InspectProject'](arg1);
 }
 
+export function ListEndpointTests(arg1, arg2) {
+  return window['go']['app']['App']['ListEndpointTests'](arg1, arg2);
+}
+
 export function ListEndpoints(arg1) {
   return window['go']['app']['App']['ListEndpoints'](arg1);
 }
@@ -108,6 +112,10 @@ export function RegenerateBodyValues(arg1) {
 
 export function RegenerateExampleBody(arg1) {
   return window['go']['app']['App']['RegenerateExampleBody'](arg1);
+}
+
+export function SaveEndpointTests(arg1) {
+  return window['go']['app']['App']['SaveEndpointTests'](arg1);
 }
 
 export function SaveEnvironment(arg1) {

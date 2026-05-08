@@ -6,6 +6,8 @@ import { ParamsEditor } from './ParamsEditor'
 import { JsonEditor } from './JsonEditor'
 import { HeadersEditor, type HeaderRow } from './HeadersEditor'
 import { FormBodyEditor } from './FormBodyEditor'
+import { TestsEditor } from './TestsEditor'
+import type { TestResult } from '@/services/testsService'
 import type { QueryParam } from '@/lib/route-params'
 import type { RequestSchema } from '@/lib/request-schema'
 import { sourceLabel } from '@/lib/request-schema'
@@ -35,6 +37,9 @@ interface RequestPanelProps {
   executing?: boolean
   variables?: Record<string, string>
   scope?: string
+  projectId?: string | null
+  endpointPath?: string | null
+  testResults?: TestResult[]
 }
 
 export function RequestPanel({
@@ -58,6 +63,9 @@ export function RequestPanel({
   onExecute,
   executing = false,
   variables,
+  projectId,
+  endpointPath,
+  testResults,
 }: RequestPanelProps) {
   const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
@@ -85,15 +93,26 @@ export function RequestPanel({
 
       <Tabs defaultValue="body" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
-          {['body', 'params', 'headers', 'cookies'].map((v) => (
-            <TabsTrigger
-              key={v}
-              value={v}
-              className="text-[11.5px] capitalize px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
-            >
-              {v}
-            </TabsTrigger>
-          ))}
+          {(() => {
+            const passCount = testResults?.filter((r) => r.pass).length ?? 0
+            const failCount = testResults?.filter((r) => !r.pass).length ?? 0
+            const tabs = [
+              { v: 'body', label: 'Body' },
+              { v: 'params', label: 'Params' },
+              { v: 'headers', label: 'Headers' },
+              { v: 'tests', label: testResults && testResults.length > 0 ? `Tests · ${passCount}/${passCount + failCount}` : 'Tests' },
+              { v: 'cookies', label: 'Cookies' },
+            ]
+            return tabs.map((t) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="text-[11.5px] capitalize px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))
+          })()}
         </TabsList>
 
         <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
@@ -171,6 +190,14 @@ export function RequestPanel({
             onChange={onHeaderChange}
             onRemove={onHeaderRemove}
             variables={variables}
+          />
+        </TabsContent>
+        <TabsContent value="tests" className="flex-1 p-3 overflow-auto mt-0">
+          <TestsEditor
+            projectId={projectId ?? null}
+            method={method ?? null}
+            path={endpointPath ?? null}
+            results={testResults}
           />
         </TabsContent>
         <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">

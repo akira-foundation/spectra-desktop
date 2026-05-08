@@ -18,6 +18,7 @@ import (
 	"spectra-desktop/internal/core"
 	"spectra-desktop/internal/domain"
 	"spectra-desktop/internal/drivers/laravel"
+	"spectra-desktop/internal/assertions"
 	"spectra-desktop/internal/exporter/openapi"
 	"spectra-desktop/internal/httpclient"
 	"spectra-desktop/internal/repository"
@@ -40,6 +41,7 @@ type App struct {
 	history   domain.HistoryRepository
 	envs      domain.EnvironmentRepository
 	snapshots domain.SnapshotRepository
+	tests     domain.TestRepository
 	metrics   *repository.MetricsRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
@@ -69,6 +71,7 @@ func New() (*App, error) {
 		history:   repository.NewHistoryRepository(store.DB),
 		envs:      repository.NewEnvironmentRepository(store.DB),
 		snapshots: repository.NewSnapshotRepository(store.DB),
+		tests:     repository.NewTestRepository(store.DB),
 		metrics:   repository.NewMetricsRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
@@ -427,8 +430,13 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 		Timeout: timeout,
 	})
 
+	var testResults []assertions.Result
+	if input.ProjectID != "" && resp != nil && sendErr == nil {
+		testResults = a.runTestsForRequest(input, resp)
+	}
+
 	if input.ProjectID != "" {
-		a.saveHistory(input, target, headers, resp, sendErr)
+		a.saveHistory(input, target, headers, resp, sendErr, testResults)
 	}
 
 	if sendErr != nil {
@@ -449,7 +457,7 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 
 const historyFreeLimit = 50
 
-func (a *App) saveHistory(input ExecuteRequestInput, url string, headers map[string]string, resp *httpclient.Response, sendErr error) {
+func (a *App) saveHistory(input ExecuteRequestInput, url string, headers map[string]string, resp *httpclient.Response, sendErr error, testResults []assertions.Result) {
 	headersJSON, _ := json.Marshal(headers)
 	respHeaders := ""
 	respBody := ""
@@ -469,6 +477,12 @@ func (a *App) saveHistory(input ExecuteRequestInput, url string, headers map[str
 	if sendErr != nil {
 		errStr = sendErr.Error()
 	}
+	testResultsJSON := ""
+	if len(testResults) > 0 {
+		if buf, err := json.Marshal(testResults); err == nil {
+			testResultsJSON = string(buf)
+		}
+	}
 	entry := domain.HistoryEntry{
 		ProjectID:       input.ProjectID,
 		EndpointID:      input.EndpointID,
@@ -482,6 +496,7 @@ func (a *App) saveHistory(input ExecuteRequestInput, url string, headers map[str
 		DurationMs:      durationMs,
 		SizeBytes:       sizeBytes,
 		Error:           errStr,
+		TestResultsJSON: testResultsJSON,
 	}
 	if err := a.history.Save(a.ctx, entry); err != nil {
 		log.Printf("save history: %v", err)
@@ -506,10 +521,11 @@ type HistoryListItem struct {
 
 type HistoryEntryDetail struct {
 	HistoryListItem
-	RequestHeaders  string `json:"requestHeaders"`
-	RequestBody     string `json:"requestBody"`
-	ResponseHeaders string `json:"responseHeaders"`
-	ResponseBody    string `json:"responseBody"`
+	RequestHeaders  string          `json:"requestHeaders"`
+	RequestBody     string          `json:"requestBody"`
+	ResponseHeaders string          `json:"responseHeaders"`
+	ResponseBody    string          `json:"responseBody"`
+	TestResults     []TestResultDTO `json:"testResults,omitempty"`
 }
 
 func (a *App) ListHistory(projectID string, limit int) ([]HistoryListItem, error) {
@@ -561,7 +577,19 @@ func (a *App) GetHistoryEntry(id string) (*HistoryEntryDetail, error) {
 		RequestBody:     entry.RequestBody,
 		ResponseHeaders: entry.ResponseHeaders,
 		ResponseBody:    entry.ResponseBody,
+		TestResults:     parseTestResults(entry.TestResultsJSON),
 	}, nil
+}
+
+func parseTestResults(raw string) []TestResultDTO {
+	if raw == "" {
+		return nil
+	}
+	var out []TestResultDTO
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 func (a *App) ClearHistory(projectID string) error {
@@ -1364,6 +1392,102 @@ func topNBy(items []EndpointMetricDTO, less func(a, b EndpointMetricDTO) bool, n
 		out = out[:n]
 	}
 	return out
+}
+
+func endpointTestKey(method, path string) string {
+	return strings.ToUpper(method) + " " + path
+}
+
+func (a *App) runTestsForRequest(input ExecuteRequestInput, resp *httpclient.Response) []assertions.Result {
+	if input.ProjectID == "" || input.Method == "" || input.Path == "" {
+		return nil
+	}
+	key := endpointTestKey(input.Method, input.Path)
+	tests, err := a.tests.List(a.ctx, input.ProjectID, key)
+	if err != nil || len(tests) == 0 {
+		return nil
+	}
+	domainTests := make([]assertions.Test, 0, len(tests))
+	for _, t := range tests {
+		domainTests = append(domainTests, assertions.Test{
+			ID:       t.ID,
+			Name:     t.Name,
+			Kind:     t.Kind,
+			JSONPath: t.JSONPath,
+			Op:       t.Op,
+			Expected: t.Expected,
+		})
+	}
+	return assertions.Run(domainTests, assertions.ResponseSnapshot{
+		Status:     resp.Status,
+		Headers:    toHTTPHeader(resp.Headers),
+		Body:       resp.Body,
+		DurationMs: int(resp.DurationMs),
+	})
+}
+
+type EndpointTestDTO struct {
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Kind     string `json:"kind"`
+	JSONPath string `json:"jsonPath,omitempty"`
+	Op       string `json:"op,omitempty"`
+	Expected string `json:"expected,omitempty"`
+}
+
+type TestResultDTO struct {
+	ID      string `json:"id,omitempty"`
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Pass    bool   `json:"pass"`
+	Message string `json:"message,omitempty"`
+}
+
+type SaveTestsInput struct {
+	ProjectID   string            `json:"projectID"`
+	EndpointKey string            `json:"endpointKey"`
+	Tests       []EndpointTestDTO `json:"tests"`
+}
+
+func (a *App) ListEndpointTests(projectID, endpointKey string) ([]EndpointTestDTO, error) {
+	if projectID == "" || endpointKey == "" {
+		return []EndpointTestDTO{}, nil
+	}
+	rows, err := a.tests.List(a.ctx, projectID, endpointKey)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]EndpointTestDTO, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, EndpointTestDTO{
+			ID:       r.ID,
+			Name:     r.Name,
+			Kind:     r.Kind,
+			JSONPath: r.JSONPath,
+			Op:       r.Op,
+			Expected: r.Expected,
+		})
+	}
+	return out, nil
+}
+
+func (a *App) SaveEndpointTests(input SaveTestsInput) error {
+	if input.ProjectID == "" || input.EndpointKey == "" {
+		return fmt.Errorf("project id and endpoint key required")
+	}
+	tests := make([]domain.EndpointTest, 0, len(input.Tests))
+	for i, t := range input.Tests {
+		tests = append(tests, domain.EndpointTest{
+			ID:        t.ID,
+			Name:      t.Name,
+			Kind:      t.Kind,
+			JSONPath:  t.JSONPath,
+			Op:        t.Op,
+			Expected:  t.Expected,
+			SortOrder: i,
+		})
+	}
+	return a.tests.Replace(a.ctx, input.ProjectID, input.EndpointKey, tests)
 }
 
 func envToDTO(e domain.Environment) EnvironmentDTO {

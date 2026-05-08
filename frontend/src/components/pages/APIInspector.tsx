@@ -107,6 +107,9 @@ export function APIInspector() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [requestBody, setRequestBody] = useState<string>('')
   const [bodyTouched, setBodyTouched] = useState(false)
+  const [lastTestResults, setLastTestResults] = useState<
+    Array<{ name: string; kind: string; pass: boolean; message?: string }>
+  >([])
   const [headers, setHeaders] = useState<HeaderRow[]>([])
   const runner = useRequestRunner()
 
@@ -170,6 +173,7 @@ export function APIInspector() {
     setRouteValues(routeParams.map(() => ''))
     setQueryParams([])
     runner.reset()
+    setLastTestResults([])
     if (!selectedTag) {
       setRequestBody('')
       setHeaders([])
@@ -319,6 +323,13 @@ export function APIInspector() {
           const who = next.user?.name || next.user?.username || next.user?.email || 'user'
           toast.success(`Token captured · ${who}`)
         }
+        const latest = useHistoryStore.getState().byProject[activeProjectId]?.[0]
+        if (latest?.id) {
+          try {
+            const detail = await historyService.get(latest.id)
+            setLastTestResults(detail?.testResults ?? [])
+          } catch {}
+        }
       })
   }
 
@@ -423,6 +434,9 @@ export function APIInspector() {
             <div className="flex-1 grid grid-cols-2 overflow-hidden">
               <RequestPanel
                 method={selected.method}
+                projectId={activeProjectId}
+                endpointPath={selected.path}
+                testResults={lastTestResults}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}

@@ -21,6 +21,7 @@ type RequestHistory struct {
 	ResponseBody    string    `bun:"response_body,notnull,default:''"`
 	DurationMs      int       `bun:"duration_ms,notnull,default:0"`
 	SizeBytes       int       `bun:"size_bytes,notnull,default:0"`
-	Error           string    `bun:"error,notnull,default:''"`
-	CreatedAt       time.Time `bun:"created_at,notnull"`
+	Error            string    `bun:"error,notnull,default:''"`
+	TestResultsJSON  string    `bun:"test_results_json,notnull,default:''"`
+	CreatedAt        time.Time `bun:"created_at,notnull"`
 }

@@ -19,6 +19,7 @@ type HistoryEntry struct {
 	DurationMs      int
 	SizeBytes       int
 	Error           string
+	TestResultsJSON string
 	CreatedAt       time.Time
 }
 

@@ -145,6 +145,28 @@ export namespace app {
 		}
 	}
 	
+	export class EndpointTestDTO {
+	    id?: string;
+	    name?: string;
+	    kind: string;
+	    jsonPath?: string;
+	    op?: string;
+	    expected?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointTestDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.jsonPath = source["jsonPath"];
+	        this.op = source["op"];
+	        this.expected = source["expected"];
+	    }
+	}
 	export class EnvironmentDTO {
 	    id: string;
 	    projectID: string;
@@ -193,6 +215,26 @@ export namespace app {
 	        this.skipAuth = source["skipAuth"];
 	    }
 	}
+	export class TestResultDTO {
+	    id?: string;
+	    name: string;
+	    kind: string;
+	    pass: boolean;
+	    message?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TestResultDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.pass = source["pass"];
+	        this.message = source["message"];
+	    }
+	}
 	export class HistoryEntryDetail {
 	    id: string;
 	    endpointID?: string;
@@ -208,6 +250,7 @@ export namespace app {
 	    requestBody: string;
 	    responseHeaders: string;
 	    responseBody: string;
+	    testResults?: TestResultDTO[];
 	
 	    static createFrom(source: any = {}) {
 	        return new HistoryEntryDetail(source);
@@ -228,6 +271,7 @@ export namespace app {
 	        this.requestBody = source["requestBody"];
 	        this.responseHeaders = source["responseHeaders"];
 	        this.responseBody = source["responseBody"];
+	        this.testResults = this.convertValues(source["testResults"], TestResultDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -459,6 +503,40 @@ export namespace app {
 	        this.sortOrder = source["sortOrder"];
 	    }
 	}
+	export class SaveTestsInput {
+	    projectID: string;
+	    endpointKey: string;
+	    tests: EndpointTestDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveTestsInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
+	        this.endpointKey = source["endpointKey"];
+	        this.tests = this.convertValues(source["tests"], EndpointTestDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SetProjectAuthInput {
 	    projectID: string;
 	    scheme: string;
@@ -662,6 +740,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	
 	
 	

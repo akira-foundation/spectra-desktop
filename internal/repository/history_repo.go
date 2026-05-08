@@ -44,6 +44,7 @@ func (r *HistoryRepository) Save(ctx context.Context, entry domain.HistoryEntry)
 		DurationMs:      entry.DurationMs,
 		SizeBytes:       entry.SizeBytes,
 		Error:           entry.Error,
+		TestResultsJSON: entry.TestResultsJSON,
 		CreatedAt:       entry.CreatedAt,
 	}
 	_, err := r.db.NewInsert().Model(&row).Exec(ctx)
@@ -126,6 +127,7 @@ func toHistoryDomain(row model.RequestHistory) domain.HistoryEntry {
 		DurationMs:      row.DurationMs,
 		SizeBytes:       row.SizeBytes,
 		Error:           row.Error,
+		TestResultsJSON: row.TestResultsJSON,
 		CreatedAt:       row.CreatedAt,
 	}
 }
