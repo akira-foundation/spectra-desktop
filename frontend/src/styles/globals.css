@@ -75,7 +75,7 @@
     --accent-foreground: oklch(0.20 0 0);
     --destructive: oklch(0.60 0.21 25);
     --destructive-foreground: oklch(0.99 0 0);
-    --border: oklch(0.90 0.005 270);
+    --border: oklch(0.88 0.005 270);
     --input: oklch(0.96 0.004 270);
     --ring: oklch(0.55 0.18 285);
     --chart-1: oklch(0.7459 0.1483 156.4499);
@@ -245,8 +245,12 @@
         height: 100%;
     }
 
+    html, body, #root {
+        background: transparent !important;
+    }
+
     body {
-        @apply bg-background text-foreground;
+        @apply text-foreground;
         font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;

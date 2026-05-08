@@ -42,7 +42,7 @@ export function Topbar() {
 
   return (
     <div
-      className="h-10 border-b border-border/60 bg-card/40 backdrop-blur-md flex items-center justify-between gap-3 pr-3 select-none"
+      className="h-10 flex items-center justify-between gap-3 pr-3 select-none text-white/90"
       style={{ ...drag, paddingLeft: 80 }}
     >
       <div className="flex items-center gap-2 min-w-0" style={noDrag}>
@@ -57,7 +57,7 @@ export function Topbar() {
       <div className="flex-1 max-w-md mx-auto" style={noDrag}>
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="w-full h-7 flex items-center gap-2 px-2.5 text-[12px] text-muted-foreground bg-muted/40 hover:bg-muted/60 border border-border/50 rounded-md transition-colors"
+          className="w-full h-7 flex items-center gap-2 px-2.5 text-[12px] text-white/65 bg-white/5 hover:bg-white/10 border border-white/10 rounded-md transition-colors"
         >
           <Search className="w-3.5 h-3.5" />
           <span>Search...</span>
@@ -71,7 +71,7 @@ export function Topbar() {
           size="sm"
           onClick={handleSync}
           disabled={!activeProjectId || isSyncing === activeProjectId}
-          className="h-7 px-2 text-[11px]"
+          className="h-7 px-2 text-[11px] text-white/85 hover:bg-white/10 hover:text-white"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isSyncing === activeProjectId ? 'animate-spin' : ''}`} />
           <span>{isSyncing === activeProjectId ? 'Syncing' : 'Sync'}</span>
@@ -80,7 +80,7 @@ export function Topbar() {
           variant="ghost"
           size="sm"
           onClick={() => setAuthDrawerOpen(true)}
-          className="h-7 px-2 text-[11px] gap-1.5"
+          className="h-7 px-2 text-[11px] gap-1.5 text-white/85 hover:bg-white/10 hover:text-white"
         >
           <AuthIcon className="w-3.5 h-3.5" />
           <span>{authConfig.label}</span>

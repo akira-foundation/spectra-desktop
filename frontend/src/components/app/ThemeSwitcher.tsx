@@ -25,7 +25,7 @@ export function ThemeSwitcher() {
       size="icon-sm"
       onClick={toggleTheme}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="h-7 w-7"
+      className="h-7 w-7 text-white/85 hover:bg-white/10 hover:text-white"
     >
       {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
     </Button>

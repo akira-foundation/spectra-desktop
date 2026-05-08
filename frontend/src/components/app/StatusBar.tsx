@@ -56,7 +56,7 @@ export function StatusBar({
   }
 
   return (
-    <footer className="h-6 shrink-0 border-t border-border/60 bg-card/40 backdrop-blur-md flex items-center justify-between px-3 text-[10.5px] text-foreground/55 select-none gap-3">
+    <footer className="h-6 shrink-0 flex items-center justify-between px-3 text-[10.5px] text-white/70 select-none gap-3">
       <div className="flex items-center gap-3 shrink-0">
         <span className="flex items-center gap-1.5">
           {sdkIcon()}
@@ -73,8 +73,8 @@ export function StatusBar({
             className="flex items-center gap-1.5 min-w-0 max-w-[480px]"
             title={active.path}
           >
-            <Folder className="w-2.5 h-2.5 text-foreground/40 shrink-0" />
-            <span className="font-mono truncate text-foreground/65">{active.path}</span>
+            <Folder className="w-2.5 h-2.5 text-white/50 shrink-0" />
+            <span className="font-mono truncate text-white/75">{active.path}</span>
           </span>
         )}
         <span className="opacity-60 font-mono shrink-0">v0.1.0</span>

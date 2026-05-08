@@ -15,18 +15,23 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
+      <div className="h-screen w-screen flex flex-col bg-transparent text-foreground overflow-hidden">
         <CommandPalette />
         <AddProjectDialog />
         <DrawerMenu />
+
         <Topbar />
-        <div className="flex flex-1 min-h-0">
-          <Sidebar />
-          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+
+        <div className="flex flex-1 min-h-0 gap-2 px-2 pb-2 pt-0">
+          <div className="rounded-xl border border-border bg-sidebar overflow-hidden shadow-sm">
+            <Sidebar />
+          </div>
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-xl border border-border bg-background overflow-hidden shadow-sm">
             <TabBar />
             <div className="flex-1 overflow-auto min-h-0">{children}</div>
           </div>
         </div>
+
         <StatusBar />
       </div>
     </TooltipProvider>

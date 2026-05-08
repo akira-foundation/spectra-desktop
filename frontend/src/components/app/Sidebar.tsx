@@ -30,7 +30,7 @@ export function Sidebar() {
   const setCurrentPage = useUIStore((s) => s.setCurrentPage)
 
   return (
-    <aside className="flex w-12 shrink-0 flex-col items-center justify-between border-r border-border/60 bg-sidebar/60 backdrop-blur-md py-2">
+    <aside className="flex h-full w-12 shrink-0 flex-col items-center justify-between py-2">
       <div className="flex flex-col items-center gap-0.5 pt-1">
         <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary text-[13px] font-semibold tracking-tight">
           S
