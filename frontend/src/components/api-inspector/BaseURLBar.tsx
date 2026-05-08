@@ -1,78 +1,96 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Globe, Check, X, LogIn, ChevronDown } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Globe,
+  Check,
+  X,
+  LogIn,
+  LogOut,
+  ChevronsUpDown,
+  Settings2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { useProjectStore } from '@/store/projectStore'
-import { useEndpointsStore } from '@/store/endpointsStore'
-import type { ScannedEndpoint } from '@/services/scannerService'
-import { useHttpMethod } from '@/hooks/useHttpMethod'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { useProjectStore } from "@/store/projectStore";
+import { useEndpointsStore } from "@/store/endpointsStore";
+import type { ScannedEndpoint } from "@/services/scannerService";
+import { useHttpMethod } from "@/hooks/useHttpMethod";
+import { cn } from "@/lib/utils";
 
-const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
+const EMPTY_ENDPOINTS: ScannedEndpoint[] = [];
 
 export function BaseURLBar() {
-  const activeProjectId = useProjectStore((s) => s.activeProjectId)
-  const projects = useProjectStore((s) => s.projects)
-  const updateBaseURL = useProjectStore((s) => s.updateBaseURL)
-  const updateLoginEndpoint = useProjectStore((s) => s.updateLoginEndpoint)
-  const project = projects.find((p) => p.id === activeProjectId)
+  const activeProjectId = useProjectStore((s) => s.activeProjectId);
+  const projects = useProjectStore((s) => s.projects);
+  const updateBaseURL = useProjectStore((s) => s.updateBaseURL);
+  const updateAuthRoutes = useProjectStore((s) => s.updateAuthRoutes);
+  const project = projects.find((p) => p.id === activeProjectId);
   const allEndpoints = useEndpointsStore((s) =>
-    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS : EMPTY_ENDPOINTS,
-  )
+    activeProjectId
+      ? (s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS)
+      : EMPTY_ENDPOINTS,
+  );
 
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(project?.baseUrl ?? '')
-  const [busy, setBusy] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(project?.baseUrl ?? "");
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setValue(project?.baseUrl ?? '')
-  }, [project?.id, project?.baseUrl])
+    setValue(project?.baseUrl ?? "");
+  }, [project?.id, project?.baseUrl]);
 
-  if (!project) return null
+  if (!project) return null;
 
   const beginEdit = () => {
-    setEditing(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
 
   const cancel = () => {
-    setValue(project.baseUrl ?? '')
-    setEditing(false)
-  }
+    setValue(project.baseUrl ?? "");
+    setEditing(false);
+  };
 
   const save = async () => {
-    const trimmed = value.trim()
+    const trimmed = value.trim();
     if (!trimmed || trimmed === project.baseUrl) {
-      setEditing(false)
-      return
+      setEditing(false);
+      return;
     }
-    setBusy(true)
+    setBusy(true);
     try {
-      await updateBaseURL(project.id, trimmed)
-      setEditing(false)
+      await updateBaseURL(project.id, trimmed);
+      setEditing(false);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      void save()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      cancel()
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void save();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancel();
     }
-  }
+  };
 
   return (
-    <div className="h-9 px-3 border-b border-border/50 flex items-center gap-2 bg-transparent">
+    <div className="h-10.5 px-4 border-b border-border/50 flex items-center gap-2 bg-transparent">
       <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
         Base URL
@@ -88,10 +106,22 @@ export function BaseURLBar() {
             className="h-7 text-[12px] font-mono"
             disabled={busy}
           />
-          <Button size="sm" variant="outline" className="h-7 px-2" onClick={save} disabled={busy}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2"
+            onClick={save}
+            disabled={busy}
+          >
             <Check className="w-3.5 h-3.5" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={cancel} disabled={busy}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2"
+            onClick={cancel}
+            disabled={busy}
+          >
             <X className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -100,86 +130,82 @@ export function BaseURLBar() {
           type="button"
           onClick={beginEdit}
           className="flex-1 min-w-0 text-left font-mono text-[12px] text-foreground/85 hover:text-foreground truncate"
-          title={project.baseUrl || 'Click to set base URL'}
+          title={project.baseUrl || "Click to set base URL"}
         >
           {project.baseUrl || (
-            <span className="text-muted-foreground italic">click to set base URL</span>
+            <span className="text-muted-foreground italic">
+              click to set base URL
+            </span>
           )}
         </button>
       )}
 
-      <LoginEndpointPicker
+      <AuthRoutesPopover
         projectId={project.id}
         endpoints={allEndpoints}
-        loginEndpointId={project.loginEndpointId ?? ''}
-        loginTokenPath={project.loginTokenPath ?? ''}
-        onSave={updateLoginEndpoint}
+        loginEndpointId={project.loginEndpointId ?? ""}
+        loginTokenPath={project.loginTokenPath ?? ""}
+        logoutEndpointId={project.logoutEndpointId ?? ""}
+        onSave={updateAuthRoutes}
       />
     </div>
-  )
+  );
 }
 
-interface LoginEndpointPickerProps {
-  projectId: string
-  endpoints: Array<{ id: string; method: string; path: string }>
-  loginEndpointId: string
-  loginTokenPath: string
-  onSave: (id: string, endpointId: string, tokenPath: string) => Promise<void>
+interface AuthRoutesPopoverProps {
+  projectId: string;
+  endpoints: ScannedEndpoint[];
+  loginEndpointId: string;
+  loginTokenPath: string;
+  logoutEndpointId: string;
+  onSave: (
+    id: string,
+    loginId: string,
+    logoutId: string,
+    tokenPath: string,
+  ) => Promise<void>;
 }
 
-function LoginEndpointPicker({
+function AuthRoutesPopover({
   projectId,
   endpoints,
   loginEndpointId,
   loginTokenPath,
+  logoutEndpointId,
   onSave,
-}: LoginEndpointPickerProps) {
-  const { getMethodColor } = useHttpMethod()
-  const [open, setOpen] = useState(false)
-  const [endpointDraft, setEndpointDraft] = useState(loginEndpointId)
-  const [pathDraft, setPathDraft] = useState(loginTokenPath)
-  const [saving, setSaving] = useState(false)
-  const [query, setQuery] = useState('')
+}: AuthRoutesPopoverProps) {
+  const [open, setOpen] = useState(false);
+  const [loginDraft, setLoginDraft] = useState(loginEndpointId);
+  const [logoutDraft, setLogoutDraft] = useState(logoutEndpointId);
+  const [pathDraft, setPathDraft] = useState(loginTokenPath);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setEndpointDraft(loginEndpointId)
-    setPathDraft(loginTokenPath)
-  }, [loginEndpointId, loginTokenPath, projectId])
+    setLoginDraft(loginEndpointId);
+    setLogoutDraft(logoutEndpointId);
+    setPathDraft(loginTokenPath);
+  }, [loginEndpointId, logoutEndpointId, loginTokenPath, projectId]);
 
-  const selected = endpoints.find((e) => e.id === loginEndpointId)
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const writes = endpoints.filter((e) => {
-      const m = e.method.toUpperCase()
-      return m === 'POST' || m === 'PUT' || m === 'PATCH'
-    })
-    if (!q) return writes.slice(0, 80)
-    return writes
-      .filter((e) => e.path.toLowerCase().includes(q) || e.method.toLowerCase().includes(q))
-      .slice(0, 80)
-  }, [endpoints, query])
+  const writeEndpoints = useMemo(
+    () =>
+      endpoints.filter((e) => {
+        const m = e.method.toUpperCase();
+        return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
+      }),
+    [endpoints],
+  );
 
   const handleSave = async () => {
-    setSaving(true)
+    setSaving(true);
     try {
-      await onSave(projectId, endpointDraft, pathDraft.trim())
-      setOpen(false)
+      await onSave(projectId, loginDraft, logoutDraft, pathDraft.trim());
+      setOpen(false);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
-  const handleClear = async () => {
-    setSaving(true)
-    try {
-      await onSave(projectId, '', '')
-      setEndpointDraft('')
-      setPathDraft('')
-      setOpen(false)
-    } finally {
-      setSaving(false)
-    }
-  }
+  const configured = Boolean(loginEndpointId || logoutEndpointId);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -187,66 +213,35 @@ function LoginEndpointPicker({
         <button
           type="button"
           className={cn(
-            'shrink-0 h-7 inline-flex items-center gap-1.5 px-2 rounded-md text-[11px] border border-border/50 hover:bg-accent/40 transition-colors',
-            loginEndpointId ? 'text-foreground' : 'text-muted-foreground',
+            "shrink-0 h-7 inline-flex items-center gap-1.5 px-2 rounded-md text-[11px] border border-border/50 hover:bg-accent/40 transition-colors",
+            configured ? "text-foreground" : "text-muted-foreground",
           )}
-          title="Configure login endpoint"
+          title="Configure auth routes"
         >
-          <LogIn className="w-3 h-3" />
-          {selected ? (
-            <span className="font-mono truncate max-w-[180px]">{selected.path}</span>
-          ) : (
-            <span>Set login route</span>
+          <Settings2 className="w-3 h-3" />
+          <span>Auth routes</span>
+          {configured && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           )}
-          <ChevronDown className="w-3 h-3 opacity-60" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[360px] p-3 space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Login endpoint
-          </label>
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search endpoints..."
-            className="h-7 text-[12px]"
-          />
-          <div className="max-h-56 overflow-auto rounded-md border border-border/40 bg-muted/20">
-            <button
-              type="button"
-              onClick={() => setEndpointDraft('')}
-              className={cn(
-                'w-full text-left px-2 py-1.5 text-[11.5px] hover:bg-accent/40 flex items-center gap-2',
-                endpointDraft === '' && 'bg-accent/60',
-              )}
-            >
-              <span className="italic text-muted-foreground">— None —</span>
-            </button>
-            {filtered.map((ep) => (
-              <button
-                key={ep.id}
-                type="button"
-                onClick={() => setEndpointDraft(ep.id)}
-                className={cn(
-                  'w-full text-left px-2 py-1.5 text-[11.5px] hover:bg-accent/40 flex items-center gap-2',
-                  endpointDraft === ep.id && 'bg-accent/60',
-                )}
-              >
-                <span
-                  className={cn(
-                    'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
-                    getMethodColor(ep.method),
-                  )}
-                >
-                  {ep.method}
-                </span>
-                <span className="font-mono truncate flex-1">{ep.path}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <PopoverContent align="end" className="w-[380px] p-3 space-y-3">
+        <RouteSelect
+          icon={LogIn}
+          label="Login"
+          endpoints={writeEndpoints}
+          value={loginDraft}
+          onChange={setLoginDraft}
+          placeholder="Select login route"
+        />
+        <RouteSelect
+          icon={LogOut}
+          label="Logout"
+          endpoints={writeEndpoints}
+          value={logoutDraft}
+          onChange={setLogoutDraft}
+          placeholder="Select logout route"
+        />
         <div className="space-y-1.5">
           <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Token JSONPath
@@ -257,31 +252,130 @@ function LoginEndpointPicker({
             placeholder="data.token (auto-detected if empty)"
             className="h-7 text-[12px] font-mono"
           />
-          <p className="text-[10.5px] text-muted-foreground/70">
-            Leave empty to use heuristic detection.
-          </p>
         </div>
-
-        <div className="flex items-center gap-2 pt-1">
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 h-7 text-[11px]"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleClear}
-            disabled={saving}
-            className="h-7 text-[11px]"
-          >
-            Clear
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full h-7 text-[11px]"
+        >
+          {saving ? "Saving..." : "Save"}
+        </Button>
       </PopoverContent>
     </Popover>
-  )
+  );
+}
+
+interface RouteSelectProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  endpoints: ScannedEndpoint[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+}
+
+function RouteSelect({
+  icon: Icon,
+  label,
+  endpoints,
+  value,
+  onChange,
+  placeholder,
+}: RouteSelectProps) {
+  const { getMethodColor } = useHttpMethod();
+  const [open, setOpen] = useState(false);
+  const selected = endpoints.find((e) => e.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <Icon className="w-3 h-3" />
+        {label}
+      </label>
+      <Popover open={open} onOpenChange={setOpen} modal>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-full h-8 px-2 inline-flex items-center gap-2 rounded-md border border-border/40 bg-muted/40 text-[12px] hover:bg-accent/40 transition-colors"
+          >
+            {selected ? (
+              <>
+                <span
+                  className={cn(
+                    "inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5",
+                    getMethodColor(selected.method),
+                  )}
+                >
+                  {selected.method}
+                </span>
+                <span className="font-mono truncate flex-1 text-left">
+                  {selected.path}
+                </span>
+              </>
+            ) : (
+              <span className="flex-1 text-left text-muted-foreground italic">
+                {placeholder}
+              </span>
+            )}
+            <ChevronsUpDown className="w-3 h-3 opacity-60 shrink-0" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[360px] p-0">
+          <Command
+            filter={(itemValue, search) => {
+              const v = itemValue.toLowerCase();
+              return v.includes(search.toLowerCase()) ? 1 : 0;
+            }}
+          >
+            <CommandInput
+              placeholder="Search endpoints..."
+              className="h-8 text-[12px]"
+            />
+            <CommandList className="max-h-64">
+              <CommandEmpty className="py-4 text-center text-[11.5px] text-muted-foreground">
+                No endpoints
+              </CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="__none__"
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                  className="text-[11.5px] italic text-muted-foreground"
+                >
+                  — None —
+                </CommandItem>
+                {endpoints.map((ep) => (
+                  <CommandItem
+                    key={ep.id}
+                    value={`${ep.method} ${ep.path}`}
+                    onSelect={() => {
+                      onChange(ep.id);
+                      setOpen(false);
+                    }}
+                    className="gap-2 text-[11.5px]"
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5",
+                        getMethodColor(ep.method),
+                      )}
+                    >
+                      {ep.method}
+                    </span>
+                    <span className="font-mono truncate flex-1">{ep.path}</span>
+                    {value === ep.id && (
+                      <Check className="w-3 h-3 text-primary" />
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }

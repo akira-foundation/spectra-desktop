@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, FolderSearch, Loader2, AlertTriangle, Filter, Check, Globe } from 'lucide-react'
+import { FolderOpen, FolderSearch, Loader2, AlertTriangle, Filter, Check, Globe, LogIn, LogOut, Lock } from 'lucide-react'
 import { Drivers } from '../../../wailsjs/go/app/App'
 import {
   Dialog,
@@ -56,60 +56,68 @@ export function AddProjectDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md gap-3">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b border-border/40">
           <DialogTitle className="text-base">Add Project</DialogTitle>
           <DialogDescription className="text-[12.5px]">
             Spectra inspects the folder, detects the framework and the API routes.
           </DialogDescription>
         </DialogHeader>
 
-        {!info && (
-          <FolderPickerCard
-            onPick={pickFolder}
-            loading={status === 'picking'}
-            label={status === 'picking' ? 'Opening...' : 'Choose folder'}
-          />
-        )}
-
-        {info && status === 'inspecting' && <InspectionProgress steps={pipeline} />}
-
-        {info && (status === 'ready' || status === 'saving' || status === 'error') && (
-          <ProjectPreview info={info} onChange={pickFolder} disabled={isLoading} />
-        )}
-
-        {info && status === 'ready' && supported && (
-          <>
-            <APIDetectionPanel
-              detection={detection}
-              filterMode={filterMode}
-              filterValue={filterValue}
-              previewing={previewing}
-              onModeChange={setFilterMode}
-              onValueChange={setFilterValue}
-              onApply={applyFilter}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          {!info && (
+            <FolderPickerCard
+              onPick={pickFolder}
+              loading={status === 'picking'}
+              label={status === 'picking' ? 'Opening...' : 'Choose folder'}
             />
-            <BaseURLField
-              value={baseUrl}
-              suggested={info.defaultBaseUrl ?? ''}
-              onChange={setBaseUrl}
-            />
-          </>
-        )}
+          )}
 
-        {info && status === 'ready' && !supported && (
-          <UnsupportedWarning framework={info.framework} />
-        )}
+          {info && status === 'inspecting' && <InspectionProgress steps={pipeline} />}
 
-        {!info && <SupportedFrameworks />}
+          {info && (status === 'ready' || status === 'saving' || status === 'error') && (
+            <ProjectPreview info={info} onChange={pickFolder} disabled={isLoading} />
+          )}
 
-        {error && (
-          <p className="text-[12px] text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-            {error}
-          </p>
-        )}
+          {info && status === 'ready' && supported && (
+            <>
+              <APIDetectionPanel
+                detection={detection}
+                filterMode={filterMode}
+                filterValue={filterValue}
+                previewing={previewing}
+                onModeChange={setFilterMode}
+                onValueChange={setFilterValue}
+                onApply={applyFilter}
+              />
+              {(detection?.loginRoute || detection?.logoutRoute) && (
+                <AuthRoutesDetected
+                  loginRoute={detection.loginRoute ?? ''}
+                  logoutRoute={detection.logoutRoute ?? ''}
+                />
+              )}
+              <BaseURLField
+                value={baseUrl}
+                suggested={info.defaultBaseUrl ?? ''}
+                onChange={setBaseUrl}
+              />
+            </>
+          )}
 
-        <DialogFooter className="gap-2">
+          {info && status === 'ready' && !supported && (
+            <UnsupportedWarning framework={info.framework} />
+          )}
+
+          {!info && <SupportedFrameworks />}
+
+          {error && (
+            <p className="text-[12px] text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="px-6 py-3 gap-2 shrink-0 border-t border-border/40">
           <Button variant="outline" size="sm" onClick={close} disabled={status === 'saving'}>
             Cancel
           </Button>
@@ -416,6 +424,54 @@ function BaseURLField({ value, suggested, onChange }: BaseURLFieldProps) {
           Suggested by framework driver: <span className="font-mono">{suggested}</span>
         </p>
       )}
+    </div>
+  )
+}
+
+
+interface AuthRoutesDetectedProps {
+  loginRoute: string
+  logoutRoute: string
+}
+
+function AuthRoutesDetected({ loginRoute, logoutRoute }: AuthRoutesDetectedProps) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3.5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            Auth routes detected
+          </span>
+        </div>
+        <span className="text-[10px] text-emerald-500 font-medium">auto</span>
+      </div>
+      <div className="space-y-1.5">
+        {loginRoute && <RouteRow icon={LogIn} label="Login" route={loginRoute} />}
+        {logoutRoute && <RouteRow icon={LogOut} label="Logout" route={logoutRoute} />}
+      </div>
+      <p className="text-[10.5px] text-muted-foreground">
+        These will be set automatically. Edit later via the base URL bar.
+      </p>
+    </div>
+  )
+}
+
+interface RouteRowProps {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  route: string
+}
+
+function RouteRow({ icon: Icon, label, route }: RouteRowProps) {
+  const [method, ...rest] = route.split(" ")
+  const path = rest.join(" ")
+  return (
+    <div className="flex items-center gap-2 text-[11.5px]">
+      <Icon className="w-3 h-3 text-muted-foreground" />
+      <span className="text-muted-foreground w-12">{label}</span>
+      <span className="font-mono text-[10px] font-bold text-emerald-500">{method}</span>
+      <span className="font-mono text-foreground/85 truncate">{path}</span>
     </div>
   )
 }

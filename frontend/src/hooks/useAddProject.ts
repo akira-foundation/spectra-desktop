@@ -118,19 +118,42 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
       const base = projectInputFromInfo(info)
       const effectiveMode = detection?.mode ?? filterMode
       const effectiveValue = detection?.value ?? filterValue
-      await addProjectFromInput({
+      const project = await addProjectFromInput({
         ...base,
         apiFilterMode: effectiveMode,
         apiFilterValue: effectiveValue,
         baseUrl: baseUrl.trim() || base.baseUrl,
       })
+      const loginRoute = detection?.loginRoute ?? ''
+      const logoutRoute = detection?.logoutRoute ?? ''
+      if (loginRoute || logoutRoute) {
+        try {
+          const { useEndpointsStore } = await import('@/store/endpointsStore')
+          const { useProjectStore } = await import('@/store/projectStore')
+          await useEndpointsStore.getState().scan(project.id)
+          const eps = useEndpointsStore.getState().byProject[project.id] ?? []
+          const findId = (route: string) => {
+            if (!route) return ''
+            const [m, ...rest] = route.split(' ')
+            const path = rest.join(' ')
+            return eps.find((e) => e.method === m && e.path === path)?.id ?? ''
+          }
+          const loginId = findId(loginRoute)
+          const logoutId = findId(logoutRoute)
+          if (loginId || logoutId) {
+            await useProjectStore.getState().updateAuthRoutes(project.id, loginId, logoutId, '')
+          }
+        } catch (e) {
+          console.error('auth routes setup failed:', e)
+        }
+      }
       onSuccess?.()
       reset()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setStatus('ready')
     }
-  }, [info, detection, filterMode, filterValue, addProjectFromInput, onSuccess, reset])
+  }, [info, detection, filterMode, filterValue, baseUrl, addProjectFromInput, onSuccess, reset])
 
   return {
     status,
