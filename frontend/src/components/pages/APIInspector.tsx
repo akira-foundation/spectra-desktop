@@ -322,11 +322,11 @@ export function APIInspector() {
 
   if (status === 'loading' || status === 'scanning') {
     return (
-      <div className="h-full flex overflow-hidden">
-        <div className="w-64 shrink-0 border-r border-border">
+      <div className="h-full flex gap-2 p-2 overflow-hidden">
+        <div className="w-64 shrink-0 rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02]">
           <EndpointListSkeleton />
         </div>
-        <div className="flex-1" />
+        <div className="flex-1 rounded-md border border-border/40 bg-card/30" />
       </div>
     )
   }
@@ -338,7 +338,7 @@ export function APIInspector() {
   }
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="h-full flex gap-2 p-2 overflow-hidden">
       <EndpointList
         endpoints={decoratedGroups}
         onSelectEndpoint={handleSelect}
@@ -347,7 +347,7 @@ export function APIInspector() {
         onReorder={(order) => activeProjectId && setGroupOrder(activeProjectId, order)}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden rounded-md border border-border/40 bg-card/30">
         <AuthenticationDrawer
           activeMethod={activeAuthMethod}
           onMethodChange={setActiveAuthMethod}

@@ -104,7 +104,7 @@ export function EndpointList({
   const pinnedCategory = filtered.find((c) => c.category === PINNED_CATEGORY)
 
   return (
-    <div className="w-64 shrink-0 border-r border-border flex flex-col bg-transparent">
+    <div className="w-64 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden">
       <div className="h-10 px-1.5 flex items-center border-b border-border/60 shrink-0">
         <div className="relative w-full">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
