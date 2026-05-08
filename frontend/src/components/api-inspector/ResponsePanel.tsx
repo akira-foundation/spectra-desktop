@@ -64,7 +64,6 @@ export function ResponsePanel({
         <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
           {[
             { v: 'json', label: 'JSON' },
-            { v: 'raw', label: 'Raw' },
             { v: 'headers', label: 'Headers' },
             { v: 'history', label: `History${history.length > 0 ? ` · ${history.length}` : ''}` },
           ].map((t) => (
@@ -90,13 +89,7 @@ export function ResponsePanel({
           )}
         </TabsContent>
 
-        <TabsContent value="raw" className="flex-1 p-3 overflow-auto mt-0">
-          <pre className="text-[11.5px] text-foreground font-mono whitespace-pre-wrap">
-            {formatted}
-          </pre>
-        </TabsContent>
-
-        <TabsContent value="headers" className="flex-1 p-3 overflow-auto mt-0 mt-0">
+        <TabsContent value="headers" className="flex-1 p-3 overflow-auto mt-0">
           <HeadersList headers={responseHeaders} />
         </TabsContent>
 

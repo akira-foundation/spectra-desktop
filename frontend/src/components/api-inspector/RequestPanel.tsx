@@ -1,9 +1,11 @@
 import { RotateCcw, Play, Send, FileCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useState } from 'react'
 import { ParamsEditor } from './ParamsEditor'
 import { JsonEditor } from './JsonEditor'
 import { HeadersEditor, type HeaderRow } from './HeadersEditor'
+import { FormBodyEditor } from './FormBodyEditor'
 import type { QueryParam } from '@/lib/route-params'
 import type { RequestSchema } from '@/lib/request-schema'
 import { sourceLabel } from '@/lib/request-schema'
@@ -53,6 +55,7 @@ export function RequestPanel({
   executing = false,
   variables,
 }: RequestPanelProps) {
+  const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
 
   return (
@@ -91,23 +94,51 @@ export function RequestPanel({
 
         <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
           <div className="flex items-center gap-2 mb-2">
-            <button className="px-2 py-0.5 text-[10.5px] bg-primary/15 text-primary rounded-sm hover:bg-primary/25 transition-colors">
+            <button
+              type="button"
+              onClick={() => setBodyMode('json')}
+              className={cn(
+                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors',
+                bodyMode === 'json'
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
               JSON
             </button>
-            <button className="px-2 py-0.5 text-[10.5px] text-muted-foreground hover:bg-accent/60 rounded-sm transition-colors">
+            <button
+              type="button"
+              onClick={() => setBodyMode('form')}
+              disabled={!schema || schema.fields.length === 0}
+              className={cn(
+                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                bodyMode === 'form'
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
               Form
             </button>
             {schema && schema.fields.length > 0 && (
               <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
             )}
           </div>
-          <div className="flex-1 min-h-0">
-            <JsonEditor
-              value={requestBody}
-              onChange={onRequestBodyChange}
-              placeholder="{}"
-              variables={variables}
-            />
+          <div className="flex-1 min-h-0 overflow-auto">
+            {bodyMode === 'form' && schema && schema.fields.length > 0 ? (
+              <FormBodyEditor
+                value={requestBody}
+                schema={schema}
+                onChange={onRequestBodyChange}
+                variables={variables}
+              />
+            ) : (
+              <JsonEditor
+                value={requestBody}
+                onChange={onRequestBodyChange}
+                placeholder="{}"
+                variables={variables}
+              />
+            )}
           </div>
         </TabsContent>
 
