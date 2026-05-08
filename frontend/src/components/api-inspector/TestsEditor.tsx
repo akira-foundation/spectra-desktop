@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Trash2, Check, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { PathAutocomplete } from './PathAutocomplete'
 import { testsService, type EndpointTest, type TestResult } from '@/services/testsService'
 import { cn } from '@/lib/utils'
 
@@ -192,20 +193,13 @@ function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: T
           ))}
         </select>
         {showPath ? (
-          <>
-            <Input
-              value={test.jsonPath ?? ''}
-              onChange={(e) => onChange({ jsonPath: e.target.value })}
-              placeholder={test.kind === 'header' ? 'Content-Type' : '$.data.token'}
-              className="h-7 text-[11.5px] font-mono"
-              list={datalistId}
-            />
-            <datalist id={datalistId}>
-              {(test.kind === 'header' ? headerNames : jsonPaths).map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
-          </>
+          <PathAutocomplete
+            value={test.jsonPath ?? ''}
+            onChange={(v) => onChange({ jsonPath: v })}
+            placeholder={test.kind === 'header' ? 'Content-Type' : '$.data.token'}
+            suggestions={test.kind === 'header' ? headerNames : jsonPaths}
+            className="h-7 text-[11.5px]"
+          />
         ) : (
           <span className="text-[11px] text-muted-foreground/70 px-2">—</span>
         )}
