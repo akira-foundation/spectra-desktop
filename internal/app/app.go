@@ -1577,6 +1577,9 @@ func (a *App) ScanWorkspace(projectID string) ([]core.Endpoint, error) {
 	if err := a.recordSnapshot(projectID, filtered); err != nil {
 		log.Printf("record snapshot: %v", err)
 	}
+	if err := a.projects.MarkSynced(a.ctx, projectID); err != nil {
+		log.Printf("mark synced: %v", err)
+	}
 	if project.LoginEndpointID == "" || project.LogoutEndpointID == "" {
 		stored, err := a.endpoints.List(a.ctx, projectID)
 		if err == nil {
