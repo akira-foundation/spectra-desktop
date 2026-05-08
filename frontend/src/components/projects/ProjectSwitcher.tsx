@@ -107,10 +107,12 @@ function ProjectRow({ project, active, onSelect, onDelete }: ProjectRowProps) {
           className={cn('group gap-2 text-[12.5px] py-1.5 pr-1.5', active && 'bg-accent/40')}
         >
           <ProjectAvatar name={project.name} />
-          <span className="font-medium truncate flex-1 min-w-0">{project.name}</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <FrameworkChip framework={project.framework} />
-            {active && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+          <span className="font-medium truncate flex-1 min-w-0 capitalize">{project.name}</span>
+          <FrameworkChip framework={project.framework} />
+          <div className="relative w-5 h-5 shrink-0">
+            {active && (
+              <Check className="absolute inset-0 m-auto w-3.5 h-3.5 text-primary group-hover:opacity-0 transition-opacity" />
+            )}
             <button
               type="button"
               onClick={(e) => {
@@ -118,7 +120,10 @@ function ProjectRow({ project, active, onSelect, onDelete }: ProjectRowProps) {
                 e.stopPropagation()
                 onDelete()
               }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className={cn(
+                'absolute inset-0 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-opacity',
+                'opacity-0 group-hover:opacity-100',
+              )}
               aria-label="Remove project"
             >
               <Trash2 className="w-3 h-3" />
