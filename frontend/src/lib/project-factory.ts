@@ -19,6 +19,7 @@ export function projectInputFromInfo(info: ProjectInfo) {
     frameworkVersion: info.frameworkVersion || '',
     apiFilterMode: info.apiDetection?.mode ?? 'auto',
     apiFilterValue: info.apiDetection?.value ?? '',
+    baseUrl: info.defaultBaseUrl ?? '',
   }
 }
 
@@ -31,6 +32,7 @@ export function projectFromRecord(record: ProjectRecord): Project {
     framework,
     frameworkVersion: record.frameworkVersion ?? '',
     sdkVersion: '',
+    baseUrl: record.baseUrl ?? '',
     lastSyncTime: record.lastSyncedAt ? toDate(record.lastSyncedAt) : null,
     status: normalizeStatus(record.status),
     stats: { ...emptyStats },

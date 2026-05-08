@@ -50,6 +50,7 @@ export function AddProject() {
       frameworkVersion: projectData.frameworkVersion,
       apiFilterMode: 'auto',
       apiFilterValue: '',
+      baseUrl: '',
     })
     setCurrentStep('success')
   }

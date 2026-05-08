@@ -18,6 +18,10 @@ export function Drivers() {
   return window['go']['app']['App']['Drivers']();
 }
 
+export function ExecuteRequest(arg1) {
+  return window['go']['app']['App']['ExecuteRequest'](arg1);
+}
+
 export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
@@ -68,4 +72,8 @@ export function SelectProjectFolder() {
 
 export function SetActiveProjectID(arg1) {
   return window['go']['app']['App']['SetActiveProjectID'](arg1);
+}
+
+export function UpdateProjectBaseURL(arg1, arg2) {
+  return window['go']['app']['App']['UpdateProjectBaseURL'](arg1, arg2);
 }

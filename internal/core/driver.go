@@ -6,7 +6,13 @@ type FrameworkDriver interface {
 	Name() string
 	Detect(projectPath string) DetectionResult
 	Scan(ctx context.Context, projectPath string) ([]Endpoint, error)
+	Defaults() DriverDefaults
 	Capabilities() DriverCapabilities
+}
+
+type DriverDefaults struct {
+	BaseURL string `json:"baseURL"`
+	Ports   []int  `json:"ports,omitempty"`
 }
 
 type DetectionResult struct {

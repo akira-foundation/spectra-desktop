@@ -17,5 +17,6 @@ type ProjectRepository interface {
 	Save(ctx context.Context, input ProjectInput) (*Project, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, status ProjectStatus) error
+	UpdateBaseURL(ctx context.Context, id string, baseURL string) error
 	MarkSynced(ctx context.Context, id string) error
 }

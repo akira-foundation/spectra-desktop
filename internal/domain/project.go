@@ -27,6 +27,7 @@ type Project struct {
 	Status           ProjectStatus `json:"status"`
 	APIFilterMode    string        `json:"apiFilterMode"`
 	APIFilterValue   string        `json:"apiFilterValue"`
+	BaseURL          string        `json:"baseUrl"`
 	CreatedAt        time.Time     `json:"createdAt"`
 	UpdatedAt        time.Time     `json:"updatedAt"`
 	LastSyncedAt     *time.Time    `json:"lastSyncedAt,omitempty"`
@@ -40,4 +41,5 @@ type ProjectInput struct {
 	FrameworkVersion string `json:"frameworkVersion"`
 	APIFilterMode    string `json:"apiFilterMode"`
 	APIFilterValue   string `json:"apiFilterValue"`
+	BaseURL          string `json:"baseUrl"`
 }

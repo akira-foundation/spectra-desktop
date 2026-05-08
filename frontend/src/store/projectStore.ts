@@ -23,6 +23,7 @@ interface ProjectState {
   addProjectFromInput: (input: ProjectInput) => Promise<Project>
   removeProject: (id: string) => Promise<void>
   refreshDetection: (id: string) => Promise<void>
+  updateBaseURL: (id: string, baseUrl: string) => Promise<void>
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -105,6 +106,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     } else {
       await projectStorageService.setActive('').catch(() => undefined)
     }
+  },
+
+  updateBaseURL: async (id, baseUrl) => {
+    await projectStorageService.updateBaseURL(id, baseUrl)
+    set((state) => ({
+      projects: state.projects.map((p) => (p.id === id ? { ...p, baseUrl } : p)),
+    }))
   },
 
   refreshDetection: async (id) => {

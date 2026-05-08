@@ -34,6 +34,13 @@ func (d *Driver) Scan(ctx context.Context, projectPath string) ([]core.Endpoint,
 	return endpoints, nil
 }
 
+func (d *Driver) Defaults() core.DriverDefaults {
+	return core.DriverDefaults{
+		BaseURL: "http://localhost:8000",
+		Ports:   []int{8000},
+	}
+}
+
 func (d *Driver) Capabilities() core.DriverCapabilities {
 	return core.DriverCapabilities{
 		ScanRoutes:      true,

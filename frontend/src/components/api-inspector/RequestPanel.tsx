@@ -18,6 +18,7 @@ interface RequestPanelProps {
   onQueryChange: (index: number, patch: Partial<QueryParam>) => void
   onQueryRemove: (index: number) => void
   onExecute: () => void
+  executing?: boolean
 }
 
 export function RequestPanel({
@@ -30,6 +31,7 @@ export function RequestPanel({
   onQueryChange,
   onQueryRemove,
   onExecute,
+  executing = false,
 }: RequestPanelProps) {
   const [isDark, setIsDark] = useState(false)
 
@@ -125,10 +127,15 @@ export function RequestPanel({
       <div className="px-3 py-2 border-t border-border/40">
         <button
           onClick={onExecute}
-          className="group w-full h-8 inline-flex items-center rounded-md border border-border/60 bg-card hover:bg-accent/60 active:bg-accent text-foreground text-[12px] font-medium transition-colors px-2.5"
+          disabled={executing}
+          className="group w-full h-8 inline-flex items-center rounded-md border border-border/60 bg-card hover:bg-accent/60 active:bg-accent text-foreground text-[12px] font-medium transition-colors px-2.5 disabled:opacity-60 disabled:cursor-progress"
         >
-          <Play className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
-          <span className="ml-2">Execute</span>
+          {executing ? (
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          ) : (
+            <Play className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500 shrink-0" />
+          )}
+          <span className="ml-2">{executing ? 'Executing...' : 'Execute'}</span>
           <span className="ml-auto flex items-center gap-1 text-muted-foreground group-hover:text-foreground/70">
             <kbd className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded border border-border/60 bg-muted/50 text-[10.5px] font-sans leading-none">
               ⌘

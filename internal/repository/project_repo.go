@@ -77,6 +77,9 @@ func (r *ProjectRepository) Save(ctx context.Context, input domain.ProjectInput)
 		existing.FrameworkVersion = input.FrameworkVersion
 		existing.APIFilterMode = mode
 		existing.APIFilterValue = value
+		if strings.TrimSpace(input.BaseURL) != "" {
+			existing.BaseURL = strings.TrimSpace(input.BaseURL)
+		}
 		existing.UpdatedAt = now
 
 		row := model.FromDomain(*existing)
@@ -100,6 +103,7 @@ func (r *ProjectRepository) Save(ctx context.Context, input domain.ProjectInput)
 		Status:           string(domain.ProjectStatusDisconnected),
 		APIFilterMode:    mode,
 		APIFilterValue:   value,
+		BaseURL:          strings.TrimSpace(input.BaseURL),
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -180,4 +184,24 @@ func normalizeAPIFilter(mode, value string) (string, string) {
 		value = ""
 	}
 	return mode, value
+}
+
+func (r *ProjectRepository) UpdateBaseURL(ctx context.Context, id, baseURL string) error {
+	res, err := r.db.NewUpdate().
+		Model((*model.Project)(nil)).
+		Set("base_url = ?", strings.TrimSpace(baseURL)).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrProjectNotFound
+	}
+	return nil
 }

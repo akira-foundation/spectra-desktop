@@ -17,6 +17,7 @@ export interface AddProjectState {
   detection: APIDetection | null
   filterMode: APIFilterMode
   filterValue: string
+  baseUrl: string
   previewing: boolean
   error: string | null
   pipeline: ReturnType<typeof useInspectionPipeline>['state']
@@ -24,6 +25,7 @@ export interface AddProjectState {
   pickFolder: () => Promise<void>
   setFilterMode: (mode: APIFilterMode) => void
   setFilterValue: (value: string) => void
+  setBaseUrl: (value: string) => void
   applyFilter: () => Promise<void>
   confirm: () => Promise<void>
   reset: () => void
@@ -36,6 +38,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
   const [detection, setDetection] = useState<APIDetection | null>(null)
   const [filterMode, setFilterMode] = useState<APIFilterMode>('auto')
   const [filterValue, setFilterValue] = useState<string>('')
+  const [baseUrl, setBaseUrl] = useState<string>('')
   const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,6 +66,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
     setDetection(null)
     setFilterMode('auto')
     setFilterValue('')
+    setBaseUrl('')
     setPreviewing(false)
     setError(null)
     pipeline.reset()
@@ -83,6 +87,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
       const resolvedMode = (result.apiDetection?.mode ?? 'auto') as APIFilterMode
       setFilterMode(resolvedMode === 'auto' ? 'auto' : resolvedMode)
       setFilterValue(result.apiDetection?.value ?? '')
+      setBaseUrl(result.defaultBaseUrl ?? '')
       setStatus('inspecting')
       void pipeline.run()
     } catch (err) {
@@ -117,6 +122,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
         ...base,
         apiFilterMode: effectiveMode,
         apiFilterValue: effectiveValue,
+        baseUrl: baseUrl.trim() || base.baseUrl,
       })
       onSuccess?.()
       reset()
@@ -132,6 +138,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
     detection,
     filterMode,
     filterValue,
+    baseUrl,
     previewing,
     error,
     pipeline: pipeline.state,
@@ -139,6 +146,7 @@ export function useAddProject(onSuccess?: () => void): AddProjectState {
     pickFolder,
     setFilterMode,
     setFilterValue,
+    setBaseUrl,
     applyFilter,
     confirm,
     reset,

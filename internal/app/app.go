@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
+	"strings"
+	"time"
 
 	"spectra-desktop/internal/core"
 	"spectra-desktop/internal/domain"
@@ -92,6 +95,8 @@ type ProjectInfo struct {
 	FrameworkVersion string               `json:"frameworkVersion"`
 	Detection        core.DetectionResult `json:"detection"`
 	APIDetection     APIDetection         `json:"apiDetection"`
+	DefaultBaseURL   string               `json:"defaultBaseUrl"`
+	DefaultPorts     []int                `json:"defaultPorts,omitempty"`
 }
 
 type APIDetection struct {
@@ -118,6 +123,9 @@ func (a *App) InspectProject(path string) (ProjectInfo, error) {
 	}
 	info.Framework = driver.Name()
 	info.Detection = det
+	defaults := driver.Defaults()
+	info.DefaultBaseURL = defaults.BaseURL
+	info.DefaultPorts = defaults.Ports
 
 	endpoints, scanErr := driver.Scan(a.ctx, ws.Path)
 	if scanErr != nil {
@@ -168,7 +176,73 @@ func (a *App) ListProjects() ([]domain.Project, error) {
 }
 
 func (a *App) SaveProject(input domain.ProjectInput) (*domain.Project, error) {
+	if strings.TrimSpace(input.BaseURL) == "" {
+		if driver, _, err := a.scanner.Resolve(input.Path); err == nil {
+			input.BaseURL = driver.Defaults().BaseURL
+		}
+	}
 	return a.projects.Save(a.ctx, input)
+}
+
+func (a *App) UpdateProjectBaseURL(projectID, baseURL string) error {
+	return a.projects.UpdateBaseURL(a.ctx, projectID, baseURL)
+}
+
+type ExecuteRequestInput struct {
+	ProjectID string            `json:"projectID"`
+	Method    string            `json:"method"`
+	Path      string            `json:"path"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	Body      string            `json:"body,omitempty"`
+	BaseURL   string            `json:"baseUrl,omitempty"`
+	TimeoutMs int               `json:"timeoutMs,omitempty"`
+}
+
+func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, error) {
+	baseURL := strings.TrimSpace(input.BaseURL)
+	if baseURL == "" && input.ProjectID != "" {
+		project, err := a.projects.GetByID(a.ctx, input.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		baseURL = strings.TrimSpace(project.BaseURL)
+	}
+	if baseURL == "" {
+		return nil, fmt.Errorf("missing base url")
+	}
+	target, err := joinURL(baseURL, input.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := time.Duration(input.TimeoutMs) * time.Millisecond
+	return a.http.Send(a.ctx, httpclient.Request{
+		Method:  input.Method,
+		URL:     target,
+		Headers: input.Headers,
+		Body:    input.Body,
+		Timeout: timeout,
+	})
+}
+
+func joinURL(base, path string) (string, error) {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	path = strings.TrimSpace(path)
+	if base == "" {
+		return "", fmt.Errorf("empty base url")
+	}
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("invalid base url: %w", err)
+	}
+	if path == "" {
+		return u.String(), nil
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + path
+	return u.String(), nil
 }
 
 func (a *App) DeleteProject(id string) error {

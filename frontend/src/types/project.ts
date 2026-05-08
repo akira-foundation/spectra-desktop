@@ -5,6 +5,7 @@ export interface Project {
   framework: 'laravel' | 'symfony' | 'other'
   frameworkVersion: string
   sdkVersion: string
+  baseUrl: string
   lastSyncTime: Date | null
   status: 'connected' | 'disconnected' | 'syncing' | 'error'
   stats: {

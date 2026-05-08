@@ -20,6 +20,30 @@ export namespace app {
 	        this.scanError = source["scanError"];
 	    }
 	}
+	export class ExecuteRequestInput {
+	    projectID: string;
+	    method: string;
+	    path: string;
+	    headers?: Record<string, string>;
+	    body?: string;
+	    baseUrl?: string;
+	    timeoutMs?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExecuteRequestInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.headers = source["headers"];
+	        this.body = source["body"];
+	        this.baseUrl = source["baseUrl"];
+	        this.timeoutMs = source["timeoutMs"];
+	    }
+	}
 	export class ProjectInfo {
 	    path: string;
 	    name: string;
@@ -27,6 +51,8 @@ export namespace app {
 	    frameworkVersion: string;
 	    detection: core.DetectionResult;
 	    apiDetection: APIDetection;
+	    defaultBaseUrl: string;
+	    defaultPorts?: number[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectInfo(source);
@@ -40,6 +66,8 @@ export namespace app {
 	        this.frameworkVersion = source["frameworkVersion"];
 	        this.detection = this.convertValues(source["detection"], core.DetectionResult);
 	        this.apiDetection = this.convertValues(source["apiDetection"], APIDetection);
+	        this.defaultBaseUrl = source["defaultBaseUrl"];
+	        this.defaultPorts = source["defaultPorts"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -182,6 +210,7 @@ export namespace domain {
 	    status: string;
 	    apiFilterMode: string;
 	    apiFilterValue: string;
+	    baseUrl: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -203,6 +232,7 @@ export namespace domain {
 	        this.status = source["status"];
 	        this.apiFilterMode = source["apiFilterMode"];
 	        this.apiFilterValue = source["apiFilterValue"];
+	        this.baseUrl = source["baseUrl"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastSyncedAt = this.convertValues(source["lastSyncedAt"], null);
@@ -234,6 +264,7 @@ export namespace domain {
 	    frameworkVersion: string;
 	    apiFilterMode: string;
 	    apiFilterValue: string;
+	    baseUrl: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProjectInput(source);
@@ -248,6 +279,7 @@ export namespace domain {
 	        this.frameworkVersion = source["frameworkVersion"];
 	        this.apiFilterMode = source["apiFilterMode"];
 	        this.apiFilterValue = source["apiFilterValue"];
+	        this.baseUrl = source["baseUrl"];
 	    }
 	}
 	export class ProjectStats {
@@ -290,6 +322,33 @@ export namespace domain {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace httpclient {
+	
+	export class Response {
+	    status: number;
+	    statusText: string;
+	    headers?: Record<string, Array<string>>;
+	    body?: string;
+	    durationMs: number;
+	    sizeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Response(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.statusText = source["statusText"];
+	        this.headers = source["headers"];
+	        this.body = source["body"];
+	        this.durationMs = source["durationMs"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
 	}
 
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, FolderSearch, Loader2, AlertTriangle, Filter, Check } from 'lucide-react'
+import { FolderOpen, FolderSearch, Loader2, AlertTriangle, Filter, Check, Globe } from 'lucide-react'
 import { Drivers } from '../../../wailsjs/go/app/App'
 import {
   Dialog,
@@ -30,12 +30,14 @@ export function AddProjectDialog() {
     detection,
     filterMode,
     filterValue,
+    baseUrl,
     previewing,
     error,
     pipeline,
     pickFolder,
     setFilterMode,
     setFilterValue,
+    setBaseUrl,
     applyFilter,
     confirm,
     reset,
@@ -77,15 +79,22 @@ export function AddProjectDialog() {
         )}
 
         {info && status === 'ready' && supported && (
-          <APIDetectionPanel
-            detection={detection}
-            filterMode={filterMode}
-            filterValue={filterValue}
-            previewing={previewing}
-            onModeChange={setFilterMode}
-            onValueChange={setFilterValue}
-            onApply={applyFilter}
-          />
+          <>
+            <APIDetectionPanel
+              detection={detection}
+              filterMode={filterMode}
+              filterValue={filterValue}
+              previewing={previewing}
+              onModeChange={setFilterMode}
+              onValueChange={setFilterValue}
+              onApply={applyFilter}
+            />
+            <BaseURLField
+              value={baseUrl}
+              suggested={info.defaultBaseUrl ?? ''}
+              onChange={setBaseUrl}
+            />
+          </>
         )}
 
         {info && status === 'ready' && !supported && (
@@ -377,6 +386,36 @@ function UnsupportedWarning({ framework }: { framework: string }) {
         <span className="font-semibold capitalize">{framework || 'Unknown'}</span> is not supported yet.
         Only Laravel projects can be added at this time.
       </p>
+    </div>
+  )
+}
+
+interface BaseURLFieldProps {
+  value: string
+  suggested: string
+  onChange: (value: string) => void
+}
+
+function BaseURLField({ value, suggested, onChange }: BaseURLFieldProps) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3.5 space-y-2">
+      <div className="flex items-center gap-2">
+        <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+          Base URL
+        </span>
+      </div>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={suggested || 'http://localhost:8000'}
+        className="h-8 text-[12px] font-mono"
+      />
+      {suggested && (
+        <p className="text-[10.5px] text-muted-foreground">
+          Suggested by framework driver: <span className="font-mono">{suggested}</span>
+        </p>
+      )}
     </div>
   )
 }

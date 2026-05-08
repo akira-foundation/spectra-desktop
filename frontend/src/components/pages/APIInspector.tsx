@@ -27,21 +27,14 @@ import {
   resolveRoutePath,
   type QueryParam,
 } from '@/lib/route-params'
+import { BaseURLBar } from '@/components/api-inspector/BaseURLBar'
+import { useRequestRunner } from '@/hooks/useRequestRunner'
 
 const sampleRequestBody = {
   name: 'Bob Wilson',
   email: 'user2059@example.com',
   password: 'password205',
   password_confirmation: 'password205',
-}
-
-const sampleResponseData = {
-  id: 63,
-  name: 'John Doe',
-  email: 'user1379@example.com',
-  email_verified_at: null,
-  created_at: '2025-11-30T18:27:03+00:00',
-  updated_at: '2025-11-30T18:27:03+00:00',
 }
 
 export function APIInspector() {
@@ -66,8 +59,8 @@ export function APIInspector() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [routeValues, setRouteValues] = useState<string[]>([])
   const [queryParams, setQueryParams] = useState<QueryParam[]>([])
-  const [hasResponse, setHasResponse] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  const runner = useRequestRunner()
 
   useEffect(() => {
     if (activeProjectId && status === 'idle') {
@@ -79,7 +72,7 @@ export function APIInspector() {
     setSelectedTag(null)
     setRouteValues([])
     setQueryParams([])
-    setHasResponse(false)
+    runner.reset()
   }, [activeProjectId])
 
   const decoratedGroups = useMemo(
@@ -108,7 +101,7 @@ export function APIInspector() {
   useEffect(() => {
     setRouteValues(routeParams.map(() => ''))
     setQueryParams([])
-    setHasResponse(false)
+    runner.reset()
   }, [selectedTag, routeParams.length])
 
   const resolvedPath = useMemo(() => {
@@ -133,8 +126,14 @@ export function APIInspector() {
     setQueryParams((prev) => prev.filter((_, i) => i !== index))
   }
   const handleExecute = () => {
-    if (!selected) return
-    setHasResponse(true)
+    if (!selected || !activeProjectId) return
+    void runner.execute({
+      projectID: activeProjectId,
+      method: selected.method,
+      path: resolvedPath,
+      headers: {},
+      body: '',
+    })
   }
 
   useEffect(() => {
@@ -170,6 +169,8 @@ export function APIInspector() {
           onMethodChange={setActiveAuthMethod}
         />
 
+        <BaseURLBar />
+
         {!selected ? (
           <EndpointEmptyState />
         ) : (
@@ -177,9 +178,9 @@ export function APIInspector() {
             <EndpointHeader
               method={selected.method}
               path={resolvedPath}
-              statusCode={hasResponse ? 201 : 0}
-              responseTime={hasResponse ? '260ms' : '—'}
-              responseSize={hasResponse ? '0.16KB' : '—'}
+              statusCode={runner.response?.status ?? 0}
+              responseTime={runner.response ? `${runner.response.durationMs}ms` : '—'}
+              responseSize={runner.response ? formatSize(runner.response.sizeBytes) : '—'}
               onInfoClick={hasMetadata(selected) ? () => setInfoOpen(true) : undefined}
             />
 
@@ -194,9 +195,18 @@ export function APIInspector() {
                 onQueryChange={handleQueryChange}
                 onQueryRemove={handleQueryRemove}
                 onExecute={handleExecute}
+                executing={runner.loading}
               />
-              {hasResponse ? (
-                <ResponsePanel responseData={sampleResponseData} />
+              {runner.loading ? (
+                <div className="bg-transparent flex items-center justify-center">
+                  <ScanLoadingState />
+                </div>
+              ) : runner.error ? (
+                <div className="bg-transparent flex items-center justify-center">
+                  <RunnerErrorBlock code={runner.error.code} message={runner.error.message} />
+                </div>
+              ) : runner.response ? (
+                <ResponsePanel responseData={parseBody(runner.response.body ?? '')} />
               ) : (
                 <div className="bg-transparent flex items-center justify-center">
                   <ResponseEmptyState />
@@ -232,4 +242,82 @@ function hasMetadata(endpoint: GroupedEndpoint): boolean {
       (endpoint.middleware && endpoint.middleware.length > 0) ||
       endpoint.authRequired !== undefined,
   )
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)}KB`
+  return `${(bytes / 1024 / 1024).toFixed(2)}MB`
+}
+
+function parseBody(body: string): unknown {
+  if (!body) return ''
+  try {
+    return JSON.parse(body)
+  } catch {
+    return body
+  }
+}
+
+interface RunnerErrorBlockProps {
+  code?: string
+  message: string
+}
+
+function RunnerErrorBlock({ code, message }: RunnerErrorBlockProps) {
+  const copy = errorCopy(code)
+  return (
+    <div className="max-w-sm w-full text-center space-y-2 px-6">
+      <div className="inline-flex w-9 h-9 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
+        <span className="text-base">!</span>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[13px] font-semibold tracking-tight">{copy.title}</p>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">{copy.description}</p>
+      </div>
+      <code className="block text-[10.5px] font-mono text-muted-foreground/80 break-all">
+        {message}
+      </code>
+    </div>
+  )
+}
+
+function errorCopy(code?: string): { title: string; description: string } {
+  switch (code) {
+    case 'connection_refused':
+      return {
+        title: 'Connection refused',
+        description: 'The server is not reachable. Is your local server running?',
+      }
+    case 'timeout':
+      return {
+        title: 'Request timed out',
+        description: 'The server took too long to respond.',
+      }
+    case 'dns':
+      return {
+        title: 'DNS lookup failed',
+        description: 'Could not resolve the host. Check the base URL.',
+      }
+    case 'invalid_url':
+      return {
+        title: 'Invalid URL',
+        description: 'The base URL or path is malformed.',
+      }
+    case 'tls':
+      return {
+        title: 'TLS handshake failed',
+        description: 'Unable to establish a secure connection.',
+      }
+    case 'missing_base_url':
+      return {
+        title: 'Base URL not set',
+        description: 'Set the workspace base URL above and try again.',
+      }
+    default:
+      return {
+        title: 'Request failed',
+        description: 'Spectra could not complete the request.',
+      }
+  }
 }
