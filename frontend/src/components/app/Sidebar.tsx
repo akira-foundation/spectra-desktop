@@ -1,4 +1,4 @@
-import { Compass, FolderKanban, FileText, Settings, HelpCircle } from 'lucide-react'
+import { Compass, FolderKanban, FileText, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore, type PageType } from '@/store/uiStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -20,7 +20,6 @@ const primary: NavItem[] = [
 
 const secondary: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, page: 'settings' },
-  { id: 'help', label: 'Help', icon: HelpCircle, disabled: true },
 ]
 
 export function Sidebar() {
