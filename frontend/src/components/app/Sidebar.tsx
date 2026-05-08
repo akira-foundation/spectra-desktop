@@ -16,7 +16,7 @@ const primary: NavItem[] = [
   { id: 'inspector', label: 'API Inspector', icon: Compass, page: 'inspector' },
   { id: 'dashboard', label: 'Dashboard', icon: FolderKanban, page: 'dashboard' },
   { id: 'models', label: 'Models', icon: Package, disabled: true },
-  { id: 'changelog', label: 'Changelog', icon: FileText, disabled: true },
+  { id: 'changelog', label: 'Changelog', icon: FileText, page: 'changelog' },
   { id: 'diff', label: 'Diff Viewer', icon: GitCompare, disabled: true },
 ]
 

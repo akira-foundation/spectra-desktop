@@ -32,6 +32,8 @@ export function GetProjectStats(arg1:string):Promise<domain.ProjectStats>;
 
 export function GetProjectStatsReport(arg1:string):Promise<core.StatsReport>;
 
+export function GetSnapshotDiff(arg1:string):Promise<app.SnapshotDiff>;
+
 export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
 export function ListEndpoints(arg1:string):Promise<Array<core.Endpoint>>;
@@ -41,6 +43,8 @@ export function ListEnvironments(arg1:string):Promise<Array<app.EnvironmentDTO>>
 export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryListItem>>;
 
 export function ListProjects():Promise<Array<domain.Project>>;
+
+export function ListSnapshots(arg1:string,arg2:number):Promise<Array<app.SnapshotSummary>>;
 
 export function MarkProjectSynced(arg1:string):Promise<void>;
 

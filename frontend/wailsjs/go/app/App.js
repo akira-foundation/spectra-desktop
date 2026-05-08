@@ -54,6 +54,10 @@ export function GetProjectStatsReport(arg1) {
   return window['go']['app']['App']['GetProjectStatsReport'](arg1);
 }
 
+export function GetSnapshotDiff(arg1) {
+  return window['go']['app']['App']['GetSnapshotDiff'](arg1);
+}
+
 export function InspectProject(arg1) {
   return window['go']['app']['App']['InspectProject'](arg1);
 }
@@ -72,6 +76,10 @@ export function ListHistory(arg1, arg2) {
 
 export function ListProjects() {
   return window['go']['app']['App']['ListProjects']();
+}
+
+export function ListSnapshots(arg1, arg2) {
+  return window['go']['app']['App']['ListSnapshots'](arg1, arg2);
 }
 
 export function MarkProjectSynced(arg1) {

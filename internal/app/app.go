@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -36,6 +38,7 @@ type App struct {
 	auth      domain.AuthRepository
 	history   domain.HistoryRepository
 	envs      domain.EnvironmentRepository
+	snapshots domain.SnapshotRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
 }
@@ -63,6 +66,7 @@ func New() (*App, error) {
 		auth:      repository.NewAuthRepository(store.DB),
 		history:   repository.NewHistoryRepository(store.DB),
 		envs:      repository.NewEnvironmentRepository(store.DB),
+		snapshots: repository.NewSnapshotRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
 	}, nil
@@ -688,6 +692,257 @@ func isValidHeaderName(name string) bool {
 	return true
 }
 
+type snapshotEndpoint struct {
+	Method     string   `json:"method"`
+	Path       string   `json:"path"`
+	Handler    string   `json:"handler,omitempty"`
+	Middleware []string `json:"middleware,omitempty"`
+	AuthRole   string   `json:"authRole,omitempty"`
+	SchemaHash string   `json:"schemaHash,omitempty"`
+}
+
+func (a *App) recordSnapshot(projectID string, endpoints []core.Endpoint) error {
+	items := make([]snapshotEndpoint, 0, len(endpoints))
+	for _, ep := range endpoints {
+		items = append(items, snapshotEndpoint{
+			Method:     string(ep.Method),
+			Path:       ep.Path,
+			Handler:    ep.Handler,
+			Middleware: ep.Middleware,
+			AuthRole:   string(ep.AuthRole),
+			SchemaHash: hashString(ep.RequestSchema),
+		})
+	}
+	payload, err := json.Marshal(items)
+	if err != nil {
+		return err
+	}
+	hash := hashString(string(payload))
+
+	latest, _ := a.snapshots.Latest(a.ctx, projectID)
+	if latest != nil && latest.Hash == hash {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	snapshot := domain.EndpointSnapshot{
+		ProjectID:     projectID,
+		Hash:          hash,
+		PayloadJSON:   string(payload),
+		EndpointCount: len(endpoints),
+		ScannedAt:     now,
+	}
+	if err := a.snapshots.Save(a.ctx, snapshot); err != nil {
+		return err
+	}
+	return a.snapshots.TrimOldest(a.ctx, projectID, 50)
+}
+
+func hashString(s string) string {
+	if s == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
+}
+
+type SnapshotSummary struct {
+	ID            string    `json:"id"`
+	ProjectID     string    `json:"projectID"`
+	EndpointCount int       `json:"endpointCount"`
+	ScannedAt     time.Time `json:"scannedAt"`
+	Added         int       `json:"added"`
+	Removed       int       `json:"removed"`
+	Changed       int       `json:"changed"`
+}
+
+type SnapshotDiffEntry struct {
+	Method   string   `json:"method"`
+	Path     string   `json:"path"`
+	Kind     string   `json:"kind"`
+	Changes  []string `json:"changes,omitempty"`
+	AuthRole string   `json:"authRole,omitempty"`
+	Handler  string   `json:"handler,omitempty"`
+}
+
+type SnapshotDiff struct {
+	ID         string              `json:"id"`
+	ScannedAt  time.Time           `json:"scannedAt"`
+	PreviousID string              `json:"previousID,omitempty"`
+	Added      []SnapshotDiffEntry `json:"added"`
+	Removed    []SnapshotDiffEntry `json:"removed"`
+	Changed    []SnapshotDiffEntry `json:"changed"`
+}
+
+func (a *App) ListSnapshots(projectID string, limit int) ([]SnapshotSummary, error) {
+	if projectID == "" {
+		return []SnapshotSummary{}, nil
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	snaps, err := a.snapshots.List(a.ctx, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SnapshotSummary, 0, len(snaps))
+	for i, s := range snaps {
+		summary := SnapshotSummary{
+			ID:            s.ID,
+			ProjectID:     s.ProjectID,
+			EndpointCount: s.EndpointCount,
+			ScannedAt:     s.ScannedAt,
+		}
+		if i+1 < len(snaps) {
+			diff, err := computeDiff(snaps[i+1].PayloadJSON, getSnapshotPayload(a, s.ID))
+			if err == nil {
+				summary.Added = len(diff.Added)
+				summary.Removed = len(diff.Removed)
+				summary.Changed = len(diff.Changed)
+			}
+		}
+		out = append(out, summary)
+	}
+	return out, nil
+}
+
+func getSnapshotPayload(a *App, id string) string {
+	s, err := a.snapshots.GetByID(a.ctx, id)
+	if err != nil || s == nil {
+		return ""
+	}
+	return s.PayloadJSON
+}
+
+func (a *App) GetSnapshotDiff(snapshotID string) (*SnapshotDiff, error) {
+	current, err := a.snapshots.GetByID(a.ctx, snapshotID)
+	if err != nil || current == nil {
+		return nil, err
+	}
+	previous, err := a.snapshots.Predecessor(a.ctx, current.ProjectID, current.ScannedAt)
+	if err != nil {
+		return nil, err
+	}
+	prevPayload := ""
+	prevID := ""
+	if previous != nil {
+		prevPayload = previous.PayloadJSON
+		prevID = previous.ID
+	}
+	diff, err := computeDiff(prevPayload, current.PayloadJSON)
+	if err != nil {
+		return nil, err
+	}
+	return &SnapshotDiff{
+		ID:         current.ID,
+		ScannedAt:  current.ScannedAt,
+		PreviousID: prevID,
+		Added:      diff.Added,
+		Removed:    diff.Removed,
+		Changed:    diff.Changed,
+	}, nil
+}
+
+func computeDiff(previousJSON, currentJSON string) (struct {
+	Added   []SnapshotDiffEntry
+	Removed []SnapshotDiffEntry
+	Changed []SnapshotDiffEntry
+}, error) {
+	var out struct {
+		Added   []SnapshotDiffEntry
+		Removed []SnapshotDiffEntry
+		Changed []SnapshotDiffEntry
+	}
+	prev, err := decodeSnapshotPayload(previousJSON)
+	if err != nil {
+		return out, err
+	}
+	cur, err := decodeSnapshotPayload(currentJSON)
+	if err != nil {
+		return out, err
+	}
+	prevMap := indexSnapshot(prev)
+	curMap := indexSnapshot(cur)
+
+	for key, ep := range curMap {
+		old, exists := prevMap[key]
+		if !exists {
+			out.Added = append(out.Added, snapshotDiffEntry(ep, "added", nil))
+			continue
+		}
+		changes := compareEndpoint(old, ep)
+		if len(changes) > 0 {
+			out.Changed = append(out.Changed, snapshotDiffEntry(ep, "changed", changes))
+		}
+	}
+	for key, ep := range prevMap {
+		if _, exists := curMap[key]; !exists {
+			out.Removed = append(out.Removed, snapshotDiffEntry(ep, "removed", nil))
+		}
+	}
+	return out, nil
+}
+
+func decodeSnapshotPayload(s string) ([]snapshotEndpoint, error) {
+	if s == "" {
+		return nil, nil
+	}
+	var items []snapshotEndpoint
+	if err := json.Unmarshal([]byte(s), &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func indexSnapshot(items []snapshotEndpoint) map[string]snapshotEndpoint {
+	out := make(map[string]snapshotEndpoint, len(items))
+	for _, ep := range items {
+		key := ep.Method + " " + ep.Path
+		out[key] = ep
+	}
+	return out
+}
+
+func compareEndpoint(a, b snapshotEndpoint) []string {
+	changes := []string{}
+	if a.Handler != b.Handler {
+		changes = append(changes, "handler")
+	}
+	if a.AuthRole != b.AuthRole {
+		changes = append(changes, "authRole")
+	}
+	if a.SchemaHash != b.SchemaHash {
+		changes = append(changes, "schema")
+	}
+	if !stringSliceEqual(a.Middleware, b.Middleware) {
+		changes = append(changes, "middleware")
+	}
+	return changes
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func snapshotDiffEntry(ep snapshotEndpoint, kind string, changes []string) SnapshotDiffEntry {
+	return SnapshotDiffEntry{
+		Method:   ep.Method,
+		Path:     ep.Path,
+		Kind:     kind,
+		Changes:  changes,
+		AuthRole: ep.AuthRole,
+		Handler:  ep.Handler,
+	}
+}
+
 func envToDTO(e domain.Environment) EnvironmentDTO {
 	return EnvironmentDTO{
 		ID:        e.ID,
@@ -963,6 +1218,9 @@ func (a *App) ScanWorkspace(projectID string) ([]core.Endpoint, error) {
 	filtered := core.ApplyFilter(all, project.APIFilterMode, project.APIFilterValue).Endpoints
 	if err := a.endpoints.Replace(a.ctx, projectID, filtered); err != nil {
 		return nil, fmt.Errorf("persist endpoints: %w", err)
+	}
+	if err := a.recordSnapshot(projectID, filtered); err != nil {
+		log.Printf("record snapshot: %v", err)
 	}
 	if project.LoginEndpointID == "" || project.LogoutEndpointID == "" {
 		stored, err := a.endpoints.List(a.ctx, projectID)

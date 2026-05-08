@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type PageType = 'inspector' | 'dashboard' | 'settings'
+export type PageType = 'inspector' | 'dashboard' | 'settings' | 'changelog'
 
 export interface UIState {
   sidebarOpen: boolean
