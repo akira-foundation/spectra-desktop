@@ -32,7 +32,7 @@ export function EndpointList({ endpoints, onSelectEndpoint }: EndpointListProps)
   const { getMethodColor } = useHttpMethod()
 
   return (
-    <div className="w-64 shrink-0 border-r border-border/60 flex flex-col bg-sidebar/40 backdrop-blur-sm">
+    <div className="w-64 shrink-0 border-r border-border flex flex-col bg-transparent">
       <div className="h-10 px-1.5 flex items-center border-b border-border/60 shrink-0">
         <div className="relative w-full">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />

@@ -22,7 +22,7 @@ export function ResponsePanel({ responseData }: ResponsePanelProps) {
   }, [])
 
   return (
-    <div className="flex flex-col min-w-0 bg-sidebar">
+    <div className="flex flex-col min-w-0 bg-transparent">
       <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
         <div className="flex items-center gap-1.5">
           <Download className="w-3.5 h-3.5 text-muted-foreground" />

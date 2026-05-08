@@ -23,10 +23,10 @@ export function AppShell({ children }: AppShellProps) {
         <Topbar />
 
         <div className="flex flex-1 min-h-0 gap-2 px-2 pb-2 pt-0">
-          <div className="rounded-xl border border-border bg-sidebar overflow-hidden shadow-sm">
+          <div className="rounded-xl border border-border bg-sidebar/70 backdrop-blur-xl backdrop-saturate-150 overflow-hidden shadow-sm">
             <Sidebar />
           </div>
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-xl border border-border bg-sidebar overflow-hidden shadow-sm">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-xl border border-border bg-sidebar/70 backdrop-blur-xl backdrop-saturate-150 overflow-hidden shadow-sm">
             <TabBar />
             <div className="flex-1 overflow-auto min-h-0">{children}</div>
           </div>

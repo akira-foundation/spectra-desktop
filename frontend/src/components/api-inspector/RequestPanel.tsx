@@ -42,7 +42,7 @@ export function RequestPanel({
   }, [])
 
   return (
-    <div className="flex flex-col min-w-0 border-r border-border bg-card/40">
+    <div className="flex flex-col min-w-0 border-r border-border bg-transparent">
       <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
         <div className="flex items-center gap-1.5">
           <Send className="w-3.5 h-3.5 text-muted-foreground" />
