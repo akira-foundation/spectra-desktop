@@ -64,23 +64,28 @@ func runArtisanRouteList(ctx context.Context, projectPath string) ([]rawRoute, e
 }
 
 func extractJSONArray(data []byte) []byte {
+	var best []byte
+	bestCount := 0
 	for offset := 0; offset < len(data); {
 		idx := bytes.IndexByte(data[offset:], '[')
 		if idx == -1 {
-			return nil
+			break
 		}
 		start := offset + idx
 		end := matchBalancedArray(data, start)
 		if end > start {
 			candidate := data[start : end+1]
 			var probe []rawRoute
-			if json.Unmarshal(candidate, &probe) == nil {
-				return candidate
+			if json.Unmarshal(candidate, &probe) == nil && len(probe) > bestCount {
+				best = candidate
+				bestCount = len(probe)
 			}
+			offset = end + 1
+		} else {
+			offset = start + 1
 		}
-		offset = start + 1
 	}
-	return nil
+	return best
 }
 
 func matchBalancedArray(data []byte, start int) int {
