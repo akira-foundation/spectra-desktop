@@ -1,22 +1,13 @@
 import { useEffect } from 'react'
-import { CheckCircle2, AlertCircle, Loader2, Folder } from 'lucide-react'
+import { Folder } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import { useStatsStore } from '@/store/statsStore'
 
-interface StatusBarProps {
-  sdkStatus?: 'connected' | 'disconnected' | 'syncing' | 'error'
-  lastSyncTime?: Date | null
-  coreStatus?: 'ready' | 'initializing' | 'error'
-}
-
-export function StatusBar({
-  sdkStatus = 'connected',
-  lastSyncTime,
-  coreStatus = 'ready',
-}: StatusBarProps) {
+export function StatusBar() {
   const projects = useProjectStore((s) => s.projects)
   const activeId = useProjectStore((s) => s.activeProjectId)
   const active = projects.find((p) => p.id === activeId)
+  const lastSyncTime = active?.lastSyncTime ?? null
   const statsReport = useStatsStore((s) =>
     activeId ? s.reportByProject[activeId] ?? null : null,
   )
@@ -27,11 +18,11 @@ export function StatusBar({
   const statCards = (statsReport?.cards ?? []).filter((c) => c.value > 0).slice(0, 5)
 
   const formatTime = (date: Date | null | undefined) => {
-    if (!date) return 'Never'
+    if (!date) return 'never'
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const minutes = Math.floor(diff / 60000)
-    if (minutes < 1) return 'Just now'
+    if (minutes < 1) return 'just now'
     if (minutes < 60) return `${minutes}m ago`
     const hours = Math.floor(minutes / 60)
     if (hours < 24) return `${hours}h ago`
@@ -39,43 +30,10 @@ export function StatusBar({
     return `${days}d ago`
   }
 
-  const sdkIcon = () => {
-    switch (sdkStatus) {
-      case 'syncing':
-        return <Loader2 className="w-2.5 h-2.5 animate-spin text-foreground/60" />
-      case 'connected':
-        return <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
-      case 'error':
-        return <AlertCircle className="w-2.5 h-2.5 text-destructive" />
-      default:
-        return <AlertCircle className="w-2.5 h-2.5 text-amber-500" />
-    }
-  }
-
-  const sdkLabel = () => {
-    switch (sdkStatus) {
-      case 'syncing':
-        return 'Syncing'
-      case 'connected':
-        return 'Connected'
-      case 'error':
-        return 'Error'
-      default:
-        return 'Disconnected'
-    }
-  }
-
   return (
     <footer className="h-6 shrink-0 flex items-center justify-between px-3 text-[10.5px] bg-[#e5e5e5] dark:bg-transparent text-foreground/70 dark:text-white/70 select-none gap-3">
       <div className="flex items-center gap-3 shrink-0">
-        <span className="flex items-center gap-1.5">
-          {sdkIcon()}
-          <span>SDK · {sdkLabel()}</span>
-        </span>
-        <span className="opacity-50">·</span>
-        <span>Sync · {formatTime(lastSyncTime)}</span>
-        <span className="opacity-50">·</span>
-        <span>Core · {coreStatus === 'ready' ? 'Ready' : 'Init'}</span>
+        <span>Last scan · {formatTime(lastSyncTime)}</span>
         {statCards.length > 0 && (
           <>
             <span className="opacity-50">·</span>
