@@ -7,6 +7,7 @@ import {
   ResponsePanel,
   EndpointHeader,
 } from '@/components/api-inspector'
+import { EndpointMetadata } from '@/components/api-inspector/EndpointMetadata'
 
 export function APIInspector() {
   const [selectedEndpoint, setSelectedEndpoint] = useState('register')
@@ -113,6 +114,14 @@ export function APIInspector() {
           statusCode={201}
           responseTime="260ms"
           responseSize="0.16KB"
+        />
+
+        <EndpointMetadata
+          controller="App\\Http\\Controllers\\Auth\\RegisterController@store"
+          sourceFile="routes/api.php"
+          sourceLine={42}
+          middleware={['api', 'throttle:60,1', 'guest']}
+          authRequired={false}
         />
 
         {/* Request/Response Grid */}

@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Plus } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import type { Project } from '@/types/project'
 import {
   DropdownMenu,
@@ -8,7 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ProjectAvatar } from './ProjectAvatar'
+import { cn } from '@/lib/utils'
 
 interface ProjectSwitcherProps {
   projects: Project[]
@@ -30,30 +32,26 @@ export function ProjectSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-accent/60 transition-colors">
+        <button className="inline-flex items-center gap-1.5 h-7 px-1.5 rounded-md hover:bg-accent/60 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[state=open]:bg-accent/60">
           <ProjectAvatar name={activeProject.name} />
           <span className="text-[12px] font-semibold tracking-tight truncate max-w-[160px]">
             {activeProject.name}
           </span>
+          <FrameworkChip framework={activeProject.framework} />
           <ChevronsUpDown className="w-3 h-3 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[14rem]">
+      <DropdownMenuContent align="start" className="min-w-[18rem]">
         <DropdownMenuLabel className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
           Projects
         </DropdownMenuLabel>
         {projects.map((p) => (
-          <DropdownMenuItem
+          <ProjectRow
             key={p.id}
+            project={p}
+            active={p.id === activeProject.id}
             onSelect={() => onSelect(p.id)}
-            className="gap-2 text-[12.5px]"
-          >
-            <ProjectAvatar name={p.name} />
-            <span className="font-medium truncate">{p.name}</span>
-            {p.id === activeProject.id && (
-              <span className="ml-auto text-[10px] text-muted-foreground">active</span>
-            )}
-          </DropdownMenuItem>
+          />
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -65,6 +63,44 @@ export function ProjectSwitcher({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+interface ProjectRowProps {
+  project: Project
+  active: boolean
+  onSelect: () => void
+}
+
+function ProjectRow({ project, active, onSelect }: ProjectRowProps) {
+  return (
+    <Tooltip delayDuration={400}>
+      <TooltipTrigger asChild>
+        <DropdownMenuItem
+          onSelect={onSelect}
+          className={cn('gap-2 text-[12.5px] py-1.5', active && 'bg-accent/40')}
+        >
+          <ProjectAvatar name={project.name} />
+          <span className="font-medium truncate flex-1 min-w-0">{project.name}</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <FrameworkChip framework={project.framework} />
+            {active && <Check className="w-3.5 h-3.5 text-primary" />}
+          </div>
+        </DropdownMenuItem>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="font-mono">
+        {project.path}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function FrameworkChip({ framework }: { framework: string }) {
+  if (!framework || framework === 'other') return null
+  return (
+    <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 text-foreground/70 capitalize">
+      {framework}
+    </span>
   )
 }
 

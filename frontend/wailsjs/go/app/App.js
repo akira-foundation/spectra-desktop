@@ -10,8 +10,16 @@ export function DetectFramework(arg1) {
   return window['go']['app']['App']['DetectFramework'](arg1);
 }
 
+export function DetectProject(arg1) {
+  return window['go']['app']['App']['DetectProject'](arg1);
+}
+
 export function Drivers() {
   return window['go']['app']['App']['Drivers']();
+}
+
+export function GetActiveProjectID() {
+  return window['go']['app']['App']['GetActiveProjectID']();
 }
 
 export function InspectProject(arg1) {
@@ -40,4 +48,8 @@ export function SaveProject(arg1) {
 
 export function SelectProjectFolder() {
   return window['go']['app']['App']['SelectProjectFolder']();
+}
+
+export function SetActiveProjectID(arg1) {
+  return window['go']['app']['App']['SetActiveProjectID'](arg1);
 }

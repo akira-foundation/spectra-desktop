@@ -23,6 +23,7 @@ type App struct {
 	workspace *workspace.Service
 	storage   *storage.Storage
 	projects  domain.ProjectRepository
+	settings  domain.SettingsRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
 }
@@ -45,6 +46,7 @@ func New() (*App, error) {
 		workspace: workspace.NewService(),
 		storage:   store,
 		projects:  repository.NewProjectRepository(store.DB),
+		settings:  repository.NewSettingsRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
 	}, nil
@@ -137,4 +139,29 @@ func (a *App) DeleteProject(id string) error {
 
 func (a *App) MarkProjectSynced(id string) error {
 	return a.projects.MarkSynced(a.ctx, id)
+}
+
+func (a *App) GetActiveProjectID() (string, error) {
+	return a.settings.Get(a.ctx, domain.SettingActiveProjectID)
+}
+
+func (a *App) SetActiveProjectID(id string) error {
+	if id == "" {
+		return a.settings.Delete(a.ctx, domain.SettingActiveProjectID)
+	}
+	return a.settings.Set(a.ctx, domain.SettingActiveProjectID, id)
+}
+
+func (a *App) DetectProject(id string) (core.DetectionResult, error) {
+	project, err := a.projects.GetByID(a.ctx, id)
+	if err != nil {
+		return core.DetectionResult{}, err
+	}
+	for _, d := range a.scanner.Drivers() {
+		result := d.Detect(project.Path)
+		if result.Detected {
+			return result, nil
+		}
+	}
+	return core.DetectionResult{}, nil
 }

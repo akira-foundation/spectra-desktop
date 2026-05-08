@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, FolderSearch, Loader2 } from 'lucide-react'
+import { FolderOpen, FolderSearch, Loader2, AlertTriangle } from 'lucide-react'
 import { Drivers } from '../../../wailsjs/go/app/App'
 import {
   Dialog,
@@ -14,21 +14,37 @@ import { useUIStore } from '@/store/uiStore'
 import { useAddProject } from '@/hooks/useAddProject'
 import { DetectionBadge } from './DetectionBadge'
 import { ProjectAvatar } from './ProjectAvatar'
+import { InspectionProgress } from './InspectionProgress'
+import type { ProjectInfo } from '@/services/projectService'
+
+const SUPPORTED_FRAMEWORKS = new Set(['laravel'])
 
 export function AddProjectDialog() {
   const open = useUIStore((s) => s.isAddProjectOpen)
   const setOpen = useUIStore((s) => s.setAddProjectOpen)
   const close = () => setOpen(false)
-  const { status, info, error, pickFolder, confirm, reset } = useAddProject(close)
+  const {
+    status,
+    info,
+    error,
+    pipeline,
+    pickFolder,
+    confirm,
+    reset,
+  } = useAddProject(close)
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value)
     if (!value) reset()
   }
 
+  const isLoading = status === 'picking' || status === 'inspecting' || status === 'saving'
+  const supported = info ? isSupported(info) : false
+  const canConfirm = status === 'ready' && supported
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md gap-3">
         <DialogHeader>
           <DialogTitle className="text-base">Add Project</DialogTitle>
           <DialogDescription className="text-[12.5px]">
@@ -36,26 +52,25 @@ export function AddProjectDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        {status !== 'ready' && (
-          <>
-            <FolderPickerCard
-              onPick={pickFolder}
-              loading={status === 'picking' || status === 'inspecting'}
-              label={
-                status === 'inspecting'
-                  ? 'Inspecting...'
-                  : status === 'picking'
-                  ? 'Opening...'
-                  : 'Choose folder'
-              }
-            />
-            <SupportedFrameworks />
-          </>
+        {!info && (
+          <FolderPickerCard
+            onPick={pickFolder}
+            loading={status === 'picking'}
+            label={status === 'picking' ? 'Opening...' : 'Choose folder'}
+          />
         )}
 
-        {status === 'ready' && info && (
-          <ProjectPreview info={info} onChange={pickFolder} />
+        {info && status === 'inspecting' && (
+          <InspectionProgress steps={pipeline} />
         )}
+
+        {info && (status === 'ready' || status === 'saving' || status === 'error') && (
+          <ProjectPreview info={info} onChange={pickFolder} disabled={isLoading} />
+        )}
+
+        {info && status === 'ready' && !supported && <UnsupportedWarning framework={info.framework} />}
+
+        {!info && <SupportedFrameworks />}
 
         {error && (
           <p className="text-[12px] text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
@@ -64,21 +79,32 @@ export function AddProjectDialog() {
         )}
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" onClick={close}>
+          <Button variant="outline" size="sm" onClick={close} disabled={status === 'saving'}>
             Cancel
           </Button>
           <Button
             size="sm"
             onClick={confirm}
-            disabled={status !== 'ready'}
+            disabled={!canConfirm}
             className="min-w-[120px]"
           >
-            Add Project
+            {status === 'saving' ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              'Add Project'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
+}
+
+function isSupported(info: ProjectInfo): boolean {
+  return Boolean(info.detection?.detected) && SUPPORTED_FRAMEWORKS.has(info.framework)
 }
 
 interface FolderPickerCardProps {
@@ -125,10 +151,8 @@ function SupportedFrameworks() {
   if (drivers.length === 0) return null
 
   return (
-    <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1">
-      <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-        Supported
-      </span>
+    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+      <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Supported</span>
       {drivers.map((name) => (
         <span
           key={name}
@@ -143,38 +167,49 @@ function SupportedFrameworks() {
 }
 
 interface ProjectPreviewProps {
-  info: { name: string; path: string; framework: string; detection: { detected: boolean; confidence: number } }
+  info: ProjectInfo
   onChange: () => void
+  disabled: boolean
 }
 
-function ProjectPreview({ info, onChange }: ProjectPreviewProps) {
+function ProjectPreview({ info, onChange, disabled }: ProjectPreviewProps) {
   return (
     <div className="rounded-lg border border-border/60 bg-card/40 p-3.5 space-y-3">
       <div className="flex items-center gap-3">
         <ProjectAvatar name={info.name} size="md" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" title={info.path}>
           <p className="text-[13px] font-semibold truncate">{info.name}</p>
-          <p className="text-[11px] font-mono text-muted-foreground truncate">{info.path}</p>
         </div>
+        <button
+          type="button"
+          onClick={onChange}
+          disabled={disabled}
+          className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FolderOpen className="w-3 h-3" />
+          Change
+        </button>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-          Framework
-        </span>
+        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Framework</span>
         <DetectionBadge
           framework={info.framework}
           detected={info.detection?.detected ?? false}
           confidence={info.detection?.confidence}
         />
       </div>
-      <button
-        type="button"
-        onClick={onChange}
-        className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
-      >
-        <FolderOpen className="w-3 h-3" />
-        Choose different folder
-      </button>
+    </div>
+  )
+}
+
+function UnsupportedWarning({ framework }: { framework: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11.5px] text-amber-500">
+      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+      <p className="leading-relaxed">
+        <span className="font-semibold capitalize">{framework || 'Unknown'}</span> is not supported yet.
+        Only Laravel projects can be added at this time.
+      </p>
     </div>
   )
 }

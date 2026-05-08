@@ -1,22 +1,28 @@
 import { create } from 'zustand'
 import type { Project } from '@/types/project'
 import { syncService } from '@/services/syncService'
-import { projectStorageService, type ProjectInput } from '@/services/projectStorageService'
+import {
+  projectStorageService,
+  type ProjectInput,
+  type DetectionResult,
+} from '@/services/projectStorageService'
 import { projectFromRecord } from '@/lib/project-factory'
 
 interface ProjectState {
   projects: Project[]
   activeProjectId: string | null
+  detections: Record<string, DetectionResult>
   isLoading: boolean
   isSyncing: string | null
   syncingProjects: Set<string>
   error: string | null
   lastSyncTime: Record<string, number>
 
-  setActiveProject: (id: string) => void
   loadFromStorage: () => Promise<void>
+  setActiveProject: (id: string) => Promise<void>
   addProjectFromInput: (input: ProjectInput) => Promise<Project>
   removeProject: (id: string) => Promise<void>
+  refreshDetection: (id: string) => Promise<void>
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -24,26 +30,43 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   activeProjectId: null,
+  detections: {},
   isLoading: false,
   isSyncing: null,
   syncingProjects: new Set(),
   error: null,
   lastSyncTime: {},
 
-  setActiveProject: (id) => set({ activeProjectId: id }),
-
   loadFromStorage: async () => {
     set({ isLoading: true, error: null })
     try {
-      const records = await projectStorageService.list()
+      const [records, persistedActive] = await Promise.all([
+        projectStorageService.list(),
+        projectStorageService.getActive(),
+      ])
       const projects = records.map(projectFromRecord)
-      set((state) => ({
-        projects,
-        activeProjectId: state.activeProjectId ?? projects[0]?.id ?? null,
-        isLoading: false,
-      }))
+      const valid = projects.find((p) => p.id === persistedActive)
+      const activeId = valid?.id ?? projects[0]?.id ?? null
+      set({ projects, activeProjectId: activeId, isLoading: false })
+      if (activeId && activeId !== persistedActive) {
+        await projectStorageService.setActive(activeId).catch(() => undefined)
+      }
+      projects.forEach((p) => {
+        void get().refreshDetection(p.id)
+      })
     } catch (err) {
       set({ error: errorMessage(err), isLoading: false })
+    }
+  },
+
+  setActiveProject: async (id) => {
+    const exists = get().projects.some((p) => p.id === id)
+    if (!exists) return
+    set({ activeProjectId: id })
+    try {
+      await projectStorageService.setActive(id)
+    } catch (err) {
+      console.error('persist active project failed:', err)
     }
   },
 
@@ -58,6 +81,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         error: null,
       }
     })
+    try {
+      await projectStorageService.setActive(project.id)
+    } catch (err) {
+      console.error('persist active project failed:', err)
+    }
+    void get().refreshDetection(project.id)
     return project
   },
 
@@ -65,9 +94,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await projectStorageService.remove(id)
     set((state) => {
       const filtered = state.projects.filter((p) => p.id !== id)
-      const newActiveId = state.activeProjectId === id ? filtered[0]?.id ?? null : state.activeProjectId
-      return { projects: filtered, activeProjectId: newActiveId }
+      const newActiveId =
+        state.activeProjectId === id ? filtered[0]?.id ?? null : state.activeProjectId
+      const detections = { ...state.detections }
+      delete detections[id]
+      return { projects: filtered, activeProjectId: newActiveId, detections }
     })
+    if (get().activeProjectId) {
+      await projectStorageService.setActive(get().activeProjectId!).catch(() => undefined)
+    } else {
+      await projectStorageService.setActive('').catch(() => undefined)
+    }
+  },
+
+  refreshDetection: async (id) => {
+    try {
+      const result = await projectStorageService.detect(id)
+      set((state) => ({ detections: { ...state.detections, [id]: result } }))
+    } catch (err) {
+      console.error('detect failed:', id, err)
+    }
   },
 
   syncProject: async (projectId) => {
@@ -103,6 +149,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         lastSyncTime: { ...s.lastSyncTime, [projectId]: Date.now() },
         error: null,
       }))
+      void get().refreshDetection(projectId)
     } catch (err) {
       set({ error: errorMessage(err) })
     } finally {

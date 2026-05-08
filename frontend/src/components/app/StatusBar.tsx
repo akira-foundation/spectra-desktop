@@ -1,4 +1,5 @@
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Loader2, Folder } from 'lucide-react'
+import { useProjectStore } from '@/store/projectStore'
 
 interface StatusBarProps {
   sdkStatus?: 'connected' | 'disconnected' | 'syncing' | 'error'
@@ -11,6 +12,10 @@ export function StatusBar({
   lastSyncTime,
   coreStatus = 'ready',
 }: StatusBarProps) {
+  const projects = useProjectStore((s) => s.projects)
+  const activeId = useProjectStore((s) => s.activeProjectId)
+  const active = projects.find((p) => p.id === activeId)
+
   const formatTime = (date: Date | null | undefined) => {
     if (!date) return 'Never'
     const now = new Date()
@@ -51,8 +56,8 @@ export function StatusBar({
   }
 
   return (
-    <footer className="h-6 shrink-0 border-t border-border/60 bg-card/40 backdrop-blur-md flex items-center justify-between px-3 text-[10.5px] text-foreground/55 select-none">
-      <div className="flex items-center gap-3">
+    <footer className="h-6 shrink-0 border-t border-border/60 bg-card/40 backdrop-blur-md flex items-center justify-between px-3 text-[10.5px] text-foreground/55 select-none gap-3">
+      <div className="flex items-center gap-3 shrink-0">
         <span className="flex items-center gap-1.5">
           {sdkIcon()}
           <span>SDK · {sdkLabel()}</span>
@@ -62,7 +67,18 @@ export function StatusBar({
         <span className="opacity-50">·</span>
         <span>Core · {coreStatus === 'ready' ? 'Ready' : 'Init'}</span>
       </div>
-      <div className="opacity-60 font-mono">v0.1.0</div>
+      <div className="flex items-center gap-3 min-w-0 ml-auto">
+        {active && (
+          <span
+            className="flex items-center gap-1.5 min-w-0 max-w-[480px]"
+            title={active.path}
+          >
+            <Folder className="w-2.5 h-2.5 text-foreground/40 shrink-0" />
+            <span className="font-mono truncate text-foreground/65">{active.path}</span>
+          </span>
+        )}
+        <span className="opacity-60 font-mono shrink-0">v0.1.0</span>
+      </div>
     </footer>
   )
 }
