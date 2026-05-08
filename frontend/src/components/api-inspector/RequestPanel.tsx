@@ -1,5 +1,6 @@
-import { Play, Send, FileCheck, Sparkles, Wand2 } from 'lucide-react'
+import { Play, Send, FileCheck, Sparkles, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useState } from 'react'
 import { ParamsEditor } from './ParamsEditor'
@@ -67,16 +68,22 @@ export function RequestPanel({
             Request
           </h3>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="h-6 w-6"
-          onClick={onResetBody}
-          disabled={!schema || schema.fields.length === 0}
-          title="Regenerate values"
-        >
-          <Wand2 className="w-3 h-3 text-muted-foreground" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-6 w-6"
+              onClick={onResetBody}
+              disabled={!schema || schema.fields.length === 0}
+            >
+              <Shuffle className="w-3 h-3 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="text-[11px]">
+            Re-roll values
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <Tabs defaultValue="body" className="flex-1 flex flex-col min-h-0">
