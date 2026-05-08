@@ -33,7 +33,9 @@ import {
   AlertTriangle,
   Zap,
   TrendingUp,
+  SlidersHorizontal,
 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { LucideIcon } from 'lucide-react'
 import { Welcome } from '@/components/pages/Welcome'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -96,6 +98,7 @@ export function Dashboard() {
   const setSelectedEndpoint = useUIStore((s) => s.setSelectedEndpoint)
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [volumeDays, setVolumeDays] = useState<7 | 14 | 30>(7)
 
   useEffect(() => {
     if (!activeProjectId) return
@@ -104,8 +107,12 @@ export function Dashboard() {
     void loadEnvs(activeProjectId)
     void loadHistory(activeProjectId)
     void loadSnapshots(activeProjectId)
-    void metricsService.get(activeProjectId).then((m) => setMetrics(m))
   }, [activeProjectId, loadReport, loadAuth, loadEnvs, loadHistory, loadSnapshots])
+
+  useEffect(() => {
+    if (!activeProjectId) return
+    void metricsService.get(activeProjectId, volumeDays).then((m) => setMetrics(m))
+  }, [activeProjectId, volumeDays])
 
   const pinnedEndpoints = useMemo(() => {
     const set = new Set(pinnedKeys ?? [])
@@ -144,7 +151,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatusCard metrics={metrics} />
         <LatencyCard metrics={metrics} />
-        <VolumeCard metrics={metrics} />
+        <VolumeCard metrics={metrics} days={volumeDays} onChangeDays={setVolumeDays} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -222,10 +229,11 @@ interface CardProps {
   title: string
   icon: LucideIcon
   action?: { label: string; onClick: () => void }
+  headerExtra?: React.ReactNode
   children: React.ReactNode
 }
 
-function Card({ title, icon: Icon, action, children }: CardProps) {
+function Card({ title, icon: Icon, action, headerExtra, children }: CardProps) {
   return (
     <section className="rounded-lg border border-border/60 bg-card/40 p-3.5 space-y-2.5">
       <div className="flex items-center justify-between">
@@ -235,16 +243,19 @@ function Card({ title, icon: Icon, action, children }: CardProps) {
             {title}
           </h2>
         </div>
-        {action && (
-          <button
-            type="button"
-            onClick={action.onClick}
-            className="inline-flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {action.label}
-            <ArrowUpRight className="w-3 h-3" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {headerExtra}
+          {action && (
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="inline-flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {action.label}
+              <ArrowUpRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
       {children}
     </section>
@@ -650,11 +661,23 @@ function LatencyStat({ label, value, tone }: { label: string; value: number; ton
   )
 }
 
-function VolumeCard({ metrics }: { metrics: DashboardMetrics | null }) {
+function VolumeCard({
+  metrics,
+  days,
+  onChangeDays,
+}: {
+  metrics: DashboardMetrics | null
+  days: 7 | 14 | 30
+  onChangeDays: (d: 7 | 14 | 30) => void
+}) {
   const volume = metrics?.volume ?? []
   const total = volume.reduce((s, v) => s + v.count, 0)
   return (
-    <Card title="Volume · 7d" icon={TrendingUp}>
+    <Card
+      title={`Volume · ${days}d`}
+      icon={TrendingUp}
+      headerExtra={<VolumeRangePicker value={days} onChange={onChangeDays} />}
+    >
       {total === 0 ? (
         <p className="text-[11.5px] italic text-muted-foreground">No requests in last 7 days.</p>
       ) : (
@@ -757,5 +780,37 @@ function EndpointTopCard({ title, icon, entries, metric, onOpen }: EndpointTopCa
         </ul>
       )}
     </Card>
+  )
+}
+
+function VolumeRangePicker({ value, onChange }: { value: 7 | 14 | 30; onChange: (d: 7 | 14 | 30) => void }) {
+  const options: Array<7 | 14 | 30> = [7, 14, 30]
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/40"
+          aria-label="Volume range"
+        >
+          <SlidersHorizontal className="w-3 h-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-32 p-1">
+        {options.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onChange(d)}
+            className={cn(
+              'w-full text-left px-2 py-1 rounded text-[11.5px] hover:bg-accent/40 transition-colors',
+              value === d && 'bg-accent text-foreground',
+            )}
+          >
+            Last {d} days
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }

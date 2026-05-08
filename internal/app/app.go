@@ -1195,9 +1195,12 @@ type EndpointMetricDTO struct {
 	ErrorRate  float64 `json:"errorRate"`
 }
 
-func (a *App) GetDashboardMetrics(projectID string) (*DashboardMetrics, error) {
+func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardMetrics, error) {
 	if projectID == "" {
 		return nil, nil
+	}
+	if volumeDays <= 0 {
+		volumeDays = 7
 	}
 	out := &DashboardMetrics{
 		StatusBuckets: []StatusBucketDTO{},
@@ -1239,7 +1242,7 @@ func (a *App) GetDashboardMetrics(projectID string) (*DashboardMetrics, error) {
 		P99:   lat.P99,
 	}
 
-	volume, err := a.metrics.DailyVolume(a.ctx, projectID, 7)
+	volume, err := a.metrics.DailyVolume(a.ctx, projectID, volumeDays)
 	if err != nil {
 		return nil, err
 	}

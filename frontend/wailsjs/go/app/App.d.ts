@@ -26,7 +26,7 @@ export function ExportOpenAPI(arg1:string):Promise<string>;
 
 export function GetActiveProjectID():Promise<string>;
 
-export function GetDashboardMetrics(arg1:string):Promise<app.DashboardMetrics>;
+export function GetDashboardMetrics(arg1:string,arg2:number):Promise<app.DashboardMetrics>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
 

@@ -42,8 +42,8 @@ export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
 
-export function GetDashboardMetrics(arg1) {
-  return window['go']['app']['App']['GetDashboardMetrics'](arg1);
+export function GetDashboardMetrics(arg1, arg2) {
+  return window['go']['app']['App']['GetDashboardMetrics'](arg1, arg2);
 }
 
 export function GetHistoryEntry(arg1) {
