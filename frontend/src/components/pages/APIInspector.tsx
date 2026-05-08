@@ -262,18 +262,28 @@ export function APIInspector() {
       setBodyTouched(false)
       return
     }
-    if (selectedRaw?.id) {
-      try {
-        const { RegenerateExampleBody } = await import('../../../wailsjs/go/app/App')
-        const body = await RegenerateExampleBody(selectedRaw.id)
-        if (body) {
-          setRequestBody(body)
-          setBodyTouched(false)
-          return
-        }
-      } catch (err) {
-        console.error('regenerate failed:', err)
+    try {
+      const { RegenerateBodyValues, app: appNs } = await import('../../../wailsjs/go/app/App').then(
+        async (mod) => ({
+          RegenerateBodyValues: mod.RegenerateBodyValues,
+          app: (await import('../../../wailsjs/go/models')).app,
+        }),
+      )
+      const fields = requestSchema.fields.map((f) => ({
+        name: f.name,
+        type: f.type,
+        rules: f.rules ?? [],
+      }))
+      const body = await RegenerateBodyValues(
+        appNs.RegenerateBodyInput.createFrom({ body: requestBody, fields }),
+      )
+      if (body) {
+        setRequestBody(body)
+        setBodyTouched(false)
+        return
       }
+    } catch (err) {
+      console.error('regenerate failed:', err)
     }
     setRequestBody(JSON.stringify(buildExampleBody(requestSchema.fields), null, 2))
     setBodyTouched(false)

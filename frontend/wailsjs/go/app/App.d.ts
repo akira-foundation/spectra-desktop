@@ -54,7 +54,7 @@ export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
 
-export function RegenerateBodyFromFields(arg1:Array<app.RegenerateFieldInput>):Promise<string>;
+export function RegenerateBodyValues(arg1:app.RegenerateBodyInput):Promise<string>;
 
 export function RegenerateExampleBody(arg1:string):Promise<string>;
 

@@ -999,6 +999,11 @@ type RegenerateFieldInput struct {
 	Rules []string `json:"rules,omitempty"`
 }
 
+type RegenerateBodyInput struct {
+	Body   string                 `json:"body"`
+	Fields []RegenerateFieldInput `json:"fields,omitempty"`
+}
+
 func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
 	if endpointID == "" {
 		return "{}", nil
@@ -1013,23 +1018,138 @@ func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
 	if err := json.Unmarshal([]byte(ep.RequestSchema), &raw); err != nil {
 		return "{}", err
 	}
-	return regenerateBody(raw.Fields)
+	return regenerateFromFields(raw.Fields)
 }
 
-func (a *App) RegenerateBodyFromFields(fields []RegenerateFieldInput) (string, error) {
-	return regenerateBody(fields)
+func (a *App) RegenerateBodyValues(input RegenerateBodyInput) (string, error) {
+	body := strings.TrimSpace(input.Body)
+	if body == "" || body == "{}" {
+		return regenerateFromFields(input.Fields)
+	}
+	current := orderedMap{}
+	if err := json.Unmarshal([]byte(body), &current); err != nil {
+		return regenerateFromFields(input.Fields)
+	}
+	if len(current.Keys) == 0 {
+		return regenerateFromFields(input.Fields)
+	}
+	fieldByName := map[string]RegenerateFieldInput{}
+	for _, f := range input.Fields {
+		fieldByName[f.Name] = f
+	}
+	out := orderedMap{}
+	for _, key := range current.Keys {
+		oldVal := current.Values[key]
+		var inferredType string
+		var rules []string
+		if f, ok := fieldByName[key]; ok {
+			inferredType = f.Type
+			rules = f.Rules
+		} else {
+			inferredType = inferTypeFromValue(oldVal)
+		}
+		out.Set(key, laravel.RegenerateValue(key, inferredType, rules))
+	}
+	return marshalOrdered(out)
 }
 
-func regenerateBody(fields []RegenerateFieldInput) (string, error) {
-	out := make(map[string]any, len(fields))
+func regenerateFromFields(fields []RegenerateFieldInput) (string, error) {
+	if len(fields) == 0 {
+		return "{}", nil
+	}
+	out := orderedMap{}
 	for _, f := range fields {
-		out[f.Name] = laravel.RegenerateValue(f.Name, f.Type, f.Rules)
+		out.Set(f.Name, laravel.RegenerateValue(f.Name, f.Type, f.Rules))
 	}
-	body, err := json.MarshalIndent(out, "", "  ")
+	return marshalOrdered(out)
+}
+
+type orderedMap struct {
+	Keys   []string
+	Values map[string]any
+}
+
+func (m *orderedMap) Set(k string, v any) {
+	if m.Values == nil {
+		m.Values = map[string]any{}
+	}
+	if _, exists := m.Values[k]; !exists {
+		m.Keys = append(m.Keys, k)
+	}
+	m.Values[k] = v
+}
+
+func (m *orderedMap) UnmarshalJSON(data []byte) error {
+	dec := json.NewDecoder(strings.NewReader(string(data)))
+	dec.UseNumber()
+	tok, err := dec.Token()
 	if err != nil {
-		return "{}", err
+		return err
 	}
-	return string(body), nil
+	if delim, ok := tok.(json.Delim); !ok || delim != '{' {
+		return fmt.Errorf("expected object")
+	}
+	m.Values = map[string]any{}
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return fmt.Errorf("expected string key")
+		}
+		var v any
+		if err := dec.Decode(&v); err != nil {
+			return err
+		}
+		m.Keys = append(m.Keys, key)
+		m.Values[key] = v
+	}
+	return nil
+}
+
+func marshalOrdered(m orderedMap) (string, error) {
+	var b strings.Builder
+	b.WriteString("{\n")
+	for i, key := range m.Keys {
+		if i > 0 {
+			b.WriteString(",\n")
+		}
+		b.WriteString("  ")
+		keyJSON, _ := json.Marshal(key)
+		b.Write(keyJSON)
+		b.WriteString(": ")
+		valJSON, err := json.MarshalIndent(m.Values[key], "  ", "  ")
+		if err != nil {
+			return "", err
+		}
+		b.Write(valJSON)
+	}
+	b.WriteString("\n}")
+	return b.String(), nil
+}
+
+func inferTypeFromValue(v any) string {
+	switch t := v.(type) {
+	case bool:
+		return "boolean"
+	case json.Number:
+		if _, err := t.Int64(); err == nil {
+			return "integer"
+		}
+		return "numeric"
+	case float64:
+		return "numeric"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	case nil:
+		return "string"
+	default:
+		return "string"
+	}
 }
 
 func envToDTO(e domain.Environment) EnvironmentDTO {
