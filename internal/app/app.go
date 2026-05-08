@@ -258,18 +258,6 @@ func (a *App) SetProjectAuthManual(input SetProjectAuthInput) error {
 	return a.auth.Save(a.ctx, rec)
 }
 
-type SetEndpointAuthInput struct {
-	EndpointID string `json:"endpointID"`
-	Role       string `json:"role"`
-	TokenPath  string `json:"tokenPath"`
-}
-
-func (a *App) SetEndpointAuth(input SetEndpointAuthInput) error {
-	if input.EndpointID == "" {
-		return fmt.Errorf("endpoint id required")
-	}
-	return a.endpoints.UpdateAuthOverride(a.ctx, input.EndpointID, core.AuthRole(input.Role), input.TokenPath)
-}
 
 func previewToken(token string) string {
 	if len(token) <= 12 {
@@ -335,6 +323,10 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	return resp, nil
 }
 
+func (a *App) UpdateProjectLoginEndpoint(projectID, endpointID, tokenPath string) error {
+	return a.projects.UpdateLoginEndpoint(a.ctx, projectID, endpointID, tokenPath)
+}
+
 func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[string]string, []http.Cookie) {
 	rec, err := a.auth.Get(a.ctx, projectID)
 	if err != nil || rec == nil {
@@ -373,20 +365,19 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 	if resp == nil || resp.Status >= 400 {
 		return
 	}
-	driver, err := a.scanner.ResolveByName(a.scannerNameFor(projectID))
-	if err != nil || driver == nil {
+
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil {
+		return
+	}
+	if project.LoginEndpointID == "" || project.LoginEndpointID != endpointID {
+		return
+	}
+
+	driver, err := a.scanner.ResolveByName(project.Framework)
+	if err != nil {
 		driver = nil
 	}
-
-	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
-	if err != nil || ep == nil {
-		return
-	}
-	role := ep.EffectiveAuthRole()
-	if role != core.AuthRoleLogin && role != core.AuthRoleRefresh {
-		return
-	}
-
 	cap, ok := authCapabilityFor(driver)
 	if !ok {
 		return
@@ -401,8 +392,8 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 	if !ok || extraction == nil {
 		extraction = &core.AuthExtraction{}
 	}
-	if ep.TokenPathOverride != "" {
-		if token, path, found := extractTokenAtPath(authResp.Body, ep.TokenPathOverride); found {
+	if project.LoginTokenPath != "" {
+		if token, path, found := extractTokenAtPath(authResp.Body, project.LoginTokenPath); found {
 			extraction.Token = token
 			extraction.TokenPath = path
 		}
@@ -432,14 +423,6 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 	if err := a.auth.Save(a.ctx, rec); err != nil {
 		log.Printf("save project auth: %v", err)
 	}
-}
-
-func (a *App) scannerNameFor(projectID string) string {
-	project, err := a.projects.GetByID(a.ctx, projectID)
-	if err != nil || project == nil {
-		return ""
-	}
-	return project.Framework
 }
 
 func authCapabilityFor(driver core.FrameworkDriver) (core.AuthCapable, bool) {

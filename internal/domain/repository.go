@@ -18,5 +18,6 @@ type ProjectRepository interface {
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, status ProjectStatus) error
 	UpdateBaseURL(ctx context.Context, id string, baseURL string) error
+	UpdateLoginEndpoint(ctx context.Context, id string, endpointID string, tokenPath string) error
 	MarkSynced(ctx context.Context, id string) error
 }

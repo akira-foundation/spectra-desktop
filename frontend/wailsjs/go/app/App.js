@@ -82,14 +82,14 @@ export function SetActiveProjectID(arg1) {
   return window['go']['app']['App']['SetActiveProjectID'](arg1);
 }
 
-export function SetEndpointAuth(arg1) {
-  return window['go']['app']['App']['SetEndpointAuth'](arg1);
-}
-
 export function SetProjectAuthManual(arg1) {
   return window['go']['app']['App']['SetProjectAuthManual'](arg1);
 }
 
 export function UpdateProjectBaseURL(arg1, arg2) {
   return window['go']['app']['App']['UpdateProjectBaseURL'](arg1, arg2);
+}
+
+export function UpdateProjectLoginEndpoint(arg1, arg2, arg3) {
+  return window['go']['app']['App']['UpdateProjectLoginEndpoint'](arg1, arg2, arg3);
 }

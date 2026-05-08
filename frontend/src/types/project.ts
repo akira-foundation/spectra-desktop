@@ -6,6 +6,8 @@ export interface Project {
   frameworkVersion: string
   sdkVersion: string
   baseUrl: string
+  loginEndpointId?: string
+  loginTokenPath?: string
   lastSyncTime: Date | null
   status: 'connected' | 'disconnected' | 'syncing' | 'error'
   stats: {

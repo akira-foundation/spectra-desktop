@@ -28,6 +28,8 @@ type Project struct {
 	APIFilterMode    string        `json:"apiFilterMode"`
 	APIFilterValue   string        `json:"apiFilterValue"`
 	BaseURL          string        `json:"baseUrl"`
+	LoginEndpointID  string        `json:"loginEndpointId,omitempty"`
+	LoginTokenPath   string        `json:"loginTokenPath,omitempty"`
 	CreatedAt        time.Time     `json:"createdAt"`
 	UpdatedAt        time.Time     `json:"updatedAt"`
 	LastSyncedAt     *time.Time    `json:"lastSyncedAt,omitempty"`

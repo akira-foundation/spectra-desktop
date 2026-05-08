@@ -351,20 +351,12 @@ export function APIInspector() {
         <EndpointInfoSheet
           open={infoOpen}
           onOpenChange={setInfoOpen}
-          endpointId={selected.id}
           method={selected.method}
           path={selected.path}
           controller={selected.controller}
           middleware={selected.middleware}
           authRequired={selected.authRequired}
           schema={requestSchema}
-          authRole={selectedRaw?.authRole}
-          authHint={selectedRaw?.authHint}
-          authRoleOverride={selectedRaw?.authRoleOverride}
-          tokenPathOverride={selectedRaw?.tokenPathOverride}
-          onAuthOverrideSaved={() => {
-            if (activeProjectId) void useEndpointsStore.getState().load(activeProjectId)
-          }}
         />
       )}
     </div>

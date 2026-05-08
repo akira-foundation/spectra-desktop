@@ -7,6 +7,7 @@ import {
   SetActiveProjectID,
   DetectProject,
   UpdateProjectBaseURL,
+  UpdateProjectLoginEndpoint,
 } from '../../wailsjs/go/app/App'
 import { domain, core } from '../../wailsjs/go/models'
 
@@ -23,6 +24,7 @@ export interface ProjectStorageService {
   setActive(id: string): Promise<void>
   detect(id: string): Promise<DetectionResult>
   updateBaseURL(id: string, baseUrl: string): Promise<void>
+  updateLoginEndpoint(id: string, endpointId: string, tokenPath: string): Promise<void>
 }
 
 export const projectStorageService: ProjectStorageService = {
@@ -50,5 +52,8 @@ export const projectStorageService: ProjectStorageService = {
   },
   async updateBaseURL(id, baseUrl) {
     await UpdateProjectBaseURL(id, baseUrl)
+  },
+  async updateLoginEndpoint(id, endpointId, tokenPath) {
+    await UpdateProjectLoginEndpoint(id, endpointId, tokenPath)
   },
 }

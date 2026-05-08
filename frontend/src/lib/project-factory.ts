@@ -33,6 +33,8 @@ export function projectFromRecord(record: ProjectRecord): Project {
     frameworkVersion: record.frameworkVersion ?? '',
     sdkVersion: '',
     baseUrl: record.baseUrl ?? '',
+    loginEndpointId: record.loginEndpointId ?? '',
+    loginTokenPath: record.loginTokenPath ?? '',
     lastSyncTime: record.lastSyncedAt ? toDate(record.lastSyncedAt) : null,
     status: normalizeStatus(record.status),
     stats: { ...emptyStats },

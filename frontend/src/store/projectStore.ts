@@ -24,6 +24,7 @@ interface ProjectState {
   removeProject: (id: string) => Promise<void>
   refreshDetection: (id: string) => Promise<void>
   updateBaseURL: (id: string, baseUrl: string) => Promise<void>
+  updateLoginEndpoint: (id: string, endpointId: string, tokenPath: string) => Promise<void>
   syncProject: (projectId: string) => Promise<void>
   testConnection: (projectId: string) => Promise<boolean>
 }
@@ -112,6 +113,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await projectStorageService.updateBaseURL(id, baseUrl)
     set((state) => ({
       projects: state.projects.map((p) => (p.id === id ? { ...p, baseUrl } : p)),
+    }))
+  },
+
+  updateLoginEndpoint: async (id, endpointId, tokenPath) => {
+    await projectStorageService.updateLoginEndpoint(id, endpointId, tokenPath)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === id ? { ...p, loginEndpointId: endpointId, loginTokenPath: tokenPath } : p,
+      ),
     }))
   },
 

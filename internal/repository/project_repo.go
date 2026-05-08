@@ -205,3 +205,24 @@ func (r *ProjectRepository) UpdateBaseURL(ctx context.Context, id, baseURL strin
 	}
 	return nil
 }
+
+func (r *ProjectRepository) UpdateLoginEndpoint(ctx context.Context, id, endpointID, tokenPath string) error {
+	res, err := r.db.NewUpdate().
+		Model((*model.Project)(nil)).
+		Set("login_endpoint_id = ?", endpointID).
+		Set("login_token_path = ?", tokenPath).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrProjectNotFound
+	}
+	return nil
+}

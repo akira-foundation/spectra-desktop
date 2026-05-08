@@ -142,22 +142,6 @@ export namespace app {
 		    return a;
 		}
 	}
-	export class SetEndpointAuthInput {
-	    endpointID: string;
-	    role: string;
-	    tokenPath: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new SetEndpointAuthInput(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.endpointID = source["endpointID"];
-	        this.role = source["role"];
-	        this.tokenPath = source["tokenPath"];
-	    }
-	}
 	export class SetProjectAuthInput {
 	    projectID: string;
 	    scheme: string;
@@ -329,6 +313,8 @@ export namespace domain {
 	    apiFilterMode: string;
 	    apiFilterValue: string;
 	    baseUrl: string;
+	    loginEndpointId?: string;
+	    loginTokenPath?: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -351,6 +337,8 @@ export namespace domain {
 	        this.apiFilterMode = source["apiFilterMode"];
 	        this.apiFilterValue = source["apiFilterValue"];
 	        this.baseUrl = source["baseUrl"];
+	        this.loginEndpointId = source["loginEndpointId"];
+	        this.loginTokenPath = source["loginTokenPath"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastSyncedAt = this.convertValues(source["lastSyncedAt"], null);
