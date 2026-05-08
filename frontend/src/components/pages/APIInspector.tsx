@@ -17,10 +17,11 @@ import { EndpointInfoSheet } from '@/components/api-inspector/EndpointInfoSheet'
 import { EndpointEmptyState } from '@/components/api-inspector/EndpointEmptyState'
 import { ResponseEmptyState } from '@/components/api-inspector/ResponseEmptyState'
 import {
-  ScanLoadingState,
   ScanErrorState,
   NoRoutesState,
 } from '@/components/api-inspector/ScanStates'
+import { EndpointListSkeleton } from '@/components/api-inspector/EndpointListSkeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { groupEndpoints, type GroupedEndpoint, PINNED_CATEGORY } from '@/lib/group-endpoints'
 import type { ScannedEndpoint } from '@/services/scannerService'
 
@@ -269,23 +270,35 @@ export function APIInspector() {
   }
 
   const handleReplay = async (entryId: string) => {
+    if (!selected || !activeProjectId) return
     try {
       const detail = await historyService.get(entryId)
       if (!detail) return
+
+      let headerMap: Record<string, string> = {}
+      try {
+        headerMap = JSON.parse(detail.requestHeaders || '{}') as Record<string, string>
+      } catch {}
+
       setRequestBody(detail.requestBody ?? '')
       setBodyTouched(true)
-      try {
-        const parsed = JSON.parse(detail.requestHeaders || '{}') as Record<string, string>
-        const next = Object.entries(parsed).map(([key, value]) => ({
-          key,
-          value,
-          enabled: true,
-        }))
-        setHeaders(next)
-      } catch {}
-      toast.success('Loaded from history. Press Execute to replay.')
+      setHeaders(
+        Object.entries(headerMap).map(([key, value]) => ({ key, value, enabled: true })),
+      )
+
+      await runner.execute({
+        projectID: activeProjectId,
+        endpointID: selected.id,
+        method: detail.method || selected.method,
+        path: resolvedPath,
+        headers: headerMap,
+        body: detail.requestBody ?? '',
+      })
+      await useHistoryStore.getState().refresh(activeProjectId)
+      toast.success('Replayed')
     } catch (err) {
       console.error('replay failed:', err)
+      toast.error('Replay failed')
     }
   }
 
@@ -308,7 +321,14 @@ export function APIInspector() {
   }, [])
 
   if (status === 'loading' || status === 'scanning') {
-    return <CenterPane><ScanLoadingState /></CenterPane>
+    return (
+      <div className="h-full flex overflow-hidden">
+        <div className="w-64 shrink-0 border-r border-border">
+          <EndpointListSkeleton />
+        </div>
+        <div className="flex-1" />
+      </div>
+    )
   }
   if (status === 'error' && error) {
     return <CenterPane><ScanErrorState error={error} onRetry={handleRetry} /></CenterPane>
@@ -374,9 +394,7 @@ export function APIInspector() {
                 executing={runner.loading}
               />
               {runner.loading ? (
-                <div className="bg-transparent flex items-center justify-center">
-                  <ScanLoadingState />
-                </div>
+                <ResponseLoadingSkeleton />
               ) : runner.error ? (
                 <div className="bg-transparent flex items-center justify-center">
                   <RunnerErrorBlock code={runner.error.code} message={runner.error.message} />
@@ -386,12 +404,14 @@ export function APIInspector() {
                   responseData={parseBody(runner.response.body ?? '')}
                   responseHeaders={runner.response.headers as Record<string, string[]>}
                   onReplay={handleReplay}
+                  endpointId={selected?.id}
                 />
               ) : (
                 <ResponsePanel
                   responseData={null}
                   responseHeaders={undefined}
                   onReplay={handleReplay}
+                  endpointId={selected?.id}
                 />
               )}
             </div>
@@ -417,6 +437,17 @@ export function APIInspector() {
 
 function CenterPane({ children }: { children: React.ReactNode }) {
   return <div className="h-full flex items-center justify-center">{children}</div>
+}
+
+function ResponseLoadingSkeleton() {
+  return (
+    <div className="flex flex-col min-w-0 min-h-0 h-full bg-transparent p-3 gap-2">
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="flex-1 min-h-32" />
+    </div>
+  )
 }
 
 function hasMetadata(endpoint: GroupedEndpoint): boolean {

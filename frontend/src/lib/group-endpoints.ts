@@ -32,7 +32,7 @@ const PREFIX_SKIP = new Set([
   'app',
 ])
 
-export const PINNED_CATEGORY = '★ PINNED'
+export const PINNED_CATEGORY = 'Pinned'
 
 export interface GroupOptions {
   pinnedKeys?: string[]

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Welcome } from '@/components/pages/Welcome'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { StatCard } from '@/services/scannerService'
 
 const KIND_ICON: Record<string, LucideIcon> = {
@@ -61,15 +62,11 @@ export function Dashboard() {
         </div>
       </header>
 
-      {cards.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          {cards.map((card) => (
-            <Stat key={card.key} card={card} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-[12px] text-muted-foreground italic">Loading stats…</div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        {cards.length > 0
+          ? cards.map((card) => <Stat key={card.key} card={card} />)
+          : Array.from({ length: 5 }).map((_, i) => <StatSkeleton key={i} />)}
+      </div>
     </div>
   )
 }
@@ -89,6 +86,18 @@ function Stat({ card }: StatProps) {
         <Icon className="w-3.5 h-3.5 text-primary/70" />
       </div>
       <p className="text-2xl font-semibold mt-1.5 tabular-nums">{card.value}</p>
+    </div>
+  )
+}
+
+function StatSkeleton() {
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3.5 w-3.5 rounded" />
+      </div>
+      <Skeleton className="h-7 w-12 mt-1.5" />
     </div>
   )
 }

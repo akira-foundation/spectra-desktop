@@ -236,11 +236,11 @@ function CategoryItem({
               isPinnedSection && 'text-amber-500/90 hover:text-amber-500',
             )}
           >
-            <div className="flex items-center gap-2 w-full pr-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">
-                {category.category}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-[11.5px] font-medium capitalize truncate">
+                {category.category.toLowerCase()}
               </span>
-              <span className="text-[10px] text-muted-foreground/70 font-mono">
+              <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">
                 {category.items.length}
               </span>
             </div>
