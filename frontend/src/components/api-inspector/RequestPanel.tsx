@@ -1,4 +1,4 @@
-import { Play, Send, FileCheck, Sparkles, Shuffle } from 'lucide-react'
+import { Play, Send, FileCheck, Sparkles, Shuffle, FileX2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useState } from 'react'
@@ -11,7 +11,10 @@ import type { RequestSchema } from '@/lib/request-schema'
 import { sourceLabel } from '@/lib/request-schema'
 import { cn } from '@/lib/utils'
 
+const NO_BODY_METHODS = new Set(['GET', 'HEAD', 'DELETE', 'OPTIONS'])
+
 interface RequestPanelProps {
+  method?: string
   requestBody: string
   onRequestBodyChange: (value: string) => void
   onResetBody: () => void
@@ -35,6 +38,7 @@ interface RequestPanelProps {
 }
 
 export function RequestPanel({
+  method,
   requestBody,
   onRequestBodyChange,
   onResetBody,
@@ -93,6 +97,10 @@ export function RequestPanel({
         </TabsList>
 
         <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
+          {method && NO_BODY_METHODS.has(method.toUpperCase()) ? (
+            <NoBodyState method={method.toUpperCase()} />
+          ) : (
+          <>
           <div className="flex items-center gap-2 mb-2">
             <button
               type="button"
@@ -140,6 +148,8 @@ export function RequestPanel({
               />
             )}
           </div>
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="params" className="flex-1 p-3 overflow-auto mt-0">
@@ -220,5 +230,20 @@ function SchemaBadge({ schema, requiredCount, touched }: SchemaBadgeProps) {
       <span>{requiredCount} required</span>
       {touched && <span className="text-muted-foreground/70 ml-0.5">· edited</span>}
     </span>
+  )
+}
+
+function NoBodyState({ method }: { method: string }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8 gap-2">
+      <span className="inline-flex w-9 h-9 items-center justify-center rounded-md bg-muted/40 text-muted-foreground">
+        <FileX2 className="w-4 h-4" />
+      </span>
+      <p className="text-[12.5px] font-medium text-foreground/85">No body needed</p>
+      <p className="text-[11px] text-muted-foreground max-w-xs leading-relaxed">
+        {method} requests don&apos;t typically carry a payload. Use Params or Headers if you need
+        to send data.
+      </p>
+    </div>
   )
 }

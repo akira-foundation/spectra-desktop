@@ -427,6 +427,7 @@ export function APIInspector() {
 
             <div className="flex-1 grid grid-cols-2 overflow-hidden">
               <RequestPanel
+                method={selected.method}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}
