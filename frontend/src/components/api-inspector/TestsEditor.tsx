@@ -42,9 +42,18 @@ interface TestsEditorProps {
   method: string | null
   path: string | null
   results?: TestResult[]
+  responseBody?: string
+  responseHeaders?: Record<string, string[]>
 }
 
-export function TestsEditor({ projectId, method, path, results }: TestsEditorProps) {
+export function TestsEditor({
+  projectId,
+  method,
+  path,
+  results,
+  responseBody,
+  responseHeaders,
+}: TestsEditorProps) {
   const endpointKey = method && path ? `${method.toUpperCase()} ${path}` : null
   const [tests, setTests] = useState<EndpointTest[]>([])
   const [savedTests, setSavedTests] = useState<EndpointTest[]>([])
@@ -95,6 +104,9 @@ export function TestsEditor({ projectId, method, path, results }: TestsEditorPro
     return m
   }, [results])
 
+  const jsonPaths = useMemo(() => extractJSONPaths(responseBody), [responseBody])
+  const headerNames = useMemo(() => Object.keys(responseHeaders ?? {}), [responseHeaders])
+
   if (!projectId || !endpointKey) {
     return <p className="text-[11.5px] italic text-muted-foreground p-2">Select an endpoint.</p>
   }
@@ -137,6 +149,8 @@ export function TestsEditor({ projectId, method, path, results }: TestsEditorPro
               result={resultByIndex.get(idx)}
               onChange={(patch) => update(idx, patch)}
               onRemove={() => removeTest(idx)}
+              jsonPaths={jsonPaths}
+              headerNames={headerNames}
             />
           ))}
         </ul>
@@ -150,14 +164,17 @@ interface TestRowProps {
   result?: TestResult
   onChange: (patch: Partial<EndpointTest>) => void
   onRemove: () => void
+  jsonPaths: string[]
+  headerNames: string[]
 }
 
-function TestRow({ test, result, onChange, onRemove }: TestRowProps) {
+function TestRow({ test, result, onChange, onRemove, jsonPaths, headerNames }: TestRowProps) {
   const ops = OP_BY_KIND[test.kind] ?? []
   const showPath = test.kind === 'header' || test.kind === 'jsonpath'
   const showOp = ops.length > 0
   const hideExpected =
     test.kind === 'jsonpath' && (test.op === 'exists' || test.op === 'not_exists')
+  const datalistId = `path-suggestions-${test.kind}`
 
   return (
     <li className="flex items-start gap-1.5">
@@ -175,12 +192,20 @@ function TestRow({ test, result, onChange, onRemove }: TestRowProps) {
           ))}
         </select>
         {showPath ? (
-          <Input
-            value={test.jsonPath ?? ''}
-            onChange={(e) => onChange({ jsonPath: e.target.value })}
-            placeholder={test.kind === 'header' ? 'Content-Type' : '$.data.token'}
-            className="h-7 text-[11.5px] font-mono"
-          />
+          <>
+            <Input
+              value={test.jsonPath ?? ''}
+              onChange={(e) => onChange({ jsonPath: e.target.value })}
+              placeholder={test.kind === 'header' ? 'Content-Type' : '$.data.token'}
+              className="h-7 text-[11.5px] font-mono"
+              list={datalistId}
+            />
+            <datalist id={datalistId}>
+              {(test.kind === 'header' ? headerNames : jsonPaths).map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          </>
         ) : (
           <span className="text-[11px] text-muted-foreground/70 px-2">—</span>
         )}
@@ -190,7 +215,7 @@ function TestRow({ test, result, onChange, onRemove }: TestRowProps) {
             onChange={(e) => onChange({ op: e.target.value })}
             className="h-7 text-[11.5px] bg-input/40 border border-border/50 rounded-md px-2"
           >
-            <option value="">op…</option>
+            <option value="">Comparison…</option>
             {ops.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -264,4 +289,31 @@ function placeholderForExpected(test: EndpointTest): string {
     default:
       return 'value'
   }
+}
+
+function extractJSONPaths(raw?: string): string[] {
+  if (!raw) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
+  const out: string[] = []
+  const walk = (node: unknown, prefix: string) => {
+    if (out.length > 200) return
+    if (node && typeof node === 'object' && !Array.isArray(node)) {
+      for (const key of Object.keys(node as Record<string, unknown>)) {
+        const path = prefix ? `${prefix}.${key}` : `$.${key}`
+        out.push(path)
+        walk((node as Record<string, unknown>)[key], path)
+      }
+    } else if (Array.isArray(node) && node.length > 0) {
+      const path = `${prefix}[0]`
+      out.push(path)
+      walk(node[0], path)
+    }
+  }
+  walk(parsed, '')
+  return out
 }
