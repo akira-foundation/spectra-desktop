@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Copy, Download, Trash2, RefreshCw, Play, ChevronLeft } from 'lucide-react'
+import { Copy, Download, Trash2, Play, ChevronLeft } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { historyService } from '@/services/historyService'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -112,27 +112,16 @@ export function ResponsePanel({
             <>
               <div className="px-3 py-1.5 border-b border-border/40 flex items-center justify-between">
                 <span className="text-[10.5px] text-muted-foreground">{history.length} runs</span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    onClick={() => activeProjectId && refreshHistory(activeProjectId)}
-                    title="Refresh"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => activeProjectId && clearHistory(activeProjectId)}
-                    title="Clear history"
-                    disabled={history.length === 0}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => activeProjectId && clearHistory(activeProjectId)}
+                  title="Clear history"
+                  disabled={history.length === 0}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
               <div className="flex-1 overflow-auto">
                 {history.length === 0 ? (
