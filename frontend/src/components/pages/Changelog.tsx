@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Plus, Minus, Pencil, ChevronRight, History } from 'lucide-react'
 import { useProjectStore } from '@/store/projectStore'
 import { useChangelogStore } from '@/store/changelogStore'
@@ -210,35 +211,221 @@ function Section({ title, tone, icon: Icon, entries }: SectionProps) {
 
 function DiffRow({ entry, tone }: { entry: SnapshotDiffEntry; tone: 'emerald' | 'rose' | 'amber' }) {
   const { getMethodColor } = useHttpMethod()
+  const [open, setOpen] = useState(false)
   const bgClass = {
     emerald: 'hover:bg-emerald-500/5',
     rose: 'hover:bg-rose-500/5',
     amber: 'hover:bg-amber-500/5',
   }[tone]
+  const expandable = entry.kind === 'changed' || entry.kind === 'added' || entry.kind === 'removed'
   return (
-    <li className={cn('flex items-center gap-2 px-2 py-1 rounded-md transition-colors', bgClass)}>
-      <span
-        className={cn(
-          'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
-          getMethodColor(entry.method),
-        )}
+    <li className={cn('rounded-md transition-colors', bgClass)}>
+      <button
+        type="button"
+        onClick={() => expandable && setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-2 py-1 text-left"
       >
-        {entry.method}
-      </span>
-      <span className="text-[11.5px] font-mono truncate flex-1">{entry.path}</span>
-      {entry.changes && entry.changes.length > 0 && (
-        <div className="flex items-center gap-1 shrink-0">
-          {entry.changes.map((c) => (
-            <span
-              key={c}
-              className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground"
-            >
-              {c}
-            </span>
-          ))}
+        <span
+          className={cn(
+            'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
+            getMethodColor(entry.method),
+          )}
+        >
+          {entry.method}
+        </span>
+        <span className="text-[11.5px] font-mono truncate flex-1">{entry.path}</span>
+        {entry.changes && entry.changes.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+            {entry.changes.map((c) => (
+              <span
+                key={c}
+                className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
+      {open && expandable && <DiffDetail entry={entry} />}
+    </li>
+  )
+}
+
+function DiffDetail({ entry }: { entry: SnapshotDiffEntry }) {
+  const prev = entry.previous
+  const cur = entry.current
+  const changes = entry.changes ?? []
+
+  return (
+    <div className="px-3 pb-2 space-y-2">
+      {entry.kind === 'added' && cur && (
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-500">Added</p>
+          <EndpointInfo data={cur} />
         </div>
       )}
-    </li>
+      {entry.kind === 'removed' && prev && (
+        <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-2 space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-rose-500">Removed</p>
+          <EndpointInfo data={prev} />
+        </div>
+      )}
+      {entry.kind === 'changed' && prev && cur && (
+        <>
+          {changes.includes('handler') && (
+            <FieldDiff
+              label="Handler"
+              before={prev.handler ?? ''}
+              after={cur.handler ?? ''}
+            />
+          )}
+          {changes.includes('authRole') && (
+            <FieldDiff
+              label="Auth role"
+              before={prev.authRole || '—'}
+              after={cur.authRole || '—'}
+            />
+          )}
+          {changes.includes('middleware') && (
+            <ListDiff
+              label="Middleware"
+              before={prev.middleware ?? []}
+              after={cur.middleware ?? []}
+            />
+          )}
+          {changes.includes('schema') && (
+            <SchemaFieldsDiff
+              before={prev.schemaFields ?? []}
+              after={cur.schemaFields ?? []}
+            />
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function EndpointInfo({ data }: { data: NonNullable<SnapshotDiffEntry['current']> }) {
+  return (
+    <dl className="grid grid-cols-[80px_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+      {data.handler && (
+        <>
+          <dt className="text-muted-foreground">Handler</dt>
+          <dd className="font-mono break-all">{data.handler}</dd>
+        </>
+      )}
+      {data.authRole && (
+        <>
+          <dt className="text-muted-foreground">Auth role</dt>
+          <dd className="font-mono">{data.authRole}</dd>
+        </>
+      )}
+      {data.middleware && data.middleware.length > 0 && (
+        <>
+          <dt className="text-muted-foreground">Middleware</dt>
+          <dd className="font-mono break-all">{data.middleware.join(', ')}</dd>
+        </>
+      )}
+      {data.schemaFields && data.schemaFields.length > 0 && (
+        <>
+          <dt className="text-muted-foreground">Fields</dt>
+          <dd className="font-mono">
+            {data.schemaFields.map((f) => `${f.name}:${f.type}${f.required ? '*' : ''}`).join(', ')}
+          </dd>
+        </>
+      )}
+    </dl>
+  )
+}
+
+function FieldDiff({ label, before, after }: { label: string; before: string; after: string }) {
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-[11px]">
+      <p className="text-[9.5px] uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="text-rose-400 font-mono break-all">- {before || '—'}</div>
+        <div className="text-emerald-400 font-mono break-all">+ {after || '—'}</div>
+      </div>
+    </div>
+  )
+}
+
+function ListDiff({ label, before, after }: { label: string; before: string[]; after: string[] }) {
+  const beforeSet = new Set(before)
+  const afterSet = new Set(after)
+  const added = after.filter((v) => !beforeSet.has(v))
+  const removed = before.filter((v) => !afterSet.has(v))
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-[11px]">
+      <p className="text-[9.5px] uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-0.5">
+        {added.map((v) => (
+          <div key={`a-${v}`} className="text-emerald-400 font-mono break-all">
+            + {v}
+          </div>
+        ))}
+        {removed.map((v) => (
+          <div key={`r-${v}`} className="text-rose-400 font-mono break-all">
+            − {v}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SchemaFieldsDiff({
+  before,
+  after,
+}: {
+  before: NonNullable<SnapshotDiffEntry['previous']>['schemaFields']
+  after: NonNullable<SnapshotDiffEntry['current']>['schemaFields']
+}) {
+  const prev = before ?? []
+  const next = after ?? []
+  const prevByName = new Map(prev.map((f) => [f.name, f]))
+  const nextByName = new Map(next.map((f) => [f.name, f]))
+  const added = next.filter((f) => !prevByName.has(f.name))
+  const removed = prev.filter((f) => !nextByName.has(f.name))
+  const changed = next.filter((f) => {
+    const old = prevByName.get(f.name)
+    if (!old) return false
+    return old.type !== f.type || !!old.required !== !!f.required
+  })
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-[11px]">
+      <p className="text-[9.5px] uppercase tracking-wider text-muted-foreground mb-1">
+        Schema fields
+      </p>
+      <div className="space-y-0.5">
+        {added.map((f) => (
+          <div key={`a-${f.name}`} className="text-emerald-400 font-mono">
+            + {f.name}: {f.type}
+            {f.required ? '*' : ''}
+          </div>
+        ))}
+        {removed.map((f) => (
+          <div key={`r-${f.name}`} className="text-rose-400 font-mono">
+            − {f.name}: {f.type}
+            {f.required ? '*' : ''}
+          </div>
+        ))}
+        {changed.map((f) => {
+          const old = prevByName.get(f.name)!
+          return (
+            <div key={`c-${f.name}`} className="text-amber-400 font-mono">
+              ~ {f.name}: {old.type}
+              {old.required ? '*' : ''} → {f.type}
+              {f.required ? '*' : ''}
+            </div>
+          )
+        })}
+        {added.length === 0 && removed.length === 0 && changed.length === 0 && (
+          <p className="italic text-muted-foreground">Examples differ but field shape unchanged.</p>
+        )}
+      </div>
+    </div>
   )
 }
 

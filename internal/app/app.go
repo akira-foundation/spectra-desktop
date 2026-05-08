@@ -696,24 +696,32 @@ func isValidHeaderName(name string) bool {
 }
 
 type snapshotEndpoint struct {
-	Method     string   `json:"method"`
-	Path       string   `json:"path"`
-	Handler    string   `json:"handler,omitempty"`
-	Middleware []string `json:"middleware,omitempty"`
-	AuthRole   string   `json:"authRole,omitempty"`
-	SchemaHash string   `json:"schemaHash,omitempty"`
+	Method       string                  `json:"method"`
+	Path         string                  `json:"path"`
+	Handler      string                  `json:"handler,omitempty"`
+	Middleware   []string                `json:"middleware,omitempty"`
+	AuthRole     string                  `json:"authRole,omitempty"`
+	SchemaHash   string                  `json:"schemaHash,omitempty"`
+	SchemaFields []snapshotSchemaField   `json:"schemaFields,omitempty"`
+}
+
+type snapshotSchemaField struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Required bool   `json:"required,omitempty"`
 }
 
 func (a *App) recordSnapshot(projectID string, endpoints []core.Endpoint) error {
 	items := make([]snapshotEndpoint, 0, len(endpoints))
 	for _, ep := range endpoints {
 		items = append(items, snapshotEndpoint{
-			Method:     string(ep.Method),
-			Path:       ep.Path,
-			Handler:    ep.Handler,
-			Middleware: ep.Middleware,
-			AuthRole:   string(ep.AuthRole),
-			SchemaHash: stableSchemaHash(ep.RequestSchema),
+			Method:       string(ep.Method),
+			Path:         ep.Path,
+			Handler:      ep.Handler,
+			Middleware:   ep.Middleware,
+			AuthRole:     string(ep.AuthRole),
+			SchemaHash:   stableSchemaHash(ep.RequestSchema),
+			SchemaFields: extractSchemaFields(ep.RequestSchema),
 		})
 	}
 	payload, err := json.Marshal(items)
@@ -747,6 +755,27 @@ func hashString(s string) string {
 	}
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+func extractSchemaFields(raw string) []snapshotSchemaField {
+	if raw == "" {
+		return nil
+	}
+	var s struct {
+		Fields []struct {
+			Name     string `json:"name"`
+			Type     string `json:"type"`
+			Required bool   `json:"required"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal([]byte(raw), &s); err != nil {
+		return nil
+	}
+	out := make([]snapshotSchemaField, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		out = append(out, snapshotSchemaField{Name: f.Name, Type: f.Type, Required: f.Required})
+	}
+	return out
 }
 
 // stableSchemaHash strips per-scan noise (gofakeit examples) so a
@@ -786,12 +815,14 @@ type SnapshotSummary struct {
 }
 
 type SnapshotDiffEntry struct {
-	Method   string   `json:"method"`
-	Path     string   `json:"path"`
-	Kind     string   `json:"kind"`
-	Changes  []string `json:"changes,omitempty"`
-	AuthRole string   `json:"authRole,omitempty"`
-	Handler  string   `json:"handler,omitempty"`
+	Method   string             `json:"method"`
+	Path     string             `json:"path"`
+	Kind     string             `json:"kind"`
+	Changes  []string           `json:"changes,omitempty"`
+	AuthRole string             `json:"authRole,omitempty"`
+	Handler  string             `json:"handler,omitempty"`
+	Previous *snapshotEndpoint  `json:"previous,omitempty"`
+	Current  *snapshotEndpoint  `json:"current,omitempty"`
 }
 
 type SnapshotDiff struct {
@@ -903,17 +934,28 @@ func computeDiff(previousJSON, currentJSON string) (struct {
 	for key, ep := range curMap {
 		old, exists := prevMap[key]
 		if !exists {
-			out.Added = append(out.Added, snapshotDiffEntry(ep, "added", nil))
+			added := snapshotDiffEntry(ep, "added", nil)
+			cur := ep
+			added.Current = &cur
+			out.Added = append(out.Added, added)
 			continue
 		}
 		changes := compareEndpoint(old, ep)
 		if len(changes) > 0 {
-			out.Changed = append(out.Changed, snapshotDiffEntry(ep, "changed", changes))
+			entry := snapshotDiffEntry(ep, "changed", changes)
+			prev := old
+			cur := ep
+			entry.Previous = &prev
+			entry.Current = &cur
+			out.Changed = append(out.Changed, entry)
 		}
 	}
 	for key, ep := range prevMap {
 		if _, exists := curMap[key]; !exists {
-			out.Removed = append(out.Removed, snapshotDiffEntry(ep, "removed", nil))
+			removed := snapshotDiffEntry(ep, "removed", nil)
+			prev := ep
+			removed.Previous = &prev
+			out.Removed = append(out.Removed, removed)
 		}
 	}
 	return out, nil

@@ -475,6 +475,64 @@ export namespace app {
 	        this.token = source["token"];
 	    }
 	}
+	export class snapshotSchemaField {
+	    name: string;
+	    type: string;
+	    required?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new snapshotSchemaField(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.required = source["required"];
+	    }
+	}
+	export class snapshotEndpoint {
+	    method: string;
+	    path: string;
+	    handler?: string;
+	    middleware?: string[];
+	    authRole?: string;
+	    schemaHash?: string;
+	    schemaFields?: snapshotSchemaField[];
+	
+	    static createFrom(source: any = {}) {
+	        return new snapshotEndpoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.handler = source["handler"];
+	        this.middleware = source["middleware"];
+	        this.authRole = source["authRole"];
+	        this.schemaHash = source["schemaHash"];
+	        this.schemaFields = this.convertValues(source["schemaFields"], snapshotSchemaField);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SnapshotDiffEntry {
 	    method: string;
 	    path: string;
@@ -482,6 +540,8 @@ export namespace app {
 	    changes?: string[];
 	    authRole?: string;
 	    handler?: string;
+	    previous?: snapshotEndpoint;
+	    current?: snapshotEndpoint;
 	
 	    static createFrom(source: any = {}) {
 	        return new SnapshotDiffEntry(source);
@@ -495,7 +555,27 @@ export namespace app {
 	        this.changes = source["changes"];
 	        this.authRole = source["authRole"];
 	        this.handler = source["handler"];
+	        this.previous = this.convertValues(source["previous"], snapshotEndpoint);
+	        this.current = this.convertValues(source["current"], snapshotEndpoint);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class SnapshotDiff {
 	    id: string;
@@ -582,6 +662,8 @@ export namespace app {
 		    return a;
 		}
 	}
+	
+	
 	
 
 }
