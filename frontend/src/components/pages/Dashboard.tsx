@@ -663,17 +663,33 @@ function VolumeCard({ metrics }: { metrics: DashboardMetrics | null }) {
               <AreaChart data={volume} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="0%" stopColor="rgb(168, 85, 247)" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="rgb(168, 85, 247)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <RechartsTooltip
-                  contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', fontSize: '11px', borderRadius: 4, padding: '4px 8px' }}
-                  labelStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}
+                  cursor={{ stroke: 'rgba(168, 85, 247, 0.3)', strokeWidth: 1 }}
+                  contentStyle={{
+                    background: 'rgba(24, 24, 27, 0.95)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '11px',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    color: '#fafafa',
+                  }}
+                  labelStyle={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '10px' }}
                   formatter={(v) => [`${v} runs`, '']}
                 />
                 <XAxis dataKey="day" hide />
-                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={1.5} fill="url(#volumeGradient)" />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="rgb(168, 85, 247)"
+                  strokeWidth={2}
+                  fill="url(#volumeGradient)"
+                  dot={{ fill: 'rgb(168, 85, 247)', r: 2 }}
+                  activeDot={{ fill: 'rgb(168, 85, 247)', r: 4 }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
