@@ -19,13 +19,24 @@ export interface GroupedEndpoint {
   confidence?: number
 }
 
-const PREFIX_SKIP = new Set(['api', 'v1', 'v2', 'v3', 'admin'])
+const PREFIX_SKIP = new Set([
+  'api',
+  'v1',
+  'v2',
+  'v3',
+  'v4',
+  'web',
+  'admin',
+  'http',
+  'controllers',
+  'app',
+])
 
 export function groupEndpoints(endpoints: ScannedEndpoint[]): EndpointGroup[] {
   const buckets = new Map<string, GroupedEndpoint[]>()
 
   for (const endpoint of endpoints) {
-    const category = pickCategory(endpoint.path)
+    const category = pickCategory(endpoint)
     const grouped = toGrouped(endpoint)
     const list = buckets.get(category) ?? []
     list.push(grouped)
@@ -37,7 +48,58 @@ export function groupEndpoints(endpoints: ScannedEndpoint[]): EndpointGroup[] {
     .sort((a, b) => a.category.localeCompare(b.category))
 }
 
-function pickCategory(path: string): string {
+function pickCategory(endpoint: ScannedEndpoint): string {
+  return (
+    fromName(endpoint.name) ??
+    fromController(endpoint.handler) ??
+    fromPath(endpoint.path) ??
+    'GENERAL'
+  )
+}
+
+function fromName(name?: string): string | null {
+  if (!name) return null
+  const raw = name
+    .split('.')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (raw.length === 0) return null
+
+  // strip common module prefixes (api, v1, web, admin)
+  let segments = raw.filter((s) => !PREFIX_SKIP.has(s.toLowerCase()))
+  if (segments.length === 0) segments = raw
+
+  // drop trailing action (index, show, store, update, destroy, etc)
+  if (segments.length > 1 && isCommonAction(segments[segments.length - 1].toLowerCase())) {
+    segments = segments.slice(0, -1)
+  }
+
+  if (segments.length === 0) return null
+
+  // pick the deepest "module" — second-to-last when nested, else the only one
+  const pick = segments.length >= 2 ? segments[segments.length - 2] : segments[0]
+  return pick.toUpperCase()
+}
+
+function fromController(handler?: string): string | null {
+  if (!handler) return null
+  const cleaned = handler.split('@')[0]
+  if (!cleaned || cleaned.toLowerCase() === 'closure') return null
+  const segments = cleaned.split('\\').filter(Boolean)
+  if (segments.length === 0) return null
+  const last = segments[segments.length - 1]
+  const stripped = last.replace(/Controller$/i, '').trim()
+  if (stripped) {
+    return stripped.toUpperCase()
+  }
+  if (segments.length >= 2) {
+    return segments[segments.length - 2].toUpperCase()
+  }
+  return null
+}
+
+function fromPath(path?: string): string | null {
+  if (!path) return null
   const segments = path.split('/').filter(Boolean)
   for (const segment of segments) {
     const clean = segment.toLowerCase()
@@ -45,7 +107,23 @@ function pickCategory(path: string): string {
     if (PREFIX_SKIP.has(clean)) continue
     return clean.toUpperCase()
   }
-  return 'GENERAL'
+  return null
+}
+
+function isCommonAction(value: string): boolean {
+  return [
+    'index',
+    'show',
+    'store',
+    'update',
+    'destroy',
+    'create',
+    'edit',
+    'list',
+    'get',
+    'save',
+    'delete',
+  ].includes(value)
 }
 
 function toGrouped(endpoint: ScannedEndpoint): GroupedEndpoint {
