@@ -40,13 +40,23 @@ interface HeadersEditorProps {
   variables?: Record<string, string>
   autoAuth?: { scheme?: string; tokenPreview?: string } | null
   onOpenAuth?: () => void
+  showAuth?: boolean
 }
 
 const isAuthHeader = (k: string) => k.trim().toLowerCase() === 'authorization'
 
-export function HeadersEditor({ headers, onAdd, onChange, onRemove, variables, autoAuth, onOpenAuth }: HeadersEditorProps) {
+export function HeadersEditor({
+  headers,
+  onAdd,
+  onChange,
+  onRemove,
+  variables,
+  autoAuth,
+  onOpenAuth,
+  showAuth = true,
+}: HeadersEditorProps) {
   const [overrideMode, setOverrideMode] = useState(false)
-  const hasAuto = true
+  const hasAuto = showAuth
   const showAutoBadge = hasAuto && !overrideMode
   const authIndices = headers.map((h, i) => (isAuthHeader(h.key) ? i : -1)).filter((i) => i !== -1)
   const visibleHeaders = headers

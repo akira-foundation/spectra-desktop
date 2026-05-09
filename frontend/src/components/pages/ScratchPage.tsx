@@ -411,6 +411,7 @@ function ScratchEditor({
                 onAdd={addHeader}
                 onChange={setHeader}
                 onRemove={removeHeader}
+                showAuth={false}
               />
             </TabsContent>
           </Tabs>
