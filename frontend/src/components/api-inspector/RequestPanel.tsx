@@ -14,6 +14,7 @@ import { ParamsEditor } from './ParamsEditor'
 import { JsonEditor } from './JsonEditor'
 import { HeadersEditor, type HeaderRow } from './HeadersEditor'
 import { FormBodyEditor } from './FormBodyEditor'
+import { MultipartEditor, type MultipartPart } from './MultipartEditor'
 import { TestsEditor } from './TestsEditor'
 import { CapturesEditor } from './CapturesEditor'
 import type { TestResult } from '@/services/testsService'
@@ -50,6 +51,8 @@ interface RequestPanelProps {
   projectId?: string | null
   endpointId?: string | null
   endpointPath?: string | null
+  multipart?: MultipartPart[]
+  onMultipartChange?: (parts: MultipartPart[]) => void
   testResults?: TestResult[]
   responseBody?: string
   responseHeaders?: Record<string, string[]>
@@ -90,8 +93,10 @@ export function RequestPanel({
   onOpenAuth,
   capturedValues,
   onCapturedChange,
+  multipart,
+  onMultipartChange,
 }: RequestPanelProps) {
-  const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
+  const [bodyMode, setBodyMode] = useState<'json' | 'form' | 'multipart'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
 
   return (
@@ -175,12 +180,29 @@ export function RequestPanel({
             >
               Form
             </button>
+            <button
+              type="button"
+              onClick={() => setBodyMode('multipart')}
+              className={cn(
+                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors',
+                bodyMode === 'multipart'
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
+              Multipart
+            </button>
             {schema && schema.fields.length > 0 && (
               <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
             )}
           </div>
           <div className="flex-1 min-h-0 overflow-auto">
-            {bodyMode === 'form' && schema && schema.fields.length > 0 ? (
+            {bodyMode === 'multipart' ? (
+              <MultipartEditor
+                parts={multipart ?? []}
+                onChange={(parts) => onMultipartChange?.(parts)}
+              />
+            ) : bodyMode === 'form' && schema && schema.fields.length > 0 ? (
               <FormBodyEditor
                 value={requestBody}
                 schema={schema}

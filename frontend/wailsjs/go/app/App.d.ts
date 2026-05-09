@@ -82,6 +82,8 @@ export function MarkProjectSynced(arg1:string):Promise<void>;
 
 export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
+export function PickFile():Promise<string>;
+
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
 
 export function RegenerateBodyValues(arg1:app.RegenerateBodyInput):Promise<string>;

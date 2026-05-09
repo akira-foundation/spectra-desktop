@@ -395,15 +395,22 @@ func previewToken(token string) string {
 }
 
 type ExecuteRequestInput struct {
-	ProjectID  string            `json:"projectID"`
-	EndpointID string            `json:"endpointID,omitempty"`
-	Method     string            `json:"method"`
-	Path       string            `json:"path"`
-	Headers    map[string]string `json:"headers,omitempty"`
-	Body       string            `json:"body,omitempty"`
-	BaseURL    string            `json:"baseUrl,omitempty"`
-	TimeoutMs  int               `json:"timeoutMs,omitempty"`
-	SkipAuth   bool              `json:"skipAuth,omitempty"`
+	ProjectID  string             `json:"projectID"`
+	EndpointID string             `json:"endpointID,omitempty"`
+	Method     string             `json:"method"`
+	Path       string             `json:"path"`
+	Headers    map[string]string  `json:"headers,omitempty"`
+	Body       string             `json:"body,omitempty"`
+	Multipart  []MultipartPartDTO `json:"multipart,omitempty"`
+	BaseURL    string             `json:"baseUrl,omitempty"`
+	TimeoutMs  int                `json:"timeoutMs,omitempty"`
+	SkipAuth   bool               `json:"skipAuth,omitempty"`
+}
+
+type MultipartPartDTO struct {
+	Name     string `json:"name"`
+	Value    string `json:"value,omitempty"`
+	FilePath string `json:"filePath,omitempty"`
 }
 
 func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, error) {
@@ -436,6 +443,23 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 		cookies = ck
 	}
 
+	if len(input.Multipart) > 0 {
+		parts := make([]httpclient.MultipartPart, 0, len(input.Multipart))
+		for _, p := range input.Multipart {
+			parts = append(parts, httpclient.MultipartPart{
+				Name: p.Name, Value: p.Value, FilePath: p.FilePath,
+			})
+		}
+		mpBody, ct, mpErr := httpclient.BuildMultipart(parts)
+		if mpErr != nil {
+			return nil, mpErr
+		}
+		body = mpBody
+		if headers == nil {
+			headers = map[string]string{}
+		}
+		headers["Content-Type"] = ct
+	}
 	resp, sendErr := a.http.Send(a.ctx, httpclient.Request{
 		Method:  input.Method,
 		URL:     target,
@@ -1895,6 +1919,12 @@ type ExportedCollection struct {
 	Description    string         `json:"description,omitempty"`
 	ExportedAt     int64          `json:"exportedAt"`
 	Items          []ExportedItem `json:"items"`
+}
+
+func (a *App) PickFile() (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select file",
+	})
 }
 
 func (a *App) SaveResponseToFile(method, path, body string) (string, error) {

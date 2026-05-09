@@ -122,6 +122,7 @@ export function APIInspector() {
   const [queryParams, setQueryParams] = useState<QueryParam[]>([])
   const [infoOpen, setInfoOpen] = useState(false)
   const [requestBody, setRequestBody] = useState<string>('')
+  const [multipart, setMultipart] = useState<{ name: string; value?: string; filePath?: string }[]>([])
   const [bodyTouched, setBodyTouched] = useState(false)
   const [lastTestResults, setLastTestResults] = useState<
     Array<{ name: string; kind: string; pass: boolean; message?: string }>
@@ -140,15 +141,18 @@ export function APIInspector() {
   }, [activeProjectId, status, load])
 
   useEffect(() => {
-    setSelectedTag(persistedTag)
-    setRouteValues([])
-    setQueryParams([])
-    runner.reset()
     if (activeProjectId) {
       void refreshCaptured(activeProjectId)
       void useCollectionsStore.getState().refresh(activeProjectId)
     }
   }, [activeProjectId, refreshCaptured])
+
+  useEffect(() => {
+    setSelectedTag(persistedTag)
+    setRouteValues([])
+    setQueryParams([])
+    runner.reset()
+  }, [activeProjectId, persistedTag])
 
   const decoratedGroups = useMemo(
     () =>
@@ -369,6 +373,7 @@ export function APIInspector() {
         path: resolvedPath,
         headers: headerMap,
         body: requestBody,
+        multipart: multipart.length > 0 ? multipart : undefined,
       })
       .then(async () => {
         if (!activeProjectId) return
@@ -504,6 +509,8 @@ export function APIInspector() {
                 onOpenAuth={() => setAuthDrawerOpen(true)}
                 capturedValues={capturedValues}
                 onCapturedChange={setCapturedValues}
+                multipart={multipart}
+                onMultipartChange={setMultipart}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}

@@ -69,11 +69,23 @@ export function EndpointList({
     return null
   }, [filtered])
   const activeRef = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => {
-    if (activeRef.current) {
-      activeRef.current.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+  const activeTag = useMemo(() => {
+    for (const c of filtered) {
+      const found = c.items.find((i) => i.active)
+      if (found) return found.tag
     }
-  }, [activeCategory])
+    return null
+  }, [filtered])
+  useEffect(() => {
+    if (!activeTag) return
+    const tries = [0, 50, 150]
+    const timers = tries.map((t) =>
+      setTimeout(() => {
+        activeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }, t),
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [activeTag])
   const initialOpen = useMemo(() => {
     if (query) return expanded
     const seed: string[] = []
