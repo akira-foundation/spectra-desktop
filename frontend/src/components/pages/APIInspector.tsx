@@ -68,6 +68,10 @@ export function APIInspector() {
   )
   const setSelectedEndpoint = useUIStore((s) => s.setSelectedEndpoint)
   const openInTab = useUIStore((s) => s.openInTab)
+  const closeInspectorTab = useUIStore((s) => s.closeInspectorTab)
+  const activeInspectorTabId = useUIStore((s) =>
+    activeProjectId ? s.activeInspectorTabByProject[activeProjectId] ?? null : null,
+  )
   const persistedBodies = useUIStore((s) => s.requestBodyByEndpoint)
   const persistedHeaders = useUIStore((s) => s.requestHeadersByEndpoint)
   const persistBody = useUIStore((s) => s.setRequestBody)
@@ -478,11 +482,18 @@ export function APIInspector() {
         e.preventDefault()
         e.stopPropagation()
         executeRef.current()
+        return
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'w' || e.key === 'W')) {
+        if (!activeProjectId || !activeInspectorTabId) return
+        e.preventDefault()
+        e.stopPropagation()
+        closeInspectorTab(activeProjectId, activeInspectorTabId)
       }
     }
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
-  }, [])
+  }, [activeProjectId, activeInspectorTabId, closeInspectorTab])
 
   if (status === 'loading' || status === 'scanning') {
     return (

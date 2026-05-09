@@ -69,6 +69,7 @@ export function EndpointList({
     return null
   }, [filtered])
   const activeRef = useRef<HTMLButtonElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const activeTag = useMemo(() => {
     for (const c of filtered) {
       const found = c.items.find((i) => i.active)
@@ -94,6 +95,153 @@ export function EndpointList({
     if (first && !seed.includes(first)) seed.push(first)
     return seed
   }, [query, expanded, activeCategory, filtered])
+  const [openCats, setOpenCats] = useState<string[]>(initialOpen)
+  useEffect(() => setOpenCats(initialOpen), [initialOpen])
+
+  type Node =
+    | { kind: 'category'; id: string }
+    | { kind: 'item'; tag: string; category: string }
+
+  const flatNodes = useMemo<Node[]>(() => {
+    const out: Node[] = []
+    for (const c of filtered) {
+      const id = c.category.toLowerCase()
+      out.push({ kind: 'category', id })
+      if (openCats.includes(id)) {
+        for (const item of c.items) out.push({ kind: 'item', tag: item.tag, category: id })
+      }
+    }
+    return out
+  }, [filtered, openCats])
+
+  const [highlight, setHighlight] = useState<Node | null>(null)
+  useEffect(() => {
+    if (
+      highlight &&
+      flatNodes.some((n) =>
+        n.kind === highlight.kind &&
+        (n.kind === 'category' ? n.id === (highlight as { id: string }).id : n.tag === (highlight as { tag: string }).tag),
+      )
+    )
+      return
+    if (activeTag) {
+      const found = flatNodes.find((n) => n.kind === 'item' && n.tag === activeTag)
+      if (found) {
+        setHighlight(found)
+        return
+      }
+    }
+    setHighlight(flatNodes[0] ?? null)
+  }, [flatNodes, activeTag, highlight])
+
+  useEffect(() => {
+    if (!highlight) return
+    const sel =
+      highlight.kind === 'item'
+        ? `[data-endpoint-tag="${cssEscape(highlight.tag)}"]`
+        : `[data-category-id="${cssEscape(highlight.id)}"]`
+    const el = containerRef.current?.querySelector<HTMLElement>(sel)
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [highlight])
+
+  const findIdx = (n: Node | null): number => {
+    if (!n) return -1
+    return flatNodes.findIndex((x) =>
+      x.kind === n.kind && (x.kind === 'category' ? x.id === (n as { id: string }).id : x.tag === (n as { tag: string }).tag),
+    )
+  }
+
+  const categoryNodes = useMemo<Node[]>(
+    () => filtered.map((c) => ({ kind: 'category', id: c.category.toLowerCase() })),
+    [filtered],
+  )
+
+  const itemsByCategory = useMemo(() => {
+    const m = new Map<string, Node[]>()
+    for (const c of filtered) {
+      const id = c.category.toLowerCase()
+      m.set(
+        id,
+        c.items.map((it) => ({ kind: 'item', tag: it.tag, category: id }) as Node),
+      )
+    }
+    return m
+  }, [filtered])
+
+  const onListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (flatNodes.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!highlight || highlight.kind === 'category') {
+        const catIdx = categoryNodes.findIndex(
+          (n) => highlight && n.kind === 'category' && n.id === (highlight as { id: string }).id,
+        )
+        const next = catIdx < 0 ? 0 : Math.min(categoryNodes.length - 1, catIdx + 1)
+        setHighlight(categoryNodes[next])
+      } else {
+        const siblings = itemsByCategory.get(highlight.category) ?? []
+        const i = siblings.findIndex((n) => n.kind === 'item' && n.tag === highlight.tag)
+        if (i < 0) return
+        if (i < siblings.length - 1) setHighlight(siblings[i + 1])
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!highlight || highlight.kind === 'category') {
+        const catIdx = categoryNodes.findIndex(
+          (n) => highlight && n.kind === 'category' && n.id === (highlight as { id: string }).id,
+        )
+        const next = catIdx <= 0 ? 0 : catIdx - 1
+        setHighlight(categoryNodes[next])
+      } else {
+        const siblings = itemsByCategory.get(highlight.category) ?? []
+        const i = siblings.findIndex((n) => n.kind === 'item' && n.tag === highlight.tag)
+        if (i <= 0) {
+          // jump to parent category
+          setHighlight({ kind: 'category', id: highlight.category })
+        } else {
+          setHighlight(siblings[i - 1])
+        }
+      }
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setHighlight(categoryNodes[0] ?? null)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setHighlight(categoryNodes[categoryNodes.length - 1] ?? null)
+    } else if (e.key === 'ArrowRight') {
+      if (!highlight) return
+      e.preventDefault()
+      if (highlight.kind === 'category') {
+        if (!openCats.includes(highlight.id)) {
+          setOpenCats((prev) => [...prev, highlight.id])
+          return
+        }
+        const first = (itemsByCategory.get(highlight.id) ?? [])[0]
+        if (first) setHighlight(first)
+      }
+    } else if (e.key === 'ArrowLeft') {
+      if (!highlight) return
+      e.preventDefault()
+      if (highlight.kind === 'item') {
+        setHighlight({ kind: 'category', id: highlight.category })
+      } else if (openCats.includes(highlight.id)) {
+        setOpenCats((prev) => prev.filter((c) => c !== highlight.id))
+      }
+    } else if (e.key === 'Enter') {
+      if (!highlight) return
+      e.preventDefault()
+      if (highlight.kind === 'item') {
+        onSelectEndpoint(highlight.tag, { newTab: e.metaKey || e.ctrlKey })
+      } else {
+        setOpenCats((prev) =>
+          prev.includes(highlight.id) ? prev.filter((c) => c !== highlight.id) : [...prev, highlight.id],
+        )
+      }
+    }
+  }
+
+  const highlightedTag = highlight?.kind === 'item' ? highlight.tag : null
+  const highlightedCategory = highlight?.kind === 'category' ? highlight.id : null
   const totalMatches = useMemo(
     () => filtered.reduce((sum, c) => sum + c.items.length, 0),
     [filtered],
@@ -138,7 +286,12 @@ export function EndpointList({
   }
 
   return (
-    <div className="w-64 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={onListKeyDown}
+      className="w-64 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden focus:outline-none"
+    >
       <div className="h-10 px-1.5 flex items-center gap-1 border-b border-border/60 shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -179,7 +332,8 @@ export function EndpointList({
           <Accordion
             key={`${query}|${activeCategory ?? ''}`}
             type="multiple"
-            defaultValue={initialOpen}
+            value={openCats}
+            onValueChange={setOpenCats}
             className="w-full"
           >
             {pinnedCategory && (
@@ -190,6 +344,8 @@ export function EndpointList({
                 pinnedSet={pinnedSet}
                 onTogglePin={onTogglePin}
                 activeRef={activeRef}
+                highlightedTag={highlightedTag}
+                highlightedCategory={highlightedCategory}
                 showSeparator={draggableCategories.length > 0}
                 isPinnedSection
               />
@@ -210,6 +366,7 @@ export function EndpointList({
                     pinnedSet={pinnedSet}
                     onTogglePin={onTogglePin}
                     activeRef={activeRef}
+                    highlightedTag={highlightedTag}
                     showSeparator={index < draggableCategories.length - 1}
                   />
                 ))}
@@ -235,6 +392,8 @@ interface CategoryItemProps {
   pinnedSet: Set<string>
   onTogglePin?: (key: string) => void
   activeRef: React.MutableRefObject<HTMLButtonElement | null>
+  highlightedTag?: string | null
+  highlightedCategory?: string | null
   showSeparator?: boolean
   isPinnedSection?: boolean
   dragHandleProps?: Record<string, unknown>
@@ -250,6 +409,8 @@ function CategoryItem({
   pinnedSet,
   onTogglePin,
   activeRef,
+  highlightedTag,
+  highlightedCategory,
   showSeparator,
   isPinnedSection,
   dragHandleProps,
@@ -259,8 +420,17 @@ function CategoryItem({
 }: CategoryItemProps) {
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-60')}>
-      <AccordionItem value={category.category.toLowerCase()} className="border-b-0">
-        <div className="flex items-center group/cat">
+      <AccordionItem
+        value={category.category.toLowerCase()}
+        data-category-id={category.category.toLowerCase()}
+        className="border-b-0"
+      >
+        <div
+          className={cn(
+            'flex items-center group/cat',
+            highlightedCategory === category.category.toLowerCase() && 'bg-accent/40',
+          )}
+        >
           {!isPinnedSection && dragHandleProps && (
             <button
               type="button"
@@ -297,6 +467,7 @@ function CategoryItem({
                 <button
                   key={endpoint.path + endpoint.method + endpoint.name}
                   ref={endpoint.active ? activeRef : undefined}
+                  data-endpoint-tag={endpoint.tag}
                   onClick={(e) => onSelect(endpoint.tag, { newTab: e.metaKey || e.ctrlKey })}
                   onAuxClick={(e) => {
                     if (e.button === 1) {
@@ -306,8 +477,9 @@ function CategoryItem({
                   }}
                   className={cn(
                     'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
-                    'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',
+                    'hover:bg-accent/40 focus-visible:outline-none',
                     endpoint.active && 'bg-accent text-foreground',
+                    !endpoint.active && highlightedTag === endpoint.tag && 'bg-accent/40',
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -414,4 +586,10 @@ function matchesEndpoint(endpoint: Endpoint, q: string): boolean {
     endpoint.name.toLowerCase().includes(q) ||
     endpoint.tag.toLowerCase().includes(q)
   )
+}
+
+function cssEscape(s: string): string {
+  const w = typeof window !== 'undefined' ? (window as { CSS?: { escape?: (v: string) => string } }).CSS : undefined
+  if (w && typeof w.escape === 'function') return w.escape(s)
+  return s.replace(/["\\]/g, '\\$&')
 }
