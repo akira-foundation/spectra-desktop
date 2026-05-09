@@ -20,6 +20,7 @@ export function ResponseBodyView({ raw }: { raw: string }) {
 
   const tableRows = useMemo(() => extractTableRows(parsed), [parsed])
   const isJson = parsed !== null
+  const pretty = useMemo(() => (isJson ? JSON.stringify(parsed, null, 2) : raw), [parsed, raw, isJson])
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-2">
@@ -46,7 +47,7 @@ export function ResponseBodyView({ raw }: { raw: string }) {
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
         {mode === 'json' &&
-          (isJson ? <JsonEditor value={raw} onChange={() => undefined} readOnly /> : <RawView raw={raw} />)}
+          (isJson ? <JsonEditor value={pretty} onChange={() => undefined} readOnly /> : <RawView raw={raw} />)}
         {mode === 'tree' && parsed !== null && <TreeView value={parsed} />}
         {mode === 'table' && tableRows && <TableView rows={tableRows} />}
         {mode === 'raw' && <RawView raw={raw} />}

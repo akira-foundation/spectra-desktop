@@ -17,7 +17,7 @@ import {
   HeadersList,
   type TimelineData,
 } from '@/components/api-inspector/response'
-import { formatBody } from '@/lib/format'
+import { formatBody, prettyJSON } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 interface ScratchRequest {
@@ -184,7 +184,7 @@ export function ScratchPage() {
         value: String(v),
         enabled: true,
       })),
-      body: parsed.body || '',
+      body: prettyJSON(parsed.body || ''),
     }
     setItems((prev) => [s, ...prev])
     setActiveId(s.id)
@@ -201,7 +201,7 @@ export function ScratchPage() {
         value: String(v),
         enabled: true,
       })),
-      body: e.body || '',
+      body: prettyJSON(e.body || ''),
     }))
     setItems((prev) => [...created, ...prev])
     if (created[0]) setActiveId(created[0].id)
