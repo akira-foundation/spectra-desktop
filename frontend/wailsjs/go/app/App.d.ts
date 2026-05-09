@@ -38,6 +38,8 @@ export function GetActiveProjectID():Promise<string>;
 
 export function GetDashboardMetrics(arg1:string,arg2:number):Promise<app.DashboardMetrics>;
 
+export function GetDiscovery(arg1:string,arg2:number):Promise<app.DiscoveryDTO>;
+
 export function GetEndpointDataset(arg1:string,arg2:string):Promise<string>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;

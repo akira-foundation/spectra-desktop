@@ -1479,6 +1479,69 @@ type MethodShareDTO struct {
 	Percent float64 `json:"percent"`
 }
 
+type EndpointDiscoveryDTO struct {
+	EndpointID string `json:"endpointID"`
+	Method     string `json:"method"`
+	Path       string `json:"path"`
+	LastSeen   int64  `json:"lastSeen,omitempty"`
+	DaysAgo    int    `json:"daysAgo,omitempty"`
+}
+
+type DiscoveryDTO struct {
+	TotalEndpoints int                    `json:"totalEndpoints"`
+	UsedEndpoints  int                    `json:"usedEndpoints"`
+	Coverage       float64                `json:"coverage"`
+	Unused         []EndpointDiscoveryDTO `json:"unused"`
+	Stale          []EndpointDiscoveryDTO `json:"stale"`
+}
+
+func (a *App) GetDiscovery(projectID string, staleAfterDays int) (*DiscoveryDTO, error) {
+	if projectID == "" {
+		return &DiscoveryDTO{Unused: []EndpointDiscoveryDTO{}, Stale: []EndpointDiscoveryDTO{}}, nil
+	}
+	if staleAfterDays <= 0 {
+		staleAfterDays = 30
+	}
+	endpoints, err := a.endpoints.List(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	seen, err := a.metrics.LastSeenByEndpoint(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	out := &DiscoveryDTO{
+		TotalEndpoints: len(endpoints),
+		UsedEndpoints:  len(seen),
+		Unused:         []EndpointDiscoveryDTO{},
+		Stale:          []EndpointDiscoveryDTO{},
+	}
+	if len(endpoints) > 0 {
+		out.Coverage = float64(len(seen)) / float64(len(endpoints))
+	}
+	now := time.Now().UTC()
+	staleThreshold := now.AddDate(0, 0, -staleAfterDays)
+	for _, e := range endpoints {
+		ts, ok := seen[e.ID]
+		if !ok {
+			out.Unused = append(out.Unused, EndpointDiscoveryDTO{
+				EndpointID: e.ID, Method: string(e.Method), Path: e.Path,
+			})
+			continue
+		}
+		if ts.Before(staleThreshold) {
+			out.Stale = append(out.Stale, EndpointDiscoveryDTO{
+				EndpointID: e.ID,
+				Method:     string(e.Method),
+				Path:       e.Path,
+				LastSeen:   ts.Unix(),
+				DaysAgo:    int(now.Sub(ts).Hours() / 24),
+			})
+		}
+	}
+	return out, nil
+}
+
 type InsightsDTO struct {
 	LatencyOverTime  []EndpointLatencySeriesDTO `json:"latencyOverTime"`
 	UsageOverTime    []EndpointUsageSeriesDTO   `json:"usageOverTime"`

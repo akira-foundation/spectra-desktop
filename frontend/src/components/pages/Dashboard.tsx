@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, Tooltip as RechartsTooltip, XAxis } from 'recharts'
 import { metricsService, type DashboardMetrics, type EndpointMetricDTO } from '@/services/metricsService'
 import { InsightsSection } from '@/components/dashboard/InsightsSection'
+import { DiscoverySection } from '@/components/dashboard/DiscoverySection'
 import { useProjectStore } from '@/store/projectStore'
 import { useStatsStore } from '@/store/statsStore'
 import { useAuthStore } from '@/store/authStore'
@@ -158,6 +159,9 @@ export function Dashboard() {
 
       <SectionHeader title="Insights" subtitle="Trends and diagnostics over the selected window" />
       <InsightsSection projectId={activeProjectId ?? null} days={volumeDays} refreshKey={history?.length ?? 0} />
+
+      <SectionHeader title="Discovery" subtitle="Coverage and dormant endpoints" />
+      <DiscoverySection projectId={activeProjectId ?? null} refreshKey={history?.length ?? 0} />
 
       <SectionHeader title="Activity" subtitle="Recent requests and latest snapshot" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

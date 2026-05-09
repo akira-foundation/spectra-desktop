@@ -66,6 +66,10 @@ export function GetDashboardMetrics(arg1, arg2) {
   return window['go']['app']['App']['GetDashboardMetrics'](arg1, arg2);
 }
 
+export function GetDiscovery(arg1, arg2) {
+  return window['go']['app']['App']['GetDiscovery'](arg1, arg2);
+}
+
 export function GetEndpointDataset(arg1, arg2) {
   return window['go']['app']['App']['GetEndpointDataset'](arg1, arg2);
 }

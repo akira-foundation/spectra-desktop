@@ -394,6 +394,64 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class EndpointDiscoveryDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    lastSeen?: number;
+	    daysAgo?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointDiscoveryDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.lastSeen = source["lastSeen"];
+	        this.daysAgo = source["daysAgo"];
+	    }
+	}
+	export class DiscoveryDTO {
+	    totalEndpoints: number;
+	    usedEndpoints: number;
+	    coverage: number;
+	    unused: EndpointDiscoveryDTO[];
+	    stale: EndpointDiscoveryDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveryDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalEndpoints = source["totalEndpoints"];
+	        this.usedEndpoints = source["usedEndpoints"];
+	        this.coverage = source["coverage"];
+	        this.unused = this.convertValues(source["unused"], EndpointDiscoveryDTO);
+	        this.stale = this.convertValues(source["stale"], EndpointDiscoveryDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class EndpointCaptureDTO {
 	    id?: string;
 	    name: string;
@@ -412,6 +470,7 @@ export namespace app {
 	        this.path = source["path"];
 	    }
 	}
+	
 	export class LatencyPointDTO {
 	    day: string;
 	    avgMs: number;
