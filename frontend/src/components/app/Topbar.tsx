@@ -101,10 +101,10 @@ export function Topbar() {
 
   return (
     <div
-      className="h-10 flex items-center justify-between gap-3 pr-3 select-none bg-[#e5e5e5] dark:bg-transparent text-foreground/90 dark:text-white/90"
+      className="h-10 grid grid-cols-[1fr_auto_1fr] items-center gap-3 pr-3 select-none bg-[#e5e5e5] dark:bg-transparent text-foreground/90 dark:text-white/90"
       style={{ ...drag, paddingLeft: 80 }}
     >
-      <div className="flex items-center gap-2 min-w-0" style={noDrag}>
+      <div className="flex items-center gap-2 min-w-0 justify-self-start" style={noDrag}>
         <ProjectSwitcher
           projects={projects}
           activeProject={activeProject}
@@ -113,7 +113,7 @@ export function Topbar() {
         />
       </div>
 
-      <div className="flex-1 max-w-md mx-auto" style={noDrag}>
+      <div className="w-96 max-w-[calc(100vw-32rem)] justify-self-center" style={noDrag}>
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="w-full h-7 flex items-center gap-2 px-2.5 text-[12px] text-muted-foreground dark:text-white/65 bg-foreground/5 dark:bg-white/5 hover:bg-foreground/10 dark:hover:bg-white/10 border border-foreground/10 dark:border-white/10 rounded-md transition-colors"
@@ -124,7 +124,7 @@ export function Topbar() {
         </button>
       </div>
 
-      <div className="flex items-center gap-0.5" style={noDrag}>
+      <div className="flex items-center gap-0.5 justify-self-end" style={noDrag}>
         <Button
           variant="ghost"
           size="sm"
