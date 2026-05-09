@@ -8,6 +8,7 @@ import { JsonEditor } from './JsonEditor'
 import { useHistoryStore } from '@/store/historyStore'
 import type { HistoryListItem } from '@/services/historyService'
 import { useProjectStore } from '@/store/projectStore'
+import { useUIStore } from '@/store/uiStore'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { cn } from '@/lib/utils'
 
@@ -35,9 +36,23 @@ export function ResponsePanel({
     ? allHistory.filter((h) => h.endpointID === endpointId)
     : allHistory
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [tab, setTab] = useState<string>('json')
+  const inspectorPending = useUIStore((s) => s.inspectorPending)
+  const setInspectorPending = useUIStore((s) => s.setInspectorPending)
   useEffect(() => {
     setExpandedId(null)
   }, [endpointId, activeProjectId])
+
+  useEffect(() => {
+    if (!inspectorPending || !endpointId) return
+    if (inspectorPending.endpointId !== endpointId) return
+    if (inspectorPending.openHistoryLatest) {
+      setTab('history')
+      const latest = history[0]
+      if (latest) setExpandedId(latest.id)
+    }
+    setInspectorPending(null)
+  }, [inspectorPending, endpointId, history])
   const refreshHistory = useHistoryStore((s) => s.refresh)
   const clearHistory = useHistoryStore((s) => s.clear)
   const loadHistory = useHistoryStore((s) => s.load)
@@ -60,7 +75,7 @@ export function ResponsePanel({
         </Button>
       </div>
 
-      <Tabs defaultValue="json" className="flex-1 flex flex-col min-h-0">
+      <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
           {[
             { v: 'json', label: 'JSON' },

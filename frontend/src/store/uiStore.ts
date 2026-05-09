@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type PageType = 'inspector' | 'dashboard' | 'settings' | 'changelog'
+export type PageType = 'inspector' | 'dashboard' | 'collections' | 'settings' | 'changelog'
 
 export interface UIState {
   sidebarOpen: boolean
@@ -17,6 +17,12 @@ export interface UIState {
   groupOrderByProject: Record<string, string[]>
   editingEnvId: string | null
   setEditingEnvId: (id: string | null) => void
+  inspectorPending: { endpointId: string; openHistoryLatest: boolean } | null
+  setInspectorPending: (p: UIState['inspectorPending']) => void
+  navBack: PageType[]
+  navForward: PageType[]
+  goBack: () => void
+  goForward: () => void
 
   setSelectedEndpoint: (projectId: string, tag: string | null) => void
   togglePinnedEndpoint: (projectId: string, endpointKey: string) => void
@@ -50,6 +56,30 @@ export const useUIStore = create<UIState>()(
       groupOrderByProject: {},
       editingEnvId: null,
       setEditingEnvId: (id) => set({ editingEnvId: id }),
+      inspectorPending: null,
+      setInspectorPending: (p) => set({ inspectorPending: p }),
+      navBack: [],
+      navForward: [],
+      goBack: () =>
+        set((s) => {
+          if (s.navBack.length === 0) return s
+          const prev = s.navBack[s.navBack.length - 1]
+          return {
+            currentPage: prev,
+            navBack: s.navBack.slice(0, -1),
+            navForward: [...s.navForward, s.currentPage],
+          }
+        }),
+      goForward: () =>
+        set((s) => {
+          if (s.navForward.length === 0) return s
+          const next = s.navForward[s.navForward.length - 1]
+          return {
+            currentPage: next,
+            navForward: s.navForward.slice(0, -1),
+            navBack: [...s.navBack, s.currentPage],
+          }
+        }),
 
       togglePinnedEndpoint: (projectId, endpointKey) =>
         set((state) => {
@@ -99,7 +129,15 @@ export const useUIStore = create<UIState>()(
       setAddProjectOpen: (open) => set({ isAddProjectOpen: open }),
 
       setActiveAuthMethod: (method) => set({ activeAuthMethod: method }),
-      setCurrentPage: (page) => set({ currentPage: page }),
+      setCurrentPage: (page) =>
+        set((s) => {
+          if (page === s.currentPage) return s
+          return {
+            currentPage: page,
+            navBack: [...s.navBack, s.currentPage].slice(-50),
+            navForward: [],
+          }
+        }),
     }),
     {
       name: 'spectra:ui',

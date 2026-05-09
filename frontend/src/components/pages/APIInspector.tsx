@@ -8,6 +8,7 @@ import { useEnvironmentStore } from '@/store/environmentStore'
 import { historyService } from '@/services/historyService'
 import { type CapturedValue } from '@/services/capturesService'
 import { useCapturesStore } from '@/store/capturesStore'
+import { useCollectionsStore } from '@/store/collectionsStore'
 import toast from 'react-hot-toast'
 import {
   EndpointList,
@@ -145,6 +146,7 @@ export function APIInspector() {
     runner.reset()
     if (activeProjectId) {
       void refreshCaptured(activeProjectId)
+      void useCollectionsStore.getState().refresh(activeProjectId)
     }
   }, [activeProjectId, refreshCaptured])
 

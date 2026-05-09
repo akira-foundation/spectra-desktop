@@ -7,6 +7,7 @@ import {
   LogOut,
   ChevronsUpDown,
   Settings2,
+  FolderKanban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ import { useHttpMethod } from "@/hooks/useHttpMethod";
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { CapturedValuesPopover } from "./CapturedValuesPopover";
+import { useUIStore } from "@/store/uiStore";
+import { useCollectionsStore } from "@/store/collectionsStore";
 import { VarInput } from "./VarInput";
 import { VarText } from "./VarText";
 import { useEnvironmentStore } from "@/store/environmentStore";
@@ -162,6 +165,7 @@ export function BaseURLBar() {
         values={capturedValues}
         onChange={(vals) => activeProjectId && useCapturesStore.getState().set(activeProjectId, vals)}
       />
+      <CollectionsButton />
       <AuthRoutesPopover
         projectId={project.id}
         endpoints={allEndpoints}
@@ -399,5 +403,27 @@ function RouteSelect({
         </PopoverContent>
       </Popover>
     </div>
+  );
+}
+
+function CollectionsButton() {
+  const projectId = useProjectStore((s) => s.activeProjectId);
+  const setCurrentPage = useUIStore((s) => s.setCurrentPage);
+  const count = useCollectionsStore((s) =>
+    projectId ? (s.byProject[projectId]?.length ?? 0) : 0,
+  );
+  return (
+    <button
+      type="button"
+      onClick={() => setCurrentPage("collections")}
+      className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-border/50 bg-card text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+      title="Open Collections page"
+    >
+      <FolderKanban className="w-3 h-3" />
+      <span>Collections</span>
+      <span className="font-mono text-[10.5px] tabular-nums text-muted-foreground">
+        {count}
+      </span>
+    </button>
   );
 }

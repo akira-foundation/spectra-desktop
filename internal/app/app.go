@@ -45,6 +45,7 @@ type App struct {
 	tests     domain.TestRepository
 	captures  domain.CaptureRepository
 	captured  *capturedStore
+	collections domain.CollectionRepository
 	metrics   *repository.MetricsRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
@@ -63,7 +64,7 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("migrate storage: %w", err)
 	}
 
-	return &App{
+	a := &App{
 		scanner:   scanner,
 		workspace: workspace.NewService(),
 		storage:   store,
@@ -76,11 +77,18 @@ func New() (*App, error) {
 		snapshots: repository.NewSnapshotRepository(store.DB),
 		tests:     repository.NewTestRepository(store.DB),
 		captures:  repository.NewCaptureRepository(store.DB),
-		captured:  newCapturedStore(),
+		collections: repository.NewCollectionRepository(store.DB),
 		metrics:   repository.NewMetricsRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
-	}, nil
+	}
+	a.captured = newCapturedStore(repository.NewCapturedValuesRepository(store.DB), func() context.Context {
+		if a.ctx != nil {
+			return a.ctx
+		}
+		return context.Background()
+	})
+	return a, nil
 }
 
 func (a *App) Startup(ctx context.Context) {
@@ -676,6 +684,7 @@ func (a *App) resolveEnvVars(projectID string) map[string]string {
 		}
 	}
 	if a.captured != nil {
+		a.captured.ensureLoaded(projectID)
 		for k, v := range a.captured.values(projectID) {
 			out[k] = v
 		}
@@ -1573,6 +1582,7 @@ func (a *App) ListCapturedValues(projectID string) []CapturedValueDTO {
 	if projectID == "" || a.captured == nil {
 		return []CapturedValueDTO{}
 	}
+	a.captured.ensureLoaded(projectID)
 	return a.captured.list(projectID)
 }
 
@@ -1606,6 +1616,262 @@ func (a *App) runCapturesForRequest(input ExecuteRequestInput, resp *httpclient.
 			continue
 		}
 		a.captured.set(input.ProjectID, c.Name, val, key)
+	}
+}
+
+type CollectionItemDTO struct {
+	ID              string `json:"id,omitempty"`
+	EndpointID      string `json:"endpointID"`
+	BodyOverride    string `json:"bodyOverride,omitempty"`
+	HeadersOverride string `json:"headersOverride,omitempty"`
+	SkipOnFailure   bool   `json:"skipOnFailure,omitempty"`
+}
+
+type CollectionDTO struct {
+	ID          string              `json:"id"`
+	ProjectID   string              `json:"projectID"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	SortOrder   int                 `json:"sortOrder"`
+	Items       []CollectionItemDTO `json:"items"`
+}
+
+type SaveCollectionInput struct {
+	ID          string              `json:"id,omitempty"`
+	ProjectID   string              `json:"projectID"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	SortOrder   int                 `json:"sortOrder,omitempty"`
+	Items       []CollectionItemDTO `json:"items"`
+}
+
+type CollectionRunItemDTO struct {
+	EndpointID string            `json:"endpointID"`
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	Status     int               `json:"status"`
+	DurationMs int               `json:"durationMs"`
+	Pass       bool              `json:"pass"`
+	Skipped    bool              `json:"skipped,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	TestResults []TestResultDTO  `json:"testResults,omitempty"`
+}
+
+type CollectionRunDTO struct {
+	CollectionID string                 `json:"collectionID"`
+	StartedAt    int64                  `json:"startedAt"`
+	DurationMs   int                    `json:"durationMs"`
+	PassCount    int                    `json:"passCount"`
+	FailCount    int                    `json:"failCount"`
+	SkipCount    int                    `json:"skipCount"`
+	Items        []CollectionRunItemDTO `json:"items"`
+}
+
+func (a *App) ListCollections(projectID string) ([]CollectionDTO, error) {
+	if projectID == "" {
+		return []CollectionDTO{}, nil
+	}
+	rows, err := a.collections.List(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]CollectionDTO, 0, len(rows))
+	for _, c := range rows {
+		out = append(out, collectionToDTO(c))
+	}
+	return out, nil
+}
+
+func (a *App) SaveCollection(input SaveCollectionInput) (*CollectionDTO, error) {
+	if input.ProjectID == "" || input.Name == "" {
+		return nil, fmt.Errorf("project id and name required")
+	}
+	c := domain.Collection{
+		ID:          input.ID,
+		ProjectID:   input.ProjectID,
+		Name:        input.Name,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+	}
+	if c.ID == "" {
+		created, err := a.collections.Create(a.ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		c = *created
+	} else {
+		if err := a.collections.Update(a.ctx, c); err != nil {
+			return nil, err
+		}
+	}
+	items := make([]domain.CollectionItem, 0, len(input.Items))
+	for i, it := range input.Items {
+		items = append(items, domain.CollectionItem{
+			ID:              it.ID,
+			CollectionID:    c.ID,
+			EndpointID:      it.EndpointID,
+			SortOrder:       i,
+			BodyOverride:    it.BodyOverride,
+			HeadersOverride: it.HeadersOverride,
+			SkipOnFailure:   it.SkipOnFailure,
+		})
+	}
+	if err := a.collections.ReplaceItems(a.ctx, c.ID, items); err != nil {
+		return nil, err
+	}
+	full, err := a.collections.Get(a.ctx, c.ID)
+	if err != nil || full == nil {
+		return nil, err
+	}
+	dto := collectionToDTO(*full)
+	return &dto, nil
+}
+
+func (a *App) DeleteCollection(id string) error {
+	if id == "" {
+		return fmt.Errorf("id required")
+	}
+	return a.collections.Delete(a.ctx, id)
+}
+
+func (a *App) RunCollection(id string) (*CollectionRunDTO, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id required")
+	}
+	c, err := a.collections.Get(a.ctx, id)
+	if err != nil || c == nil {
+		return nil, fmt.Errorf("collection not found")
+	}
+	endpoints, err := a.endpoints.List(a.ctx, c.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	byID := map[string]core.Endpoint{}
+	for _, e := range endpoints {
+		byID[e.ID] = e
+	}
+	run := &CollectionRunDTO{
+		CollectionID: id,
+		StartedAt:    time.Now().UTC().Unix(),
+		Items:        make([]CollectionRunItemDTO, 0, len(c.Items)),
+	}
+	start := time.Now()
+	skipRest := false
+	total := len(c.Items)
+	runtime.EventsEmit(a.ctx, "collection:run:start", map[string]any{
+		"collectionID": id,
+		"total":        total,
+	})
+	for idx, it := range c.Items {
+		ep, ok := byID[it.EndpointID]
+		if !ok {
+			missing := CollectionRunItemDTO{
+				EndpointID: it.EndpointID,
+				Skipped:    true,
+				Error:      "endpoint not found",
+			}
+			run.Items = append(run.Items, missing)
+			run.SkipCount++
+			runtime.EventsEmit(a.ctx, "collection:run:progress", map[string]any{
+				"collectionID": id, "index": idx, "total": total, "item": missing,
+			})
+			continue
+		}
+		if skipRest {
+			skipped := CollectionRunItemDTO{
+				EndpointID: it.EndpointID,
+				Method:     string(ep.Method),
+				Path:       ep.Path,
+				Skipped:    true,
+				Error:      "skipped due to previous failure",
+			}
+			run.Items = append(run.Items, skipped)
+			run.SkipCount++
+			runtime.EventsEmit(a.ctx, "collection:run:progress", map[string]any{
+				"collectionID": id, "index": idx, "total": total, "item": skipped,
+			})
+			continue
+		}
+		headers := map[string]string{}
+		if it.HeadersOverride != "" {
+			_ = json.Unmarshal([]byte(it.HeadersOverride), &headers)
+		}
+		body := it.BodyOverride
+		input := ExecuteRequestInput{
+			ProjectID:  c.ProjectID,
+			EndpointID: ep.ID,
+			Method:     string(ep.Method),
+			Path:       ep.Path,
+			Headers:    headers,
+			Body:       body,
+		}
+		resp, sendErr := a.ExecuteRequest(input)
+		item := CollectionRunItemDTO{
+			EndpointID: ep.ID,
+			Method:     string(ep.Method),
+			Path:       ep.Path,
+		}
+		if sendErr != nil {
+			item.Error = sendErr.Error()
+			item.Pass = false
+		} else if resp != nil {
+			item.Status = resp.Status
+			item.DurationMs = int(resp.DurationMs)
+			results := a.runTestsForRequest(input, resp)
+			passed := true
+			for _, r := range results {
+				item.TestResults = append(item.TestResults, TestResultDTO{
+					ID:      r.ID,
+					Name:    r.Name,
+					Kind:    r.Kind,
+					Pass:    r.Pass,
+					Message: r.Message,
+				})
+				if !r.Pass {
+					passed = false
+				}
+			}
+			item.Pass = passed && resp.Status < 400
+		}
+		if item.Pass {
+			run.PassCount++
+		} else {
+			run.FailCount++
+			if it.SkipOnFailure {
+				skipRest = true
+			}
+		}
+		run.Items = append(run.Items, item)
+		runtime.EventsEmit(a.ctx, "collection:run:progress", map[string]any{
+			"collectionID": id,
+			"index":        idx,
+			"total":        total,
+			"item":         item,
+		})
+	}
+	run.DurationMs = int(time.Since(start).Milliseconds())
+	runtime.EventsEmit(a.ctx, "collection:run:done", run)
+	return run, nil
+}
+
+func collectionToDTO(c domain.Collection) CollectionDTO {
+	items := make([]CollectionItemDTO, 0, len(c.Items))
+	for _, it := range c.Items {
+		items = append(items, CollectionItemDTO{
+			ID:              it.ID,
+			EndpointID:      it.EndpointID,
+			BodyOverride:    it.BodyOverride,
+			HeadersOverride: it.HeadersOverride,
+			SkipOnFailure:   it.SkipOnFailure,
+		})
+	}
+	return CollectionDTO{
+		ID:          c.ID,
+		ProjectID:   c.ProjectID,
+		Name:        c.Name,
+		Description: c.Description,
+		SortOrder:   c.SortOrder,
+		Items:       items,
 	}
 }
 

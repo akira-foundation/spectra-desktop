@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Search, Home, Package, FileText, GitCompare, Settings, HelpCircle } from 'lucide-react'
+import { Compass, LayoutDashboard, Layers, FileText, Settings, HelpCircle } from 'lucide-react'
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -27,6 +27,14 @@ export function CommandPalette() {
             e.preventDefault()
             setCurrentPage('inspector')
             break
+          case '3':
+            e.preventDefault()
+            setCurrentPage('collections')
+            break
+          case '4':
+            e.preventDefault()
+            setCurrentPage('changelog')
+            break
           case ',':
             e.preventDefault()
             setCurrentPage('settings')
@@ -47,11 +55,10 @@ export function CommandPalette() {
     {
       group: 'Navigation',
       items: [
-        { label: 'Dashboard', icon: Home, shortcut: '⌘1', page: 'dashboard' as const },
-        { label: 'API Explorer', icon: Search, shortcut: '⌘2', page: 'inspector' as const },
-        { label: 'Models', icon: Package, shortcut: '⌘3' },
-        { label: 'Changelog', icon: FileText, shortcut: '⌘4' },
-        { label: 'Diff Viewer', icon: GitCompare, shortcut: '⌘5' },
+        { label: 'Dashboard', icon: LayoutDashboard, shortcut: '⌘1', page: 'dashboard' as const },
+        { label: 'API Inspector', icon: Compass, shortcut: '⌘2', page: 'inspector' as const },
+        { label: 'Collections', icon: Layers, shortcut: '⌘3', page: 'collections' as const },
+        { label: 'Snapshots', icon: FileText, shortcut: '⌘4', page: 'changelog' as const },
       ],
     },
     {

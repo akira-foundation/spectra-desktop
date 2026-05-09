@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { Topbar } from './Topbar'
 import { Sidebar } from './Sidebar'
 import { TabBar } from './TabBar'
@@ -17,6 +17,26 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const activeAuthMethod = useUIStore((s) => s.activeAuthMethod)
   const setActiveAuthMethod = useUIStore((s) => s.setActiveAuthMethod)
+  const goBack = useUIStore((s) => s.goBack)
+  const goForward = useUIStore((s) => s.goForward)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key !== '[' && e.key !== ']') return
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return
+      }
+      e.preventDefault()
+      if (e.key === '[') goBack()
+      else goForward()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [goBack, goForward])
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="h-screen w-screen flex flex-col bg-[#e5e5e5] dark:bg-transparent text-foreground overflow-hidden">

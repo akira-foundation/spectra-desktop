@@ -42,6 +42,176 @@ export namespace app {
 	        this.capturedAt = source["capturedAt"];
 	    }
 	}
+	export class CollectionItemDTO {
+	    id?: string;
+	    endpointID: string;
+	    bodyOverride?: string;
+	    headersOverride?: string;
+	    skipOnFailure?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionItemDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.endpointID = source["endpointID"];
+	        this.bodyOverride = source["bodyOverride"];
+	        this.headersOverride = source["headersOverride"];
+	        this.skipOnFailure = source["skipOnFailure"];
+	    }
+	}
+	export class CollectionDTO {
+	    id: string;
+	    projectID: string;
+	    name: string;
+	    description?: string;
+	    sortOrder: number;
+	    items: CollectionItemDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.sortOrder = source["sortOrder"];
+	        this.items = this.convertValues(source["items"], CollectionItemDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class TestResultDTO {
+	    id?: string;
+	    name: string;
+	    kind: string;
+	    pass: boolean;
+	    message?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TestResultDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.pass = source["pass"];
+	        this.message = source["message"];
+	    }
+	}
+	export class CollectionRunItemDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    status: number;
+	    durationMs: number;
+	    pass: boolean;
+	    skipped?: boolean;
+	    error?: string;
+	    testResults?: TestResultDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionRunItemDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.status = source["status"];
+	        this.durationMs = source["durationMs"];
+	        this.pass = source["pass"];
+	        this.skipped = source["skipped"];
+	        this.error = source["error"];
+	        this.testResults = this.convertValues(source["testResults"], TestResultDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CollectionRunDTO {
+	    collectionID: string;
+	    startedAt: number;
+	    durationMs: number;
+	    passCount: number;
+	    failCount: number;
+	    skipCount: number;
+	    items: CollectionRunItemDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionRunDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.collectionID = source["collectionID"];
+	        this.startedAt = source["startedAt"];
+	        this.durationMs = source["durationMs"];
+	        this.passCount = source["passCount"];
+	        this.failCount = source["failCount"];
+	        this.skipCount = source["skipCount"];
+	        this.items = this.convertValues(source["items"], CollectionRunItemDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class EndpointMetricDTO {
 	    endpointID: string;
 	    method: string;
@@ -249,26 +419,6 @@ export namespace app {
 	        this.baseUrl = source["baseUrl"];
 	        this.timeoutMs = source["timeoutMs"];
 	        this.skipAuth = source["skipAuth"];
-	    }
-	}
-	export class TestResultDTO {
-	    id?: string;
-	    name: string;
-	    kind: string;
-	    pass: boolean;
-	    message?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TestResultDTO(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.kind = source["kind"];
-	        this.pass = source["pass"];
-	        this.message = source["message"];
 	    }
 	}
 	export class HistoryEntryDetail {
@@ -533,6 +683,46 @@ export namespace app {
 	        this.projectID = source["projectID"];
 	        this.endpointKey = source["endpointKey"];
 	        this.captures = this.convertValues(source["captures"], EndpointCaptureDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SaveCollectionInput {
+	    id?: string;
+	    projectID: string;
+	    name: string;
+	    description?: string;
+	    sortOrder?: number;
+	    items: CollectionItemDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveCollectionInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.sortOrder = source["sortOrder"];
+	        this.items = this.convertValues(source["items"], CollectionItemDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

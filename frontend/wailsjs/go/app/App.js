@@ -14,6 +14,10 @@ export function ClearProjectAuth(arg1) {
   return window['go']['app']['App']['ClearProjectAuth'](arg1);
 }
 
+export function DeleteCollection(arg1) {
+  return window['go']['app']['App']['DeleteCollection'](arg1);
+}
+
 export function DeleteEnvironment(arg1) {
   return window['go']['app']['App']['DeleteEnvironment'](arg1);
 }
@@ -78,6 +82,10 @@ export function ListCapturedValues(arg1) {
   return window['go']['app']['App']['ListCapturedValues'](arg1);
 }
 
+export function ListCollections(arg1) {
+  return window['go']['app']['App']['ListCollections'](arg1);
+}
+
 export function ListEndpointCaptures(arg1, arg2) {
   return window['go']['app']['App']['ListEndpointCaptures'](arg1, arg2);
 }
@@ -124,6 +132,14 @@ export function RegenerateBodyValues(arg1) {
 
 export function RegenerateExampleBody(arg1) {
   return window['go']['app']['App']['RegenerateExampleBody'](arg1);
+}
+
+export function RunCollection(arg1) {
+  return window['go']['app']['App']['RunCollection'](arg1);
+}
+
+export function SaveCollection(arg1) {
+  return window['go']['app']['App']['SaveCollection'](arg1);
 }
 
 export function SaveEndpointCaptures(arg1) {

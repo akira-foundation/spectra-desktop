@@ -12,6 +12,8 @@ export function ClearHistory(arg1:string):Promise<void>;
 
 export function ClearProjectAuth(arg1:string):Promise<void>;
 
+export function DeleteCollection(arg1:string):Promise<void>;
+
 export function DeleteEnvironment(arg1:string):Promise<void>;
 
 export function DeleteProject(arg1:string):Promise<void>;
@@ -44,6 +46,8 @@ export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
 export function ListCapturedValues(arg1:string):Promise<Array<app.CapturedValueDTO>>;
 
+export function ListCollections(arg1:string):Promise<Array<app.CollectionDTO>>;
+
 export function ListEndpointCaptures(arg1:string,arg2:string):Promise<Array<app.EndpointCaptureDTO>>;
 
 export function ListEndpointTests(arg1:string,arg2:string):Promise<Array<app.EndpointTestDTO>>;
@@ -67,6 +71,10 @@ export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<ap
 export function RegenerateBodyValues(arg1:app.RegenerateBodyInput):Promise<string>;
 
 export function RegenerateExampleBody(arg1:string):Promise<string>;
+
+export function RunCollection(arg1:string):Promise<app.CollectionRunDTO>;
+
+export function SaveCollection(arg1:app.SaveCollectionInput):Promise<app.CollectionDTO>;
 
 export function SaveEndpointCaptures(arg1:app.SaveCapturesInput):Promise<void>;
 

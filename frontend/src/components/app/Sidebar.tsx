@@ -1,4 +1,4 @@
-import { Compass, FolderKanban, FileText, Settings } from 'lucide-react'
+import { Compass, LayoutDashboard, FileText, Layers, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore, type PageType } from '@/store/uiStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -13,8 +13,9 @@ interface NavItem {
 }
 
 const primary: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' },
   { id: 'inspector', label: 'API Inspector', icon: Compass, page: 'inspector' },
-  { id: 'dashboard', label: 'Dashboard', icon: FolderKanban, page: 'dashboard' },
+  { id: 'collections', label: 'Collections', icon: Layers, page: 'collections' },
   { id: 'changelog', label: 'Snapshots', icon: FileText, page: 'changelog' },
 ]
 
