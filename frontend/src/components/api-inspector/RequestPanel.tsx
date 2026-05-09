@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useState } from 'react'
 import { ParamsEditor } from './ParamsEditor'
-import { JsonEditor } from './JsonEditor'
 import { HeadersEditor, type HeaderRow } from './HeadersEditor'
-import { FormBodyEditor } from './FormBodyEditor'
-import { MultipartEditor, type MultipartPart } from './MultipartEditor'
+import { BodyEditor } from './BodyEditor'
+import { CookiesEditor } from './CookiesEditor'
+import type { MultipartPart } from './MultipartEditor'
 import { TestsEditor } from './TestsEditor'
 import { CapturesEditor } from './CapturesEditor'
 import type { TestResult } from '@/services/testsService'
@@ -150,76 +150,20 @@ export function RequestPanel({
         </TabsList>
 
         <TabsContent value="body" className="flex-1 flex flex-col p-3 overflow-hidden mt-0">
-          {method && NO_BODY_METHODS.has(method.toUpperCase()) ? (
-            <NoBodyState method={method.toUpperCase()} />
-          ) : (
-          <>
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              type="button"
-              onClick={() => setBodyMode('json')}
-              className={cn(
-                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors',
-                bodyMode === 'json'
-                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              JSON
-            </button>
-            <button
-              type="button"
-              onClick={() => setBodyMode('form')}
-              disabled={!schema || schema.fields.length === 0}
-              className={cn(
-                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                bodyMode === 'form'
-                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              Form
-            </button>
-            <button
-              type="button"
-              onClick={() => setBodyMode('multipart')}
-              className={cn(
-                'px-2 py-0.5 text-[10.5px] rounded-sm transition-colors',
-                bodyMode === 'multipart'
-                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              Multipart
-            </button>
-            {schema && schema.fields.length > 0 && (
-              <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
-            )}
-          </div>
-          <div className="flex-1 min-h-0 overflow-auto">
-            {bodyMode === 'multipart' ? (
-              <MultipartEditor
-                parts={multipart ?? []}
-                onChange={(parts) => onMultipartChange?.(parts)}
-              />
-            ) : bodyMode === 'form' && schema && schema.fields.length > 0 ? (
-              <FormBodyEditor
-                value={requestBody}
-                schema={schema}
-                onChange={onRequestBodyChange}
-                variables={variables}
-              />
-            ) : (
-              <JsonEditor
-                value={requestBody}
-                onChange={onRequestBodyChange}
-                placeholder="{}"
-                variables={variables}
-              />
-            )}
-          </div>
-          </>
-          )}
+          <BodyEditor
+            method={method}
+            body={requestBody}
+            onBodyChange={onRequestBodyChange}
+            schema={schema}
+            schemaBadge={
+              schema && schema.fields.length > 0 ? (
+                <SchemaBadge schema={schema} requiredCount={requiredCount} touched={bodyTouched} />
+              ) : null
+            }
+            variables={variables}
+            multipart={multipart}
+            onMultipartChange={onMultipartChange}
+          />
         </TabsContent>
 
         <TabsContent value="params" className="flex-1 p-3 overflow-auto mt-0">
@@ -266,8 +210,8 @@ export function RequestPanel({
             onCapturedChange={onCapturedChange}
           />
         </TabsContent>
-        <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">
-          No cookies
+        <TabsContent value="cookies" className="flex-1 p-3 overflow-auto mt-0">
+          <CookiesEditor />
         </TabsContent>
       </Tabs>
 

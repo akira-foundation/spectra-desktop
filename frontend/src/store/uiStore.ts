@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type PageType = 'inspector' | 'dashboard' | 'collections' | 'settings' | 'changelog'
+export type PageType = 'inspector' | 'dashboard' | 'collections' | 'scratch' | 'settings' | 'changelog'
 
 export interface UIState {
   sidebarOpen: boolean
@@ -21,6 +21,16 @@ export interface UIState {
   setInspectorPending: (p: UIState['inspectorPending']) => void
   endpointListCollapsed: boolean
   setEndpointListCollapsed: (v: boolean) => void
+  pendingCurl: {
+    method: string
+    url: string
+    baseURL?: string
+    path?: string
+    headers: Record<string, string>
+    body?: string
+    query?: Record<string, string>
+  } | null
+  setPendingCurl: (c: UIState['pendingCurl']) => void
   navBack: PageType[]
   navForward: PageType[]
   goBack: () => void
@@ -62,6 +72,8 @@ export const useUIStore = create<UIState>()(
       setInspectorPending: (p) => set({ inspectorPending: p }),
       endpointListCollapsed: false,
       setEndpointListCollapsed: (v) => set({ endpointListCollapsed: v }),
+      pendingCurl: null,
+      setPendingCurl: (c) => set({ pendingCurl: c }),
       navBack: [],
       navForward: [],
       goBack: () =>

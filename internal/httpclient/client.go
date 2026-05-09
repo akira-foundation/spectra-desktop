@@ -2,9 +2,11 @@ package httpclient
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
 	"time"
@@ -56,6 +58,11 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 		if strings.TrimSpace(k) == "" {
 			continue
 		}
+		// strip Accept-Encoding so Go's http.Transport handles
+		// gzip auto-decompression (it disables when caller sets it explicitly).
+		if strings.EqualFold(k, "Accept-Encoding") {
+			continue
+		}
 		httpReq.Header.Set(k, v)
 	}
 	for i := range req.Cookies {
@@ -68,9 +75,25 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 		httpReq.Header.Set("Accept", "application/json")
 	}
 
+	var (
+		dnsStart, dnsDone           time.Time
+		connectStart, connectDone   time.Time
+		tlsStart, tlsDone           time.Time
+		gotFirstByte                time.Time
+	)
+	trace := &httptrace.ClientTrace{
+		DNSStart:             func(httptrace.DNSStartInfo) { dnsStart = time.Now() },
+		DNSDone:              func(httptrace.DNSDoneInfo) { dnsDone = time.Now() },
+		ConnectStart:         func(string, string) { connectStart = time.Now() },
+		ConnectDone:          func(string, string, error) { connectDone = time.Now() },
+		TLSHandshakeStart:    func() { tlsStart = time.Now() },
+		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) { tlsDone = time.Now() },
+		GotFirstResponseByte: func() { gotFirstByte = time.Now() },
+	}
+	httpReq = httpReq.WithContext(httptrace.WithClientTrace(httpReq.Context(), trace))
+
 	start := time.Now()
 	resp, err := c.httpClient.Do(httpReq)
-	duration := time.Since(start)
 	if err != nil {
 		if classified := classifyError(err); !errors.Is(classified, err) {
 			return nil, classified
@@ -80,9 +103,13 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
+	end := time.Now()
+	duration := end.Sub(start)
 	if err != nil {
 		return nil, &RequestError{Kind: err, Message: "read body"}
 	}
+
+	timeline := buildTimeline(start, dnsStart, dnsDone, connectStart, connectDone, tlsStart, tlsDone, gotFirstByte, end)
 
 	out := &Response{
 		Status:     resp.StatusCode,
@@ -91,8 +118,39 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 		Body:       string(bodyBytes),
 		DurationMs: duration.Milliseconds(),
 		SizeBytes:  len(bodyBytes),
+		Timeline:   timeline,
 	}
 	return out, nil
+}
+
+func buildTimeline(start, dnsStart, dnsDone, connStart, connDone, tlsStart, tlsDone, ttfb, end time.Time) *Timeline {
+	t := &Timeline{}
+	if !dnsStart.IsZero() && !dnsDone.IsZero() {
+		t.DNSMs = dnsDone.Sub(dnsStart).Milliseconds()
+	}
+	if !connStart.IsZero() && !connDone.IsZero() {
+		t.ConnectMs = connDone.Sub(connStart).Milliseconds()
+	}
+	if !tlsStart.IsZero() && !tlsDone.IsZero() {
+		t.TLSMs = tlsDone.Sub(tlsStart).Milliseconds()
+	}
+	if !ttfb.IsZero() {
+		var ref time.Time
+		switch {
+		case !tlsDone.IsZero():
+			ref = tlsDone
+		case !connDone.IsZero():
+			ref = connDone
+		default:
+			ref = start
+		}
+		t.TTFBMs = ttfb.Sub(ref).Milliseconds()
+		t.DownloadMs = end.Sub(ttfb).Milliseconds()
+	}
+	if t.DNSMs == 0 && t.ConnectMs == 0 && t.TLSMs == 0 && t.TTFBMs == 0 && t.DownloadMs == 0 {
+		return nil
+	}
+	return t
 }
 
 func allowsBody(method string) bool {

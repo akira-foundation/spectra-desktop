@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Compass, LayoutDashboard, Layers, FileText, Settings, Search, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Compass, LayoutDashboard, Layers, FileText, Settings, Search, PanelLeftClose, PanelLeftOpen, Terminal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CommandPalette() {
@@ -52,6 +52,10 @@ export function CommandPalette() {
             break
           case '4':
             e.preventDefault()
+            setCurrentPage('scratch')
+            break
+          case '5':
+            e.preventDefault()
             setCurrentPage('changelog')
             break
           case ',':
@@ -78,7 +82,8 @@ export function CommandPalette() {
     { label: 'Dashboard', icon: LayoutDashboard, shortcut: '⌘1', page: 'dashboard' as const },
     { label: 'API Inspector', icon: Compass, shortcut: '⌘2', page: 'inspector' as const },
     { label: 'Collections', icon: Layers, shortcut: '⌘3', page: 'collections' as const },
-    { label: 'Snapshots', icon: FileText, shortcut: '⌘4', page: 'changelog' as const },
+    { label: 'Scratch', icon: Terminal, shortcut: '⌘4', page: 'scratch' as const },
+    { label: 'Snapshots', icon: FileText, shortcut: '⌘5', page: 'changelog' as const },
     { label: 'Settings', icon: Settings, shortcut: '⌘,', page: 'settings' as const },
   ]
 

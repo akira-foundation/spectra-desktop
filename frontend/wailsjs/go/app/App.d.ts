@@ -30,7 +30,11 @@ export function ExportCollection(arg1:string):Promise<string>;
 
 export function ExportCollectionToFile(arg1:string):Promise<string>;
 
+export function ExportCurl(arg1:string,arg2:string,arg3:Record<string, string>,arg4:string):Promise<string>;
+
 export function ExportOpenAPI(arg1:string):Promise<string>;
+
+export function FormatException(arg1:string,arg2:string,arg3:number):Promise<core.FormattedException|boolean>;
 
 export function GenerateDatasetRows(arg1:string,arg2:number):Promise<string>;
 
@@ -57,6 +61,10 @@ export function GetProjectStatsReport(arg1:string):Promise<core.StatsReport>;
 export function GetSnapshotDiff(arg1:string):Promise<app.SnapshotDiff>;
 
 export function ImportCollection(arg1:string,arg2:string):Promise<app.ImportCollectionResult>;
+
+export function ImportCurl(arg1:string):Promise<app.CurlImportDTO>;
+
+export function ImportHAR(arg1:string):Promise<Array<app.HAREntryDTO>>;
 
 export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 

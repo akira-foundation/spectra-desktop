@@ -50,8 +50,16 @@ export function ExportCollectionToFile(arg1) {
   return window['go']['app']['App']['ExportCollectionToFile'](arg1);
 }
 
+export function ExportCurl(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['ExportCurl'](arg1, arg2, arg3, arg4);
+}
+
 export function ExportOpenAPI(arg1) {
   return window['go']['app']['App']['ExportOpenAPI'](arg1);
+}
+
+export function FormatException(arg1, arg2, arg3) {
+  return window['go']['app']['App']['FormatException'](arg1, arg2, arg3);
 }
 
 export function GenerateDatasetRows(arg1, arg2) {
@@ -104,6 +112,14 @@ export function GetSnapshotDiff(arg1) {
 
 export function ImportCollection(arg1, arg2) {
   return window['go']['app']['App']['ImportCollection'](arg1, arg2);
+}
+
+export function ImportCurl(arg1) {
+  return window['go']['app']['App']['ImportCurl'](arg1);
+}
+
+export function ImportHAR(arg1) {
+  return window['go']['app']['App']['ImportHAR'](arg1);
 }
 
 export function InspectProject(arg1) {

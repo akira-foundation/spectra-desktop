@@ -154,6 +154,30 @@ export function APIInspector() {
     runner.reset()
   }, [activeProjectId, persistedTag])
 
+  const pendingCurl = useUIStore((s) => s.pendingCurl)
+  const setPendingCurl = useUIStore((s) => s.setPendingCurl)
+  useEffect(() => {
+    if (!pendingCurl) return
+    setRequestBody(pendingCurl.body ?? '')
+    setBodyTouched(true)
+    setHeaders(
+      Object.entries(pendingCurl.headers ?? {}).map(([key, value]) => ({
+        key,
+        value,
+        enabled: true,
+      })),
+    )
+    setQueryParams(
+      Object.entries(pendingCurl.query ?? {}).map(([key, value], idx) => ({
+        id: `${idx}`,
+        key,
+        value,
+        enabled: true,
+      })),
+    )
+    setPendingCurl(null)
+  }, [pendingCurl])
+
   const decoratedGroups = useMemo(
     () =>
       groups.map((g) => ({
@@ -545,6 +569,8 @@ export function APIInspector() {
                   endpointId={selected?.id}
                   endpointMethod={selected?.method}
                   endpointPath={selected?.path}
+                  responseStatus={runner.response?.status}
+                  responseTimeline={runner.response?.timeline as any}
                 />
               ) : (
                 <ResponsePanel

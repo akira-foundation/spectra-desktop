@@ -21,6 +21,8 @@ interface ResponsePanelProps {
   endpointId?: string
   endpointMethod?: string
   endpointPath?: string
+  responseStatus?: number
+  responseTimeline?: { dnsMs: number; connectMs: number; tlsMs: number; ttfbMs: number; downloadMs: number } | null
 }
 
 export function ResponsePanel({
@@ -30,6 +32,8 @@ export function ResponsePanel({
   endpointId,
   endpointMethod,
   endpointPath,
+  responseStatus,
+  responseTimeline,
 }: ResponsePanelProps) {
   const formatted = formatBody(responseData)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -79,6 +83,11 @@ export function ResponsePanel({
           <CopyButton text={formatted} />
         </div>
       </div>
+
+      {responseTimeline && <TimelineStrip timeline={responseTimeline} />}
+      {responseStatus !== undefined && responseStatus >= 400 && responseData != null && (
+        <ExceptionPanel projectId={activeProjectId ?? null} body={formatted} status={responseStatus} />
+      )}
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0 gap-4">
@@ -629,5 +638,106 @@ function SaveButton({ text, method, path }: { text: string; method?: string; pat
     >
       {saved ? <Check className="w-3 h-3" /> : <Download className="w-3 h-3" />}
     </button>
+  )
+}
+
+function TimelineStrip({ timeline }: { timeline: { dnsMs: number; connectMs: number; tlsMs: number; ttfbMs: number; downloadMs: number } }) {
+  const total = timeline.dnsMs + timeline.connectMs + timeline.tlsMs + timeline.ttfbMs + timeline.downloadMs
+  if (total === 0) return null
+  const segments = [
+    { label: 'DNS', ms: timeline.dnsMs, color: 'bg-cyan-500/70' },
+    { label: 'TCP', ms: timeline.connectMs, color: 'bg-blue-500/70' },
+    { label: 'TLS', ms: timeline.tlsMs, color: 'bg-violet-500/70' },
+    { label: 'TTFB', ms: timeline.ttfbMs, color: 'bg-amber-500/70' },
+    { label: 'DL', ms: timeline.downloadMs, color: 'bg-emerald-500/70' },
+  ]
+  return (
+    <div className="px-3 py-1.5 border-b border-border/40 flex items-center gap-2">
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 shrink-0">
+        Timeline
+      </span>
+      <div className="flex h-2 flex-1 rounded-full overflow-hidden bg-muted/30">
+        {segments.map((s) => {
+          const pct = total > 0 ? (s.ms / total) * 100 : 0
+          if (pct === 0) return null
+          return (
+            <div
+              key={s.label}
+              className={s.color}
+              style={{ width: `${pct}%` }}
+              title={`${s.label}: ${s.ms}ms`}
+            />
+          )
+        })}
+      </div>
+      <div className="flex items-center gap-2 text-[9px] font-mono text-muted-foreground tabular-nums shrink-0">
+        {segments
+          .filter((s) => s.ms > 0)
+          .map((s) => (
+            <span key={s.label} className="flex items-center gap-1">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.color}`} />
+              {s.label} {s.ms}ms
+            </span>
+          ))}
+      </div>
+    </div>
+  )
+}
+
+function ExceptionPanel({ projectId, body, status }: { projectId: string | null; body: string; status: number }) {
+  const [exc, setExc] = useState<any | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId || !body || status < 400) return
+    void import('../../../wailsjs/go/app/App').then(async ({ FormatException }) => {
+      try {
+        const result = await FormatException(projectId, body, status)
+        if (cancelled) return
+        if (Array.isArray(result) && result[1]) setExc(result[0])
+        else if (result && typeof result === 'object' && (result as any).message) setExc(result)
+      } catch {}
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, body, status])
+  if (!exc) return null
+  return (
+    <div className="px-3 py-2 border-b border-border/40 bg-rose-500/5">
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-rose-500/90">
+          Exception
+        </span>
+        {exc.class && <code className="text-[10.5px] font-mono text-rose-500/80">{exc.class}</code>}
+      </div>
+      <p className="text-[11.5px] text-foreground/90 mb-1.5">{exc.message}</p>
+      {exc.file && (
+        <p className="text-[10px] font-mono text-muted-foreground">
+          {exc.file}
+          {exc.line ? `:${exc.line}` : ''}
+        </p>
+      )}
+      {exc.trace && exc.trace.length > 0 && (
+        <details className="mt-1.5">
+          <summary className="text-[10px] text-muted-foreground/70 cursor-pointer hover:text-foreground">
+            Stack trace ({exc.trace.length})
+          </summary>
+          <ul className="m-0 mt-1 p-0 list-none space-y-0.5 max-h-40 overflow-auto">
+            {exc.trace.map((t: any, i: number) => (
+              <li key={i} className="text-[10px] font-mono text-muted-foreground">
+                <span className="text-foreground/70">{t.function}</span>
+                {t.file && (
+                  <span className="text-muted-foreground/60">
+                    {' '}
+                    @ {t.file}
+                    {t.line ? `:${t.line}` : ''}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
   )
 }
