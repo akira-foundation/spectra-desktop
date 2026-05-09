@@ -47,6 +47,7 @@ interface RequestPanelProps {
   autoAuth?: { scheme?: string; tokenPreview?: string } | null
   onOpenAuth?: () => void
   capturedValues?: CapturedValue[]
+  onCapturedChange?: (values: CapturedValue[]) => void
 }
 
 export function RequestPanel({
@@ -78,6 +79,7 @@ export function RequestPanel({
   autoAuth,
   onOpenAuth,
   capturedValues,
+  onCapturedChange,
 }: RequestPanelProps) {
   const [bodyMode, setBodyMode] = useState<'json' | 'form'>('json')
   const requiredCount = schema?.fields.filter((f) => f.required).length ?? 0
@@ -108,12 +110,16 @@ export function RequestPanel({
           {(() => {
             const passCount = testResults?.filter((r) => r.pass).length ?? 0
             const failCount = testResults?.filter((r) => !r.pass).length ?? 0
+            const endpointKey = method && endpointPath ? `${method.toUpperCase()} ${endpointPath}` : null
+            const endpointCaptures = endpointKey
+              ? (capturedValues ?? []).filter((c) => c.endpointKey === endpointKey)
+              : []
             const tabs = [
               { v: 'body', label: 'Body' },
               { v: 'params', label: 'Params' },
               { v: 'headers', label: 'Headers' },
               { v: 'tests', label: testResults && testResults.length > 0 ? `Tests · ${passCount}/${passCount + failCount}` : 'Tests' },
-              { v: 'captures', label: capturedValues && capturedValues.length > 0 ? `Captures · ${capturedValues.length}` : 'Captures' },
+              { v: 'captures', label: endpointCaptures.length > 0 ? `Captures · ${endpointCaptures.length}` : 'Captures' },
               { v: 'cookies', label: 'Cookies' },
             ]
             return tabs.map((t) => (
@@ -225,6 +231,7 @@ export function RequestPanel({
             responseBody={responseBody}
             responseHeaders={responseHeaders}
             capturedValues={capturedValues}
+            onCapturedChange={onCapturedChange}
           />
         </TabsContent>
         <TabsContent value="cookies" className="flex-1 p-4 text-center text-[11.5px] text-muted-foreground mt-0">

@@ -1547,6 +1547,7 @@ func (a *App) SaveEndpointCaptures(input SaveCapturesInput) error {
 		return fmt.Errorf("project id and endpoint key required")
 	}
 	captures := make([]domain.EndpointCapture, 0, len(input.Captures))
+	keep := make(map[string]bool, len(input.Captures))
 	for i, c := range input.Captures {
 		captures = append(captures, domain.EndpointCapture{
 			ID:        c.ID,
@@ -1555,8 +1556,17 @@ func (a *App) SaveEndpointCaptures(input SaveCapturesInput) error {
 			Path:      c.Path,
 			SortOrder: i,
 		})
+		if c.Name != "" {
+			keep[c.Name] = true
+		}
 	}
-	return a.captures.Replace(a.ctx, input.ProjectID, input.EndpointKey, captures)
+	if err := a.captures.Replace(a.ctx, input.ProjectID, input.EndpointKey, captures); err != nil {
+		return err
+	}
+	if a.captured != nil {
+		a.captured.pruneByEndpoint(input.ProjectID, input.EndpointKey, keep)
+	}
+	return nil
 }
 
 func (a *App) ListCapturedValues(projectID string) []CapturedValueDTO {

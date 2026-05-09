@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
@@ -6,7 +6,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useHistoryStore } from '@/store/historyStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
 import { historyService } from '@/services/historyService'
-import { capturesService, type CapturedValue } from '@/services/capturesService'
+import { type CapturedValue } from '@/services/capturesService'
+import { useCapturesStore } from '@/store/capturesStore'
 import toast from 'react-hot-toast'
 import {
   EndpointList,
@@ -28,6 +29,7 @@ import { groupEndpoints, type GroupedEndpoint, PINNED_CATEGORY } from '@/lib/gro
 import type { ScannedEndpoint } from '@/services/scannerService'
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
+const EMPTY_CAPTURED: CapturedValue[] = []
 import {
   buildQueryString,
   extractRouteParams,
@@ -90,7 +92,12 @@ export function APIInspector() {
     activeProjectId ? s.byProject[activeProjectId] ?? null : null,
   )
   const activeEnv = envs?.find((e) => e.id === project?.activeEnvironmentId) ?? null
-  const [capturedValues, setCapturedValues] = useState<CapturedValue[]>([])
+  const capturedValues = useCapturesStore((s) => activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_CAPTURED : EMPTY_CAPTURED)
+  const refreshCaptured = useCapturesStore((s) => s.refresh)
+  const setCapturedValues = useCallback((vals: CapturedValue[]) => {
+    if (!activeProjectId) return
+    useCapturesStore.getState().set(activeProjectId, vals)
+  }, [activeProjectId])
   const variableNames = useMemo<Record<string, string>>(
     () => {
       const merged: Record<string, string> = { ...(activeEnv?.vars ?? {}) }
@@ -136,11 +143,10 @@ export function APIInspector() {
     setRouteValues([])
     setQueryParams([])
     runner.reset()
-    setCapturedValues([])
     if (activeProjectId) {
-      void capturesService.listValues(activeProjectId).then(setCapturedValues).catch(() => {})
+      void refreshCaptured(activeProjectId)
     }
-  }, [activeProjectId])
+  }, [activeProjectId, refreshCaptured])
 
   const decoratedGroups = useMemo(
     () =>
@@ -378,10 +384,7 @@ export function APIInspector() {
             setLastTestResults(detail?.testResults ?? [])
           } catch {}
         }
-        try {
-          const vals = await capturesService.listValues(activeProjectId)
-          setCapturedValues(vals)
-        } catch {}
+        await refreshCaptured(activeProjectId)
       })
   }
 
@@ -497,6 +500,7 @@ export function APIInspector() {
                 autoAuth={authState ? { scheme: authState.scheme, tokenPreview: authState.tokenPreview } : null}
                 onOpenAuth={() => setAuthDrawerOpen(true)}
                 capturedValues={capturedValues}
+                onCapturedChange={setCapturedValues}
                 requestBody={requestBody}
                 onRequestBodyChange={handleBodyChange}
                 onResetBody={handleResetBody}

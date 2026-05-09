@@ -38,6 +38,20 @@ func (s *capturedStore) clear(projectID string) {
 	delete(s.data, projectID)
 }
 
+func (s *capturedStore) pruneByEndpoint(projectID, endpointKey string, keep map[string]bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bucket, ok := s.data[projectID]
+	if !ok {
+		return
+	}
+	for name, entry := range bucket {
+		if entry.endpointKey == endpointKey && !keep[name] {
+			delete(bucket, name)
+		}
+	}
+}
+
 func (s *capturedStore) values(projectID string) map[string]string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

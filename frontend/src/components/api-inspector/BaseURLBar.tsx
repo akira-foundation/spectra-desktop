@@ -29,11 +29,14 @@ import type { ScannedEndpoint } from "@/services/scannerService";
 import { useHttpMethod } from "@/hooks/useHttpMethod";
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { CapturedValuesPopover } from "./CapturedValuesPopover";
 import { VarInput } from "./VarInput";
 import { VarText } from "./VarText";
 import { useEnvironmentStore } from "@/store/environmentStore";
+import { useCapturesStore } from "@/store/capturesStore";
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = [];
+const EMPTY_CAPTURED: import('@/services/capturesService').CapturedValue[] = [];
 
 export function BaseURLBar() {
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
@@ -46,6 +49,7 @@ export function BaseURLBar() {
       ? (s.byProject[activeProjectId] ?? EMPTY_ENDPOINTS)
       : EMPTY_ENDPOINTS,
   );
+  const capturedValues = useCapturesStore((s) => activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_CAPTURED : EMPTY_CAPTURED)
   const envs = useEnvironmentStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? null : null,
   );
@@ -153,6 +157,11 @@ export function BaseURLBar() {
       )}
 
       <EnvironmentSwitcher />
+      <CapturedValuesPopover
+        projectId={activeProjectId ?? null}
+        values={capturedValues}
+        onChange={(vals) => activeProjectId && useCapturesStore.getState().set(activeProjectId, vals)}
+      />
       <AuthRoutesPopover
         projectId={project.id}
         endpoints={allEndpoints}

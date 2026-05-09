@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Trash2, Variable } from 'lucide-react'
+import { Plus, Trash2, Check } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PathAutocomplete } from './PathAutocomplete'
@@ -13,6 +13,7 @@ interface CapturesEditorProps {
   responseBody?: string
   responseHeaders?: Record<string, string[]>
   capturedValues?: CapturedValue[]
+  onCapturedChange?: (values: CapturedValue[]) => void
 }
 
 export function CapturesEditor({
@@ -22,6 +23,7 @@ export function CapturesEditor({
   responseBody,
   responseHeaders,
   capturedValues,
+  onCapturedChange,
 }: CapturesEditorProps) {
   const endpointKey = method && path ? `${method.toUpperCase()} ${path}` : null
   const [captures, setCaptures] = useState<EndpointCapture[]>([])
@@ -65,6 +67,10 @@ export function CapturesEditor({
     try {
       await capturesService.save({ projectID: projectId, endpointKey, captures })
       setSavedCaptures(captures)
+      try {
+        const vals = await capturesService.listValues(projectId)
+        onCapturedChange?.(vals)
+      } catch {}
     } finally {
       setSaving(false)
     }
@@ -117,48 +123,45 @@ export function CapturesEditor({
           {captures.map((c, idx) => {
             const captured = c.name ? valueByName.get(c.name) : undefined
             return (
-              <li key={idx} className="flex flex-col gap-0.5">
-                <div className="flex items-start gap-1.5">
-                  <span className="inline-flex h-7 w-5 shrink-0 items-center justify-center text-muted-foreground/60">
-                    <Variable className="w-3 h-3" />
-                  </span>
-                  <div className="flex-1 grid grid-cols-[minmax(0,1fr)_90px_minmax(0,1.6fr)_28px] gap-1.5 items-center min-w-0">
-                    <Input
-                      value={c.name ?? ''}
-                      onChange={(e) => update(idx, { name: e.target.value })}
-                      placeholder="var_name"
-                      className="h-7 text-[11.5px] font-mono"
-                    />
-                    <select
-                      value={c.source || 'body'}
-                      onChange={(e) => update(idx, { source: e.target.value })}
-                      className="h-7 text-[11.5px] bg-input/40 border border-border/50 rounded-md px-2"
-                    >
-                      <option value="body">body</option>
-                      <option value="header">header</option>
-                    </select>
-                    <PathAutocomplete
-                      value={c.path ?? ''}
-                      onChange={(v) => update(idx, { path: v })}
-                      placeholder={c.source === 'header' ? 'Content-Type' : '$.data.token'}
-                      suggestions={c.source === 'header' ? headerNames : jsonPaths}
-                      className="h-7 text-[11.5px]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => remove(idx)}
-                      aria-label="Remove"
-                      className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-                {captured ? (
-                  <p className={cn('pl-7 text-[10.5px] font-mono text-emerald-500/80 truncate')}>
-                    {`{{${captured.name}}} = ${truncate(captured.value, 80)}`}
-                  </p>
-                ) : null}
+              <li key={idx} className="grid grid-cols-[minmax(0,1fr)_90px_minmax(0,1.6fr)_18px_28px] gap-1.5 items-center min-w-0">
+                <Input
+                  value={c.name ?? ''}
+                  onChange={(e) => update(idx, { name: e.target.value })}
+                  placeholder="var_name"
+                  className="h-7 text-[11.5px] font-mono"
+                />
+                <select
+                  value={c.source || 'body'}
+                  onChange={(e) => update(idx, { source: e.target.value })}
+                  className="h-7 text-[11.5px] bg-input/40 border border-border/50 rounded-md px-2"
+                >
+                  <option value="body">body</option>
+                  <option value="header">header</option>
+                </select>
+                <PathAutocomplete
+                  value={c.path ?? ''}
+                  onChange={(v) => update(idx, { path: v })}
+                  placeholder={c.source === 'header' ? 'Content-Type' : '$.data.token'}
+                  suggestions={c.source === 'header' ? headerNames : jsonPaths}
+                  className="h-7 text-[11.5px]"
+                />
+                <span
+                  className={cn(
+                    'inline-flex h-7 w-[18px] items-center justify-center',
+                    captured ? 'text-emerald-500' : 'text-transparent',
+                  )}
+                  title={captured ? `Captured: ${truncate(captured.value, 80)}` : ''}
+                >
+                  <Check className="w-3 h-3" />
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  aria-label="Remove"
+                  className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </li>
             )
           })}
