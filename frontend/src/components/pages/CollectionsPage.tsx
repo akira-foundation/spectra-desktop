@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { useCollectionsStore } from '@/store/collectionsStore'
+import { useHistoryStore } from '@/store/historyStore'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { useUIStore } from '@/store/uiStore'
 import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime'
@@ -85,6 +86,7 @@ export function CollectionsPage() {
     setProgress({ items: [], total: 0 })
     try {
       await runCol(projectId, id)
+      await useHistoryStore.getState().refresh(projectId)
     } finally {
       setRunning(null)
       setProgress(null)

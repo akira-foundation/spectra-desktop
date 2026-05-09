@@ -112,7 +112,7 @@ export function Dashboard() {
   useEffect(() => {
     if (!activeProjectId) return
     void metricsService.get(activeProjectId, volumeDays).then((m) => setMetrics(m))
-  }, [activeProjectId, volumeDays])
+  }, [activeProjectId, volumeDays, history?.length])
 
   const pinnedEndpoints = useMemo(() => {
     const set = new Set(pinnedKeys ?? [])

@@ -471,7 +471,7 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	return resp, nil
 }
 
-const historyFreeLimit = 50
+const historyFreeLimit = 5000
 
 func (a *App) saveHistory(input ExecuteRequestInput, url string, headers map[string]string, resp *httpclient.Response, sendErr error, testResults []assertions.Result) {
 	headersJSON, _ := json.Marshal(headers)
