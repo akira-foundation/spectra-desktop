@@ -3,7 +3,18 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type PageType = 'inspector' | 'dashboard' | 'collections' | 'scratch' | 'settings' | 'changelog'
 
+export interface InspectorTab {
+  id: string
+  endpointId: string
+}
+
 export interface UIState {
+  inspectorTabsByProject: Record<string, InspectorTab[]>
+  activeInspectorTabByProject: Record<string, string>
+  openInTab: (projectId: string, endpointId: string, options?: { newTab?: boolean }) => void
+  setActiveInspectorTab: (projectId: string, tabId: string) => void
+  closeInspectorTab: (projectId: string, tabId: string) => void
+  reorderInspectorTabs: (projectId: string, fromIdx: number, toIdx: number) => void
   sidebarOpen: boolean
   isCommandPaletteOpen: boolean
   isAuthDrawerOpen: boolean
@@ -55,6 +66,95 @@ export interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      inspectorTabsByProject: {},
+      activeInspectorTabByProject: {},
+      openInTab: (projectId, endpointId, options) =>
+        set((state) => {
+          const tabs = state.inspectorTabsByProject[projectId] ?? []
+          if (!options?.newTab) {
+            const existing = tabs.find((t) => t.endpointId === endpointId)
+            if (existing) {
+              return {
+                activeInspectorTabByProject: {
+                  ...state.activeInspectorTabByProject,
+                  [projectId]: existing.id,
+                },
+                selectedEndpointByProject: {
+                  ...state.selectedEndpointByProject,
+                  [projectId]: endpointId,
+                },
+              }
+            }
+          }
+          const id = `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+          return {
+            inspectorTabsByProject: {
+              ...state.inspectorTabsByProject,
+              [projectId]: [...tabs, { id, endpointId }],
+            },
+            activeInspectorTabByProject: {
+              ...state.activeInspectorTabByProject,
+              [projectId]: id,
+            },
+            selectedEndpointByProject: {
+              ...state.selectedEndpointByProject,
+              [projectId]: endpointId,
+            },
+          }
+        }),
+      setActiveInspectorTab: (projectId, tabId) =>
+        set((state) => {
+          const tabs = state.inspectorTabsByProject[projectId] ?? []
+          const tab = tabs.find((t) => t.id === tabId)
+          if (!tab) return state
+          return {
+            activeInspectorTabByProject: {
+              ...state.activeInspectorTabByProject,
+              [projectId]: tabId,
+            },
+            selectedEndpointByProject: {
+              ...state.selectedEndpointByProject,
+              [projectId]: tab.endpointId,
+            },
+          }
+        }),
+      closeInspectorTab: (projectId, tabId) =>
+        set((state) => {
+          const tabs = state.inspectorTabsByProject[projectId] ?? []
+          const idx = tabs.findIndex((t) => t.id === tabId)
+          if (idx === -1) return state
+          const next = tabs.filter((t) => t.id !== tabId)
+          const wasActive = state.activeInspectorTabByProject[projectId] === tabId
+          const nextTabsMap = { ...state.inspectorTabsByProject, [projectId]: next }
+          const nextActiveMap = { ...state.activeInspectorTabByProject }
+          const nextSelMap = { ...state.selectedEndpointByProject }
+          if (wasActive) {
+            const neighbor = next[idx] ?? next[idx - 1] ?? null
+            if (neighbor) {
+              nextActiveMap[projectId] = neighbor.id
+              nextSelMap[projectId] = neighbor.endpointId
+            } else {
+              delete nextActiveMap[projectId]
+              delete nextSelMap[projectId]
+            }
+          }
+          return {
+            inspectorTabsByProject: nextTabsMap,
+            activeInspectorTabByProject: nextActiveMap,
+            selectedEndpointByProject: nextSelMap,
+          }
+        }),
+      reorderInspectorTabs: (projectId, fromIdx, toIdx) =>
+        set((state) => {
+          const tabs = state.inspectorTabsByProject[projectId] ?? []
+          if (fromIdx < 0 || fromIdx >= tabs.length || toIdx < 0 || toIdx >= tabs.length) return state
+          const next = [...tabs]
+          const [moved] = next.splice(fromIdx, 1)
+          next.splice(toIdx, 0, moved)
+          return {
+            inspectorTabsByProject: { ...state.inspectorTabsByProject, [projectId]: next },
+          }
+        }),
       sidebarOpen: false,
       isCommandPaletteOpen: false,
       isAuthDrawerOpen: false,
@@ -114,9 +214,39 @@ export const useUIStore = create<UIState>()(
 
       setSelectedEndpoint: (projectId, tag) =>
         set((state) => {
+          if (tag) {
+            const tabs = state.inspectorTabsByProject[projectId] ?? []
+            const existing = tabs.find((t) => t.endpointId === tag)
+            if (existing) {
+              return {
+                activeInspectorTabByProject: {
+                  ...state.activeInspectorTabByProject,
+                  [projectId]: existing.id,
+                },
+                selectedEndpointByProject: {
+                  ...state.selectedEndpointByProject,
+                  [projectId]: tag,
+                },
+              }
+            }
+            const id = `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+            return {
+              inspectorTabsByProject: {
+                ...state.inspectorTabsByProject,
+                [projectId]: [...tabs, { id, endpointId: tag }],
+              },
+              activeInspectorTabByProject: {
+                ...state.activeInspectorTabByProject,
+                [projectId]: id,
+              },
+              selectedEndpointByProject: {
+                ...state.selectedEndpointByProject,
+                [projectId]: tag,
+              },
+            }
+          }
           const next = { ...state.selectedEndpointByProject }
-          if (tag) next[projectId] = tag
-          else delete next[projectId]
+          delete next[projectId]
           return { selectedEndpointByProject: next }
         }),
       setRequestBody: (endpointId, body) =>
@@ -167,6 +297,8 @@ export const useUIStore = create<UIState>()(
         requestHeadersByEndpoint: state.requestHeadersByEndpoint,
         pinnedEndpointsByProject: state.pinnedEndpointsByProject,
         groupOrderByProject: state.groupOrderByProject,
+        inspectorTabsByProject: state.inspectorTabsByProject,
+        activeInspectorTabByProject: state.activeInspectorTabByProject,
       }),
       version: 1,
     },

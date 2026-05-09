@@ -43,7 +43,7 @@ interface EndpointCategory {
 
 interface EndpointListProps {
   endpoints: EndpointCategory[]
-  onSelectEndpoint: (tag: string) => void
+  onSelectEndpoint: (tag: string, opts?: { newTab?: boolean }) => void
   pinnedKeys?: string[]
   onTogglePin?: (key: string) => void
   onReorder?: (order: string[]) => void
@@ -231,7 +231,7 @@ export function EndpointList({
 interface CategoryItemProps {
   category: EndpointCategory
   getMethodColor: (method: string) => string
-  onSelect: (tag: string) => void
+  onSelect: (tag: string, opts?: { newTab?: boolean }) => void
   pinnedSet: Set<string>
   onTogglePin?: (key: string) => void
   activeRef: React.MutableRefObject<HTMLButtonElement | null>
@@ -297,7 +297,13 @@ function CategoryItem({
                 <button
                   key={endpoint.path + endpoint.method + endpoint.name}
                   ref={endpoint.active ? activeRef : undefined}
-                  onClick={() => onSelect(endpoint.tag)}
+                  onClick={(e) => onSelect(endpoint.tag, { newTab: e.metaKey || e.ctrlKey })}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) {
+                      e.preventDefault()
+                      onSelect(endpoint.tag, { newTab: true })
+                    }
+                  }}
                   className={cn(
                     'group relative w-full text-left pl-2.5 pr-2 py-1.5 rounded-md transition-colors duration-150',
                     'hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40',

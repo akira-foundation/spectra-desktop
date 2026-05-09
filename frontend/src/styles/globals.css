@@ -307,6 +307,15 @@
 }
 
 @layer utilities {
+    .scrollbar-hairline::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+    }
+    .scrollbar-hairline {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
 
 
     .dialog-glass {

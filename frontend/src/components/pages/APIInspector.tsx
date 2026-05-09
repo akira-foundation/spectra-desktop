@@ -17,6 +17,7 @@ import {
   ResponsePanel,
   EndpointHeader,
 } from '@/components/api-inspector'
+import { InspectorTabs } from '@/components/api-inspector/InspectorTabs'
 import { EndpointInfoSheet } from '@/components/api-inspector/EndpointInfoSheet'
 import { EndpointEmptyState } from '@/components/api-inspector/EndpointEmptyState'
 import { ResponseEmptyState } from '@/components/api-inspector/ResponseEmptyState'
@@ -66,6 +67,7 @@ export function APIInspector() {
     activeProjectId ? s.selectedEndpointByProject[activeProjectId] ?? null : null,
   )
   const setSelectedEndpoint = useUIStore((s) => s.setSelectedEndpoint)
+  const openInTab = useUIStore((s) => s.openInTab)
   const persistedBodies = useUIStore((s) => s.requestBodyByEndpoint)
   const persistedHeaders = useUIStore((s) => s.requestHeadersByEndpoint)
   const persistBody = useUIStore((s) => s.setRequestBody)
@@ -153,6 +155,15 @@ export function APIInspector() {
     setQueryParams([])
     runner.reset()
   }, [activeProjectId, persistedTag])
+
+  useEffect(() => {
+    if (!activeProjectId || !persistedTag) return
+    const state = useUIStore.getState()
+    const tabs = state.inspectorTabsByProject[activeProjectId] ?? []
+    if (tabs.length === 0) {
+      openInTab(activeProjectId, persistedTag)
+    }
+  }, [activeProjectId, persistedTag, openInTab])
 
   const pendingCurl = useUIStore((s) => s.pendingCurl)
   const setPendingCurl = useUIStore((s) => s.setPendingCurl)
@@ -298,9 +309,12 @@ export function APIInspector() {
     return resolveRoutePath(selected.path, routeValues) + buildQueryString(queryParams)
   }, [selected, routeValues, queryParams])
 
-  const handleSelect = (tag: string) => {
+  const handleSelect = (tag: string, opts?: { newTab?: boolean }) => {
     setSelectedTag(tag)
-    if (activeProjectId) setSelectedEndpoint(activeProjectId, tag)
+    if (activeProjectId) {
+      if (opts?.newTab) openInTab(activeProjectId, tag, { newTab: true })
+      else setSelectedEndpoint(activeProjectId, tag)
+    }
   }
   const handleRetry = () => {
     if (activeProjectId) void scan(activeProjectId)
@@ -498,6 +512,7 @@ export function APIInspector() {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden rounded-md border border-border/40 bg-card/30">
+        <InspectorTabs />
         <BaseURLBar />
 
         {!selected ? (
