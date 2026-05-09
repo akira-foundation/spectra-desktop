@@ -1488,11 +1488,17 @@ type EndpointDiscoveryDTO struct {
 }
 
 type DiscoveryDTO struct {
-	TotalEndpoints int                    `json:"totalEndpoints"`
-	UsedEndpoints  int                    `json:"usedEndpoints"`
-	Coverage       float64                `json:"coverage"`
-	Unused         []EndpointDiscoveryDTO `json:"unused"`
-	Stale          []EndpointDiscoveryDTO `json:"stale"`
+	TotalEndpoints   int                    `json:"totalEndpoints"`
+	UsedEndpoints    int                    `json:"usedEndpoints"`
+	Coverage         float64                `json:"coverage"`
+	Unused           []EndpointDiscoveryDTO `json:"unused"`
+	Stale            []EndpointDiscoveryDTO `json:"stale"`
+	TestedEndpoints  int                    `json:"testedEndpoints"`
+	TestCoverage     float64                `json:"testCoverage"`
+	WriteEndpoints   int                    `json:"writeEndpoints"`
+	ReadEndpoints    int                    `json:"readEndpoints"`
+	AuthRequired     int                    `json:"authRequired"`
+	AuthPublic       int                    `json:"authPublic"`
 }
 
 func (a *App) GetDiscovery(projectID string, staleAfterDays int) (*DiscoveryDTO, error) {
@@ -1519,6 +1525,37 @@ func (a *App) GetDiscovery(projectID string, staleAfterDays int) (*DiscoveryDTO,
 	if len(endpoints) > 0 {
 		out.Coverage = float64(len(seen)) / float64(len(endpoints))
 	}
+	// build set of endpoint keys with tests or captures
+	testedKeys := map[string]bool{}
+	for _, e := range endpoints {
+		key := endpointTestKey(string(e.Method), e.Path)
+		if tests, _ := a.tests.List(a.ctx, projectID, key); len(tests) > 0 {
+			testedKeys[key] = true
+			continue
+		}
+		if caps, _ := a.captures.List(a.ctx, projectID, key); len(caps) > 0 {
+			testedKeys[key] = true
+		}
+	}
+	out.TestedEndpoints = len(testedKeys)
+	if len(endpoints) > 0 {
+		out.TestCoverage = float64(len(testedKeys)) / float64(len(endpoints))
+	}
+
+	writeMethods := map[string]bool{"POST": true, "PUT": true, "PATCH": true, "DELETE": true}
+	for _, e := range endpoints {
+		if writeMethods[strings.ToUpper(string(e.Method))] {
+			out.WriteEndpoints++
+		} else {
+			out.ReadEndpoints++
+		}
+		if e.AuthRole != "" {
+			out.AuthRequired++
+		} else {
+			out.AuthPublic++
+		}
+	}
+
 	now := time.Now().UTC()
 	staleThreshold := now.AddDate(0, 0, -staleAfterDays)
 	for _, e := range endpoints {

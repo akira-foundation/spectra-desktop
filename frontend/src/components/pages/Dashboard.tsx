@@ -9,6 +9,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
 import { useHistoryStore } from '@/store/historyStore'
 import { useChangelogStore } from '@/store/changelogStore'
+import { useCollectionsStore } from '@/store/collectionsStore'
+import type { HistoryListItem } from '@/services/historyService'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useUIStore } from '@/store/uiStore'
 import {
@@ -101,6 +103,8 @@ export function Dashboard() {
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [volumeDays, setVolumeDays] = useState<7 | 14 | 30>(7)
+  const [activeTab, setActiveTab] = useState<'overview' | 'discovery' | 'activity'>('overview')
+  const [discovery, setDiscovery] = useState<{ totalEndpoints: number; usedEndpoints: number; coverage: number } | null>(null)
 
   useEffect(() => {
     if (!activeProjectId) return
@@ -114,6 +118,11 @@ export function Dashboard() {
   useEffect(() => {
     if (!activeProjectId) return
     void metricsService.get(activeProjectId, volumeDays).then((m) => setMetrics(m))
+    void import('@/services/discoveryService').then(({ discoveryService }) =>
+      discoveryService.get(activeProjectId, 30).then((d) =>
+        d ? setDiscovery({ totalEndpoints: d.totalEndpoints, usedEndpoints: d.usedEndpoints, coverage: d.coverage }) : setDiscovery(null),
+      ),
+    )
   }, [activeProjectId, volumeDays, history?.length])
 
   const pinnedEndpoints = useMemo(() => {
@@ -150,32 +159,281 @@ export function Dashboard() {
         </div>
       </header>
 
-      <SectionHeader title="Overview" subtitle="Status, latency and request volume" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <StatusCard metrics={metrics} />
-        <LatencyCard metrics={metrics} />
-        <VolumeCard metrics={metrics} days={volumeDays} onChangeDays={setVolumeDays} />
-      </div>
+      <DashboardTabs active={activeTab} onChange={setActiveTab} />
 
-      <SectionHeader title="Insights" subtitle="Trends and diagnostics over the selected window" />
-      <InsightsSection projectId={activeProjectId ?? null} days={volumeDays} refreshKey={history?.length ?? 0} />
-
-      <SectionHeader title="Discovery" subtitle="Coverage and dormant endpoints" />
-      <DiscoverySection projectId={activeProjectId ?? null} refreshKey={history?.length ?? 0} />
-
-      <SectionHeader title="Activity" subtitle="Recent requests and latest snapshot" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="md:col-span-2">
-          <RecentActivityCard
-            entries={recent}
-            onOpen={(endpointID) => goToInspector(endpointID)}
-          />
+      {activeTab === 'overview' && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <StatusCard metrics={metrics} />
+            <LatencyCard metrics={metrics} />
+            <VolumeCard metrics={metrics} days={volumeDays} onChangeDays={setVolumeDays} />
+          </div>
+          <InsightsSection projectId={activeProjectId ?? null} days={volumeDays} refreshKey={history?.length ?? 0} />
         </div>
-        <SnapshotCard
-          snapshot={latestSnapshot}
-          onOpen={() => setCurrentPage('changelog')}
+      )}
+
+      {activeTab === 'discovery' && (
+        <DiscoverySection projectId={activeProjectId ?? null} refreshKey={history?.length ?? 0} />
+      )}
+
+      {activeTab === 'activity' && (
+        <ActivityTab
+          history={history ?? []}
+          recent={recent}
+          latestSnapshot={latestSnapshot}
+          onOpen={goToInspector}
+          onOpenSnapshots={() => setCurrentPage('changelog')}
+          onOpenCollections={() => setCurrentPage('collections')}
         />
+      )}
+    </div>
+  )
+}
+
+function KPIStrip({
+  metrics,
+  discovery,
+}: {
+  metrics: DashboardMetrics | null
+  discovery: { totalEndpoints: number; usedEndpoints: number; coverage: number } | null
+}) {
+  const errorRate = metrics?.errorRate ?? 0
+  const stats = [
+    { label: 'runs', value: (metrics?.totalRuns ?? 0).toLocaleString() },
+    {
+      label: 'errors',
+      value: `${Math.round(errorRate * 100)}%`,
+      accent: errorRate > 0.1 ? 'rose' : undefined,
+    },
+    { label: 'avg', value: `${metrics?.latency.avg ?? 0}ms` },
+    { label: 'p95', value: `${metrics?.latency.p95 ?? 0}ms` },
+    {
+      label: 'coverage',
+      value: `${Math.round((discovery?.coverage ?? 0) * 100)}%`,
+      sub: discovery ? `${discovery.usedEndpoints}/${discovery.totalEndpoints}` : '',
+    },
+  ]
+  return (
+    <div className="flex items-center gap-6 flex-wrap">
+      {stats.map((s, i) => (
+        <div key={s.label} className="flex items-baseline gap-1.5">
+          <span className={`text-[18px] font-semibold tabular-nums ${s.accent === 'rose' ? 'text-rose-500' : 'text-foreground'}`}>
+            {s.value}
+          </span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+            {s.label}
+          </span>
+          {s.sub && <span className="text-[10px] font-mono text-muted-foreground/50 tabular-nums">{s.sub}</span>}
+          {i < stats.length - 1 && <span className="text-muted-foreground/20 ml-2">·</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ActivityTab({
+  history,
+  recent,
+  latestSnapshot,
+  onOpen,
+  onOpenSnapshots,
+  onOpenCollections,
+}: {
+  history: HistoryListItem[]
+  recent: HistoryListItem[]
+  latestSnapshot: any
+  onOpen: (id?: string) => void
+  onOpenSnapshots: () => void
+  onOpenCollections: () => void
+}) {
+  const failures = useMemo(
+    () =>
+      history
+        .filter((h) => h.error || h.responseStatus >= 400)
+        .slice(0, 8),
+    [history],
+  )
+  const projectId = useProjectStore((s) => s.activeProjectId)
+  const collections = useCollectionsStore((s) =>
+    projectId ? s.byProject[projectId] : undefined,
+  )
+  const lastRun = useCollectionsStore((s) => s.lastRun)
+  const recentRuns = useMemo(() => {
+    return (collections ?? [])
+      .map((c) => ({ collection: c, run: lastRun[c.id] }))
+      .filter((x) => x.run)
+      .sort((a, b) => (b.run?.startedAt ?? 0) - (a.run?.startedAt ?? 0))
+      .slice(0, 5)
+  }, [collections, lastRun])
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <RecentActivityCard entries={recent} onOpen={onOpen} />
+        <RecentFailuresCard entries={failures} onOpen={onOpen} />
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <CollectionRunsCard runs={recentRuns} onOpen={onOpenCollections} />
+        <SnapshotCard snapshot={latestSnapshot} onOpen={onOpenSnapshots} />
+      </div>
+    </div>
+  )
+}
+
+function RecentFailuresCard({
+  entries,
+  onOpen,
+}: {
+  entries: HistoryListItem[]
+  onOpen: (id?: string) => void
+}) {
+  const { getMethodColor } = useHttpMethod()
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+      <div className="flex items-center gap-1.5 mb-3">
+        <AlertTriangle className="w-3 h-3 text-rose-500/80" />
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Recent failures
+        </h3>
+        <span className="text-[10px] font-mono text-muted-foreground/60 tabular-nums">
+          {entries.length}
+        </span>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-[11.5px] italic text-muted-foreground/70 text-center py-6">
+          No failures recently. Nice.
+        </p>
+      ) : (
+        <ul className="m-0 p-0 list-none space-y-1">
+          {entries.map((e) => (
+            <li key={e.id}>
+              <button
+                type="button"
+                onClick={() => onOpen(e.endpointID)}
+                className="w-full flex items-center gap-2 px-1 py-1 rounded hover:bg-accent/40 text-left"
+              >
+                <span
+                  className={cn(
+                    'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
+                    getMethodColor(e.method),
+                  )}
+                >
+                  {e.method}
+                </span>
+                <span className="text-[10.5px] font-mono tabular-nums text-rose-500/90 shrink-0 w-9">
+                  {e.error ? 'ERR' : e.responseStatus}
+                </span>
+                <code className="text-[11.5px] font-mono truncate flex-1 text-foreground/85">
+                  {shortUrl(e.url)}
+                </code>
+                <span className="text-[10px] text-muted-foreground/70 shrink-0">
+                  {timeAgoShort(new Date(e.createdAt))}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function CollectionRunsCard({
+  runs,
+  onOpen,
+}: {
+  runs: { collection: any; run: any }[]
+  onOpen: () => void
+}) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <Layers className="w-3 h-3 text-muted-foreground" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent collection runs
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-[10.5px] text-muted-foreground hover:text-foreground"
+        >
+          Open
+        </button>
+      </div>
+      {runs.length === 0 ? (
+        <p className="text-[11.5px] italic text-muted-foreground/70 text-center py-6">
+          No collection runs yet.
+        </p>
+      ) : (
+        <ul className="m-0 p-0 list-none space-y-1.5">
+          {runs.map(({ collection, run }) => {
+            const total = (run.passCount ?? 0) + (run.failCount ?? 0) + (run.skipCount ?? 0)
+            const passPct = total > 0 ? (run.passCount / total) * 100 : 0
+            return (
+              <li key={collection.id} className="space-y-1">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="font-medium truncate flex-1">{collection.name}</span>
+                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground shrink-0">
+                    {run.passCount}/{total}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/70 shrink-0">
+                    {run.durationMs}ms
+                  </span>
+                </div>
+                <div className="flex h-1.5 rounded-full overflow-hidden bg-muted/40">
+                  <div className="bg-emerald-500/70" style={{ width: `${passPct}%` }} />
+                  <div className="bg-rose-500/70" style={{ width: `${100 - passPct}%` }} />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function timeAgoShort(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  return `${days}d`
+}
+
+function DashboardTabs({
+  active,
+  onChange,
+}: {
+  active: 'overview' | 'discovery' | 'activity'
+  onChange: (t: 'overview' | 'discovery' | 'activity') => void
+}) {
+  const tabs: { v: typeof active; label: string }[] = [
+    { v: 'overview', label: 'Overview' },
+    { v: 'discovery', label: 'Discovery' },
+    { v: 'activity', label: 'Activity' },
+  ]
+  return (
+    <div className="flex items-center gap-4 border-b border-border/40">
+      {tabs.map((t) => (
+        <button
+          key={t.v}
+          type="button"
+          onClick={() => onChange(t.v)}
+          className={`text-[12px] font-medium px-0 pb-2 -mb-px border-b-2 transition-colors ${
+            active === t.v
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   )
 }

@@ -420,6 +420,12 @@ export namespace app {
 	    coverage: number;
 	    unused: EndpointDiscoveryDTO[];
 	    stale: EndpointDiscoveryDTO[];
+	    testedEndpoints: number;
+	    testCoverage: number;
+	    writeEndpoints: number;
+	    readEndpoints: number;
+	    authRequired: number;
+	    authPublic: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new DiscoveryDTO(source);
@@ -432,6 +438,12 @@ export namespace app {
 	        this.coverage = source["coverage"];
 	        this.unused = this.convertValues(source["unused"], EndpointDiscoveryDTO);
 	        this.stale = this.convertValues(source["stale"], EndpointDiscoveryDTO);
+	        this.testedEndpoints = source["testedEndpoints"];
+	        this.testCoverage = source["testCoverage"];
+	        this.writeEndpoints = source["writeEndpoints"];
+	        this.readEndpoints = source["readEndpoints"];
+	        this.authRequired = source["authRequired"];
+	        this.authPublic = source["authPublic"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
