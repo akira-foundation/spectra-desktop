@@ -22,6 +22,10 @@ export function DeleteEnvironment(arg1) {
   return window['go']['app']['App']['DeleteEnvironment'](arg1);
 }
 
+export function DeleteMockOverride(arg1) {
+  return window['go']['app']['App']['DeleteMockOverride'](arg1);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['app']['App']['DeleteProject'](arg1);
 }
@@ -174,6 +178,10 @@ export function ListLastCollectionRuns(arg1) {
   return window['go']['app']['App']['ListLastCollectionRuns'](arg1);
 }
 
+export function ListMockOverrides(arg1) {
+  return window['go']['app']['App']['ListMockOverrides'](arg1);
+}
+
 export function ListProjectAccounts(arg1) {
   return window['go']['app']['App']['ListProjectAccounts'](arg1);
 }
@@ -192,6 +200,10 @@ export function ListSnapshots(arg1, arg2) {
 
 export function MarkProjectSynced(arg1) {
   return window['go']['app']['App']['MarkProjectSynced'](arg1);
+}
+
+export function MockServerStatus() {
+  return window['go']['app']['App']['MockServerStatus']();
 }
 
 export function OpenProject(arg1) {
@@ -246,6 +258,10 @@ export function SaveEnvironment(arg1) {
   return window['go']['app']['App']['SaveEnvironment'](arg1);
 }
 
+export function SaveMockOverride(arg1) {
+  return window['go']['app']['App']['SaveMockOverride'](arg1);
+}
+
 export function SaveOpenAPIToFile(arg1) {
   return window['go']['app']['App']['SaveOpenAPIToFile'](arg1);
 }
@@ -292,6 +308,14 @@ export function SetDefaultProjectAccount(arg1, arg2) {
 
 export function SetProjectAuthManual(arg1) {
   return window['go']['app']['App']['SetProjectAuthManual'](arg1);
+}
+
+export function StartMockServer(arg1, arg2) {
+  return window['go']['app']['App']['StartMockServer'](arg1, arg2);
+}
+
+export function StopMockServer() {
+  return window['go']['app']['App']['StopMockServer']();
 }
 
 export function UpdateProjectAuthRoutes(arg1, arg2, arg3, arg4) {

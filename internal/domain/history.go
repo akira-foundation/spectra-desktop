@@ -29,4 +29,5 @@ type HistoryRepository interface {
 	GetByID(ctx context.Context, id string) (*HistoryEntry, error)
 	Clear(ctx context.Context, projectID string) error
 	TrimOldest(ctx context.Context, projectID string, keep int) error
+	LatestSuccessByEndpoint(ctx context.Context, projectID, endpointID string) (*HistoryEntry, error)
 }

@@ -56,7 +56,6 @@ const empty = (): FormState => ({
 })
 
 function fromAccount(acc: ProjectAccount): FormState {
-  // Legacy accounts (basic/oauth2/login) collapse into bearer.
   const kind: AccountKind = acc.kind === 'apikey' ? 'apikey' : 'bearer'
   return {
     ...empty(),

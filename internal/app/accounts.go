@@ -12,9 +12,6 @@ import (
 	"spectra-desktop/internal/domain"
 )
 
-// ProjectAccountDTO is the wire format exposed to the frontend. Secret
-// fields are never returned in clear text — the boolean *Set flags let the
-// UI know whether a value exists without leaking it.
 type ProjectAccountDTO struct {
 	ID                string            `json:"id"`
 	ProjectID         string            `json:"projectID"`
@@ -45,7 +42,6 @@ type ProjectAccountDTO struct {
 	UpdatedAt         time.Time         `json:"updatedAt"`
 }
 
-// OAuthConfigDTO mirrors auth.OAuth2Config without secrets.
 type OAuthConfigDTO struct {
 	GrantType    string   `json:"grantType"`
 	TokenURL     string   `json:"tokenUrl"`
@@ -56,9 +52,6 @@ type OAuthConfigDTO struct {
 	Username     string   `json:"username,omitempty"`
 }
 
-// SaveAccountInput accepts secrets in clear text — they are encrypted
-// before being persisted. To leave a secret unchanged on update, omit
-// the field; explicit empty string means "clear it".
 type SaveAccountInput struct {
 	ID                string                 `json:"id,omitempty"`
 	ProjectID         string                 `json:"projectID"`
@@ -85,7 +78,6 @@ type SaveAccountInput struct {
 	User              map[string]any         `json:"user,omitempty"`
 }
 
-// SaveOAuthInput is OAuthConfigDTO with the secret in clear text.
 type SaveOAuthInput struct {
 	GrantType    string   `json:"grantType"`
 	TokenURL     string   `json:"tokenUrl"`
@@ -96,8 +88,6 @@ type SaveOAuthInput struct {
 	Username     string   `json:"username,omitempty"`
 }
 
-// ListProjectAccounts returns all accounts for the project. On first call
-// it lazily migrates the legacy project_auth row into a "Default" account.
 func (a *App) ListProjectAccounts(projectID string) ([]ProjectAccountDTO, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project id required")
@@ -124,8 +114,6 @@ func (a *App) ListProjectAccounts(projectID string) ([]ProjectAccountDTO, error)
 	return out, nil
 }
 
-// SaveProjectAccount creates or updates an account. Secrets are encrypted
-// before being written. ID is generated when missing.
 func (a *App) SaveProjectAccount(input SaveAccountInput) (*ProjectAccountDTO, error) {
 	if a.accounts == nil || a.vault == nil {
 		return nil, fmt.Errorf("accounts subsystem not initialized")
@@ -235,8 +223,6 @@ func (a *App) SaveProjectAccount(input SaveAccountInput) (*ProjectAccountDTO, er
 			if err != nil {
 				return nil, err
 			}
-			// Stored alongside the JSON config; we keep it inside JSON so
-			// rotating a secret is a single column write.
 			cfg.ClientSecret = enc
 		} else if existing != nil && existing.OAuthConfigJSON != "" {
 			var prior authpkg.OAuth2Config
@@ -281,7 +267,6 @@ func (a *App) SaveProjectAccount(input SaveAccountInput) (*ProjectAccountDTO, er
 	return &dto, nil
 }
 
-// SetDefaultProjectAccount marks an account as the project's active default.
 func (a *App) SetDefaultProjectAccount(projectID, accountID string) error {
 	if a.accounts == nil {
 		return fmt.Errorf("accounts subsystem not initialized")
@@ -289,7 +274,6 @@ func (a *App) SetDefaultProjectAccount(projectID, accountID string) error {
 	return a.accounts.SetDefault(a.ctx, projectID, accountID)
 }
 
-// DeleteProjectAccount removes an account.
 func (a *App) DeleteProjectAccount(accountID string) error {
 	if a.accounts == nil {
 		return fmt.Errorf("accounts subsystem not initialized")
@@ -297,8 +281,6 @@ func (a *App) DeleteProjectAccount(accountID string) error {
 	return a.accounts.Delete(a.ctx, accountID)
 }
 
-// AccountSecretsDTO is returned to the UI only when the user explicitly
-// asks to auto-fill credentials. Never serialized in lists.
 type AccountSecretsDTO struct {
 	Username string `json:"username"`
 	Password string `json:"password,omitempty"`
@@ -306,8 +288,6 @@ type AccountSecretsDTO struct {
 	APIKey   string `json:"apiKey,omitempty"`
 }
 
-// GetAccountSecrets decrypts and returns the account's credentials. Used by
-// the Inspector to auto-fill login-endpoint bodies.
 func (a *App) GetAccountSecrets(accountID string) (*AccountSecretsDTO, error) {
 	if a.accounts == nil || a.vault == nil {
 		return nil, fmt.Errorf("accounts subsystem not initialized")
@@ -335,8 +315,6 @@ func (a *App) GetAccountSecrets(accountID string) (*AccountSecretsDTO, error) {
 	return out, nil
 }
 
-// GenerateAccountTOTP returns the current 6-digit code for the account's
-// TOTP secret. Useful for showing the code in the UI.
 func (a *App) GenerateAccountTOTP(accountID string) (string, error) {
 	if a.accounts == nil || a.vault == nil {
 		return "", fmt.Errorf("accounts subsystem not initialized")
@@ -352,7 +330,6 @@ func (a *App) GenerateAccountTOTP(accountID string) (string, error) {
 	return authpkg.GenerateTOTP(secret)
 }
 
-// RefreshAccountToken forces an OAuth2 token refresh for the account.
 func (a *App) RefreshAccountToken(accountID string) (*ProjectAccountDTO, error) {
 	if a.accounts == nil || a.authResolve == nil {
 		return nil, fmt.Errorf("accounts subsystem not initialized")
@@ -372,10 +349,6 @@ func (a *App) RefreshAccountToken(accountID string) (*ProjectAccountDTO, error) 
 	return &dto, nil
 }
 
-// injectAccountVars adds the active account's decrypted credentials to the
-// request's variable map so request bodies and headers can reference them
-// via {{account.username}}, {{account.password}}, {{account.token}},
-// {{account.totp}}.
 func (a *App) injectAccountVars(vars map[string]string, projectID, accountID string) {
 	if a.accounts == nil || a.vault == nil {
 		return
@@ -411,8 +384,6 @@ func (a *App) injectAccountVars(vars map[string]string, projectID, accountID str
 	}
 }
 
-// migrateLegacyAuth converts a pre-accounts project_auth row into a default
-// "Default" account. Returns true when a migration was performed.
 func (a *App) migrateLegacyAuth(projectID string) (bool, error) {
 	rec, err := a.auth.Get(a.ctx, projectID)
 	if err != nil || rec == nil {

@@ -16,6 +16,8 @@ export function DeleteCollection(arg1:string):Promise<void>;
 
 export function DeleteEnvironment(arg1:string):Promise<void>;
 
+export function DeleteMockOverride(arg1:string):Promise<void>;
+
 export function DeleteProject(arg1:string):Promise<void>;
 
 export function DeleteProjectAccount(arg1:string):Promise<void>;
@@ -92,6 +94,8 @@ export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryLi
 
 export function ListLastCollectionRuns(arg1:string):Promise<Record<string, app.CollectionRunDTO>>;
 
+export function ListMockOverrides(arg1:string):Promise<Array<app.MockOverrideDTO>>;
+
 export function ListProjectAccounts(arg1:string):Promise<Array<app.ProjectAccountDTO>>;
 
 export function ListProjects():Promise<Array<domain.Project>>;
@@ -101,6 +105,8 @@ export function ListScratchRequests(arg1:string):Promise<Array<app.ScratchReques
 export function ListSnapshots(arg1:string,arg2:number):Promise<Array<app.SnapshotSummary>>;
 
 export function MarkProjectSynced(arg1:string):Promise<void>;
+
+export function MockServerStatus():Promise<app.MockStatusDTO>;
 
 export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 
@@ -128,6 +134,8 @@ export function SaveEndpointTests(arg1:app.SaveTestsInput):Promise<void>;
 
 export function SaveEnvironment(arg1:app.SaveEnvironmentInput):Promise<app.EnvironmentDTO>;
 
+export function SaveMockOverride(arg1:app.SaveMockOverrideInput):Promise<app.MockOverrideDTO>;
+
 export function SaveOpenAPIToFile(arg1:string):Promise<string>;
 
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
@@ -151,6 +159,10 @@ export function SetActiveProjectID(arg1:string):Promise<void>;
 export function SetDefaultProjectAccount(arg1:string,arg2:string):Promise<void>;
 
 export function SetProjectAuthManual(arg1:app.SetProjectAuthInput):Promise<void>;
+
+export function StartMockServer(arg1:string,arg2:number):Promise<app.MockStatusDTO>;
+
+export function StopMockServer():Promise<void>;
 
 export function UpdateProjectAuthRoutes(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 

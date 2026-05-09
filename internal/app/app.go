@@ -18,6 +18,7 @@ import (
 
 	"spectra-desktop/internal/auth"
 	"spectra-desktop/internal/core"
+	"spectra-desktop/internal/mock"
 	"spectra-desktop/internal/domain"
 	"spectra-desktop/internal/drivers/laravel"
 	"spectra-desktop/internal/assertions"
@@ -43,6 +44,8 @@ type App struct {
 	endpoints domain.EndpointRepository
 	auth        domain.AuthRepository
 	accounts    domain.AccountRepository
+	mockRepo    domain.MockRepository
+	mock        *mock.Manager
 	vault       *secrets.Vault
 	authResolve *auth.Resolver
 	history   domain.HistoryRepository
@@ -81,6 +84,7 @@ func New() (*App, error) {
 		endpoints: repository.NewEndpointRepository(store.DB),
 		auth:      repository.NewAuthRepository(store.DB),
 		accounts:  repository.NewAccountRepository(store.DB),
+		mockRepo:  repository.NewMockRepository(store.DB),
 		history:   repository.NewHistoryRepository(store.DB),
 		envs:      repository.NewEnvironmentRepository(store.DB),
 		snapshots: repository.NewSnapshotRepository(store.DB),
@@ -107,6 +111,8 @@ func New() (*App, error) {
 		a.vault = vault
 		a.authResolve = auth.NewResolver(a.accounts, vault)
 	}
+
+	a.mock = mock.NewManager(a.endpoints, a.history, a.mockRepo, a.newWailsEventEmitter())
 
 	return a, nil
 }

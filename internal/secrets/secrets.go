@@ -1,13 +1,3 @@
-// Package secrets provides per-machine encryption for sensitive fields
-// stored in the local Spectra database (tokens, passwords, TOTP secrets).
-//
-// The encryption key is generated once and stored in the OS keychain via
-// go-keyring. If the keychain is unavailable, the key falls back to a file
-// in the user's config directory (with a permission warning logged).
-//
-// Encryption uses AES-256-GCM. Encrypted values are encoded as
-// "v1:" + base64(nonce || ciphertext) so that future versions can rotate
-// the algorithm without breaking existing rows.
 package secrets
 
 import (
@@ -39,12 +29,10 @@ var (
 	keyfileEnv = "SPECTRA_KEY_FILE"
 )
 
-// Vault encrypts and decrypts secret fields using a per-machine key.
 type Vault struct {
 	key []byte
 }
 
-// Default returns the process-wide vault, initializing it on first use.
 func Default() (*Vault, error) {
 	once.Do(func() {
 		cachedKey, cachedErr = loadOrCreateKey()
@@ -55,8 +43,6 @@ func Default() (*Vault, error) {
 	return &Vault{key: cachedKey}, nil
 }
 
-// MustDefault returns the default vault or panics. Only for startup paths
-// where running without a vault is unacceptable.
 func MustDefault() *Vault {
 	v, err := Default()
 	if err != nil {
@@ -65,8 +51,6 @@ func MustDefault() *Vault {
 	return v
 }
 
-// Encrypt seals plaintext with AES-GCM and returns a "v1:" envelope.
-// Empty input returns empty output (no envelope) so optional fields stay empty.
 func (v *Vault) Encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
@@ -87,15 +71,11 @@ func (v *Vault) Encrypt(plaintext string) (string, error) {
 	return envelopePrefix + base64.StdEncoding.EncodeToString(sealed), nil
 }
 
-// Decrypt opens a "v1:" envelope. Empty input returns empty output.
-// Values without the envelope prefix are returned as-is to support a
-// gradual migration from previously plain-text fields.
 func (v *Vault) Decrypt(envelope string) (string, error) {
 	if envelope == "" {
 		return "", nil
 	}
 	if !strings.HasPrefix(envelope, envelopePrefix) {
-		// Backwards-compatible passthrough for values stored before encryption.
 		return envelope, nil
 	}
 	raw, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(envelope, envelopePrefix))

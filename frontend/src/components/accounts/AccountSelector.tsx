@@ -23,15 +23,11 @@ const EMPTY_ACCOUNTS: ProjectAccount[] = []
 
 function hasUsableCreds(acc: ProjectAccount): boolean {
   if (acc.kind === 'apikey') return acc.hasApiKey
-  // Bearer + legacy kinds: usable if there is either a stored token or
-  // credentials we can run through the login endpoint.
   return acc.hasToken || acc.hasPassword
 }
 
 interface Props {
   projectId: string
-  // When provided, the selector applies a per-tab override instead of
-  // changing the project-wide active account.
   tabId?: string | null
 }
 

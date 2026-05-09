@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountsStore } from '@/store/accountsStore'
+import { useMockStore } from '@/store/mockStore'
 import { accountsService, type ProjectAccount } from '@/services/accountsService'
 import { useHistoryStore } from '@/store/historyStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
@@ -39,9 +40,6 @@ const EMPTY_ACCOUNT_LIST: ProjectAccount[] = []
 const USERNAME_KEYS = ['email', 'username', 'login', 'user', 'identifier']
 const PASSWORD_KEYS = ['password', 'pass', 'pwd', 'secret']
 
-// fillLoginBody replaces username/password values inside an existing JSON
-// body without altering its structure. When the body is empty or not JSON,
-// returns a default shape {email, password}.
 function fillLoginBody(current: string, username: string, password: string): string {
   const trimmed = current.trim()
   if (!trimmed) {
@@ -121,16 +119,17 @@ export function APIInspector() {
   const refreshAuth = useAuthStore((s) => s.refresh)
   const authState = useAuthStore((s) => (activeProjectId ? s.byProject[activeProjectId] : null))
   const setAuthDrawerOpen = useUIStore((s) => s.setAuthDrawerOpen)
-  // Account selection drives the auto-Authorization preview and the AccountID
-  // sent with each ExecuteRequest call. We subscribe to all three slices so
-  // the UI updates when the active account or per-tab override changes.
   const accountList = useAccountsStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNT_LIST : EMPTY_ACCOUNT_LIST,
   )
   const loadAccounts = useAccountsStore((s) => s.list)
+  const initMock = useMockStore((s) => s.init)
   useEffect(() => {
     if (activeProjectId) void loadAccounts(activeProjectId)
   }, [activeProjectId, loadAccounts])
+  useEffect(() => {
+    void initMock()
+  }, [initMock])
   const accountActiveByProject = useAccountsStore((s) =>
     activeProjectId ? s.activeByProject[activeProjectId] ?? null : null,
   )
@@ -370,18 +369,11 @@ export function APIInspector() {
     }
   }, [persistedHeadersForSelected])
 
-  // Auto-fill the login endpoint body with the active account's credentials.
-  // Triggers when:
-  //   - the selected endpoint matches the project's login route
-  //   - the active account is a login/basic kind and has credentials saved
-  // The fill replaces the value of any field that looks like an
-  // email/username/password key while leaving the structure untouched.
   const autoFillKeyRef = useRef<string>('')
   useEffect(() => {
     const loginId = project?.loginEndpointId ?? ''
     if (!selected || !loginId || selected.id !== loginId) return
     if (!activeAccount) return
-    // Any account kind with stored credentials can auto-fill the login body.
     if (activeAccount.kind === 'apikey') return
     if (!activeAccount.hasPassword) return
     const fingerprint = `${selected.id}::${activeAccount.id}::${activeAccount.updatedAt}`
@@ -498,6 +490,7 @@ export function APIInspector() {
       ? useAuthStore.getState().byProject[activeProjectId]?.tokenPreview ?? null
       : null
     const accountID = activeAccount?.id
+    const mockBaseURL = useMockStore.getState().resolveExecutionBaseURL(activeProjectId, '')
     void runner
       .execute({
         projectID: activeProjectId,
@@ -508,6 +501,7 @@ export function APIInspector() {
         headers: headerMap,
         body: requestBody,
         multipart: multipart.length > 0 ? multipart : undefined,
+        baseUrl: mockBaseURL || undefined,
       })
       .then(async () => {
         if (!activeProjectId) return
@@ -526,8 +520,6 @@ export function APIInspector() {
           } catch {}
         }
         await refreshCaptured(activeProjectId)
-        // Reload accounts so the active account picks up any token captured
-        // by the backend (e.g. after a successful login).
         await useAccountsStore.getState().list(activeProjectId, true)
       })
   }
@@ -550,6 +542,7 @@ export function APIInspector() {
       )
 
       const replayAccountID = activeAccount?.id
+      const replayBaseURL = useMockStore.getState().resolveExecutionBaseURL(activeProjectId, '')
       await runner.execute({
         projectID: activeProjectId,
         endpointID: selected.id,
@@ -558,6 +551,7 @@ export function APIInspector() {
         path: resolvedPath,
         headers: headerMap,
         body: detail.requestBody ?? '',
+        baseUrl: replayBaseURL || undefined,
       })
       await useHistoryStore.getState().refresh(activeProjectId)
       toast.success('Replayed')

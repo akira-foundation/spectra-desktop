@@ -9,6 +9,25 @@ import type { ScannedEndpoint } from '@/services/scannerService'
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
 const EMPTY_TABS: InspectorTab[] = []
 
+function tabLabel(ep: ScannedEndpoint | undefined, fallbackPath: string): string {
+  if (!ep) return fallbackPath
+  if (ep.name && ep.name.trim()) {
+    const last = ep.name.split('.').pop()
+    return last ?? ep.name
+  }
+  if (ep.handler && ep.handler.includes('@')) {
+    const action = ep.handler.split('@').pop()
+    if (action) return action
+  }
+  const segments = ep.path.split('/').filter(Boolean)
+  if (segments.length > 0) {
+    const last = segments[segments.length - 1]
+    if (last && !last.includes('{')) return last
+    if (segments.length > 1) return segments[segments.length - 2]
+  }
+  return fallbackPath
+}
+
 export function InspectorTabs() {
   const projectId = useProjectStore((s) => s.activeProjectId)
   const tabs = useUIStore((s) =>
@@ -36,6 +55,7 @@ export function InspectorTabs() {
         const active = tab.id === activeTabId
         const method = ep?.method ?? '—'
         const path = ep?.path ?? '(missing)'
+        const label = tabLabel(ep, path)
         return (
           <div
             key={tab.id}
@@ -62,7 +82,7 @@ export function InspectorTabs() {
             >
               {method}
             </span>
-            <span className="font-mono truncate flex-1 min-w-0">{path}</span>
+            <span className="truncate flex-1 min-w-0">{label}</span>
             <button
               type="button"
               onClick={(e) => {

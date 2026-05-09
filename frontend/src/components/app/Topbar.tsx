@@ -45,8 +45,6 @@ export function Topbar() {
   const projectAuth = useAuthStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? null : null,
   )
-  // Active-account user takes precedence over the legacy project_auth user
-  // so the topbar reflects whichever identity the Inspector is using.
   const accountList = useAccountsStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNTS : EMPTY_ACCOUNTS,
   )

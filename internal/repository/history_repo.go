@@ -85,6 +85,26 @@ func (r *HistoryRepository) GetByID(ctx context.Context, id string) (*domain.His
 	return &entry, nil
 }
 
+func (r *HistoryRepository) LatestSuccessByEndpoint(ctx context.Context, projectID, endpointID string) (*domain.HistoryEntry, error) {
+	var row model.RequestHistory
+	err := r.db.NewSelect().
+		Model(&row).
+		Where("project_id = ?", projectID).
+		Where("endpoint_id = ?", endpointID).
+		Where("response_status >= 200 AND response_status < 300").
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	entry := toHistoryDomain(row)
+	return &entry, nil
+}
+
 func (r *HistoryRepository) Clear(ctx context.Context, projectID string) error {
 	_, err := r.db.NewDelete().
 		Model((*model.RequestHistory)(nil)).

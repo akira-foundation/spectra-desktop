@@ -1029,6 +1029,96 @@ export namespace app {
 	
 	
 	
+	export class MockOverrideDTO {
+	    id: string;
+	    projectID: string;
+	    endpointId: string;
+	    enabled: boolean;
+	    status: number;
+	    latencyMs: number;
+	    body: string;
+	    headers?: Record<string, string>;
+	    source: string;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new MockOverrideDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.endpointId = source["endpointId"];
+	        this.enabled = source["enabled"];
+	        this.status = source["status"];
+	        this.latencyMs = source["latencyMs"];
+	        this.body = source["body"];
+	        this.headers = source["headers"];
+	        this.source = source["source"];
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MockStatusDTO {
+	    running: boolean;
+	    projectId?: string;
+	    port?: number;
+	    url?: string;
+	    // Go type: time
+	    startedAt?: any;
+	    requestCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MockStatusDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.running = source["running"];
+	        this.projectId = source["projectId"];
+	        this.port = source["port"];
+	        this.url = source["url"];
+	        this.startedAt = this.convertValues(source["startedAt"], null);
+	        this.requestCount = source["requestCount"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class OAuthConfigDTO {
 	    grantType: string;
@@ -1475,6 +1565,34 @@ export namespace app {
 	        this.name = source["name"];
 	        this.vars = source["vars"];
 	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class SaveMockOverrideInput {
+	    id?: string;
+	    projectID: string;
+	    endpointId: string;
+	    enabled: boolean;
+	    status?: number;
+	    latencyMs?: number;
+	    body?: string;
+	    headers?: Record<string, string>;
+	    source?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveMockOverrideInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.endpointId = source["endpointId"];
+	        this.enabled = source["enabled"];
+	        this.status = source["status"];
+	        this.latencyMs = source["latencyMs"];
+	        this.body = source["body"];
+	        this.headers = source["headers"];
+	        this.source = source["source"];
 	    }
 	}
 	

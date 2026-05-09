@@ -9,9 +9,7 @@ import {
 interface AccountsState {
   byProject: Record<string, ProjectAccount[]>
   loading: Record<string, boolean>
-  // Per-project active account (overrides server default in the UI).
   activeByProject: Record<string, string | null>
-  // Per-tab override: tab id -> account id.
   activeByTab: Record<string, string>
 
   list: (projectId: string, force?: boolean) => Promise<ProjectAccount[]>
@@ -46,7 +44,6 @@ export const useAccountsStore = create<AccountsState>()(
             byProject: { ...s.byProject, [projectId]: rows },
             loading: { ...s.loading, [projectId]: false },
           }))
-          // Seed active to default if not already chosen.
           if (!get().activeByProject[projectId]) {
             const def = rows.find((r) => r.isDefault) ?? rows[0]
             if (def) {

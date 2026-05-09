@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type PageType = 'inspector' | 'dashboard' | 'collections' | 'scratch' | 'accounts' | 'settings' | 'changelog'
+export type PageType = 'inspector' | 'dashboard' | 'collections' | 'scratch' | 'accounts' | 'mock' | 'settings' | 'changelog'
 
 export interface InspectorTab {
   id: string

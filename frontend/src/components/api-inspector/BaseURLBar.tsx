@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { CapturedValuesPopover } from "./CapturedValuesPopover";
 import { AccountSelector } from "@/components/accounts/AccountSelector";
+import { MockToggle } from "@/components/mock/MockToggle";
 import { useUIStore } from "@/store/uiStore";
 import { useCollectionsStore } from "@/store/collectionsStore";
 import { VarInput } from "./VarInput";
@@ -163,6 +164,7 @@ export function BaseURLBar() {
         </button>
       )}
 
+      <MockToggle projectId={project.id} />
       <AccountSelector projectId={project.id} tabId={activeTabId} />
       <EnvironmentSwitcher />
       <CapturedValuesPopover

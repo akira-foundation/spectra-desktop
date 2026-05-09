@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-// OAuth2Config holds the per-account OAuth2 settings serialized in the
-// account's oauth_config_json column.
 type OAuth2Config struct {
 	GrantType    string   `json:"grantType"`
 	TokenURL     string   `json:"tokenUrl"`
@@ -20,10 +18,9 @@ type OAuth2Config struct {
 	ClientSecret string   `json:"clientSecret"`
 	Scopes       []string `json:"scopes,omitempty"`
 	Audience     string   `json:"audience,omitempty"`
-	Username     string   `json:"username,omitempty"` // password grant
+	Username     string   `json:"username,omitempty"`
 }
 
-// OAuth2Token is the minimal token response we read from the provider.
 type OAuth2Token struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
@@ -32,8 +29,6 @@ type OAuth2Token struct {
 	ExpiresAt    time.Time `json:"-"`
 }
 
-// FetchOAuth2Token executes the configured grant and returns a fresh token.
-// Supports client_credentials and refresh_token (when refreshToken is non-empty).
 func FetchOAuth2Token(ctx context.Context, cfg OAuth2Config, refreshToken string, password string) (*OAuth2Token, error) {
 	if cfg.TokenURL == "" {
 		return nil, fmt.Errorf("oauth2: token URL is required")

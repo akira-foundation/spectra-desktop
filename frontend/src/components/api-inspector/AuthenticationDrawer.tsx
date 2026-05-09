@@ -35,7 +35,6 @@ export function AuthenticationDrawer(_props: AuthenticationDrawerProps) {
   )
   const refreshAuth = useAuthStore((s) => s.refresh)
   const clearAuth = useAuthStore((s) => s.clear)
-  // Active-account overrides the legacy project_auth view when present.
   const accountList = useAccountsStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNTS : EMPTY_ACCOUNTS,
   )
@@ -60,8 +59,6 @@ export function AuthenticationDrawer(_props: AuthenticationDrawerProps) {
     setPasting(true)
     try {
       if (activeAccount) {
-        // Write the pasted token into the active account, not the legacy
-        // project_auth row. This keeps multi-account state in sync.
         await saveAccount({
           id: activeAccount.id,
           projectID: activeProjectId,

@@ -12,8 +12,6 @@ import (
 	"spectra-desktop/internal/secrets"
 )
 
-// HeaderInjection describes a single header (and optional query parameter)
-// that should be applied to outgoing requests for an account.
 type HeaderInjection struct {
 	Header     string
 	Value      string
@@ -21,23 +19,15 @@ type HeaderInjection struct {
 	QueryValue string
 }
 
-// Resolver decrypts account secrets and produces the headers/query params
-// to inject into outgoing requests. It also refreshes OAuth2 tokens when
-// they are expired or close to expiring.
 type Resolver struct {
 	repo  domain.AccountRepository
 	vault *secrets.Vault
 }
 
-// NewResolver constructs a resolver. The repository is needed when
-// refresh paths persist updated tokens back to the database.
 func NewResolver(repo domain.AccountRepository, vault *secrets.Vault) *Resolver {
 	return &Resolver{repo: repo, vault: vault}
 }
 
-// Resolve returns the header injection for the given account, refreshing
-// the access token if the OAuth2 expiry has passed (or is within 30s).
-// Returns a zero HeaderInjection if the account has no usable credentials.
 func (r *Resolver) Resolve(ctx context.Context, acc *domain.ProjectAccount) (HeaderInjection, error) {
 	if acc == nil {
 		return HeaderInjection{}, nil
@@ -122,7 +112,6 @@ func (r *Resolver) oauth2(ctx context.Context, acc *domain.ProjectAccount) (Head
 			if token == "" {
 				return HeaderInjection{}, refreshErr
 			}
-			// Stale token still better than nothing for read-only inspection.
 		} else {
 			token = refreshed
 		}
@@ -186,9 +175,6 @@ func (r *Resolver) refreshOAuth2(ctx context.Context, acc *domain.ProjectAccount
 	return token.AccessToken, nil
 }
 
-// MergeTOTP injects the current TOTP code into a header or query parameter
-// based on the account's configuration. Returns an empty injection if the
-// account has no TOTP secret configured.
 func (r *Resolver) MergeTOTP(acc *domain.ProjectAccount) (HeaderInjection, error) {
 	if acc == nil || acc.TOTPSecretEnc == "" {
 		return HeaderInjection{}, nil
