@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Compass, LayoutDashboard, Layers, FileText, Settings, Search, PanelLeftClose, PanelLeftOpen, Terminal } from 'lucide-react'
+import { Compass, LayoutDashboard, Layers, FileText, Settings, Search, PanelLeftClose, PanelLeftOpen, Terminal, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CommandPalette() {
@@ -23,6 +23,8 @@ export function CommandPalette() {
   const setSelectedEndpoint = useUIStore((state) => state.setSelectedEndpoint)
   const endpointListCollapsed = useUIStore((state) => state.endpointListCollapsed)
   const setEndpointListCollapsed = useUIStore((state) => state.setEndpointListCollapsed)
+  const compactToolbar = useUIStore((state) => state.compactToolbar)
+  const setCompactToolbar = useUIStore((state) => state.setCompactToolbar)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const endpoints = useEndpointsStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_EP : EMPTY_EP,
@@ -172,6 +174,16 @@ export function CommandPalette() {
           >
             {endpointListCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             <span>Toggle sidebar</span>
+          </CommandItem>
+          <CommandItem
+            onSelect={() => {
+              setCompactToolbar(!compactToolbar)
+              close()
+            }}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>{compactToolbar ? 'Expand toolbar' : 'Compact toolbar'}</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘⇧T</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>

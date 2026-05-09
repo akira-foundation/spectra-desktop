@@ -41,6 +41,7 @@ export function AccountSelector({ projectId, tabId }: Props) {
     tabId ? s.activeByTab[tabId] : undefined,
   )
   const setCurrentPage = useUIStore((s) => s.setCurrentPage)
+  const compact = useUIStore((s) => s.compactToolbar)
 
   const [open, setOpen] = useState(false)
 
@@ -86,7 +87,9 @@ export function AccountSelector({ projectId, tabId }: Props) {
           <KeyRound className="w-3 h-3" />
           {active ? (
             <>
-              <span className="truncate max-w-[120px]">{active.label}</span>
+              {!compact && (
+                <span className="truncate max-w-[120px]">{active.label}</span>
+              )}
               {active.hasTotp && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
               {!hasUsableCreds(active) && (
                 <span
@@ -96,9 +99,9 @@ export function AccountSelector({ projectId, tabId }: Props) {
               )}
             </>
           ) : (
-            <span>No account</span>
+            !compact && <span>No account</span>
           )}
-          <ChevronsUpDown className="w-3 h-3 opacity-60" />
+          {!compact && <ChevronsUpDown className="w-3 h-3 opacity-60" />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[320px] p-0">

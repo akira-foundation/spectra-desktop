@@ -3,7 +3,6 @@ import { Topbar } from './Topbar'
 import { Sidebar } from './Sidebar'
 import { TabBar } from './TabBar'
 import { StatusBar } from './StatusBar'
-import { DrawerMenu } from './DrawerMenu'
 import { CommandPalette } from './CommandPalette'
 import { AddProjectDialog } from '@/components/projects/AddProjectDialog'
 import { AuthenticationDrawer } from '@/components/api-inspector/AuthenticationDrawer'
@@ -46,8 +45,6 @@ export function AppShell({ children }: AppShellProps) {
           activeMethod={activeAuthMethod}
           onMethodChange={setActiveAuthMethod}
         />
-        <DrawerMenu />
-
         <Topbar />
 
         <div className="flex flex-1 min-h-0 gap-2 px-2 pb-2 pt-0">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Trash2, Eye, EyeOff, Copy, Crosshair, Search } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { capturesService, type CapturedValue } from '@/services/capturesService'
+import { useUIStore } from '@/store/uiStore'
 import { cn } from '@/lib/utils'
 
 interface CapturedValuesPopoverProps {
@@ -14,6 +15,7 @@ export function CapturedValuesPopover({ projectId, values, onChange }: CapturedV
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
+  const compact = useUIStore((s) => s.compactToolbar)
 
   useEffect(() => {
     if (!open) {
@@ -72,7 +74,7 @@ export function CapturedValuesPopover({ projectId, values, onChange }: CapturedV
           )}
         >
           <Crosshair className="w-3 h-3" />
-          <span>Captures</span>
+          {!compact && <span>Captures</span>}
           <span className="font-mono text-[10.5px] tabular-nums text-muted-foreground">
             {values.length}
           </span>

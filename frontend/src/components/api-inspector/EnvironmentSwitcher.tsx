@@ -50,6 +50,7 @@ export function EnvironmentSwitcher() {
 
   const editingEnvId = useUIStore((s) => s.editingEnvId)
   const setEditingEnvId = useUIStore((s) => s.setEditingEnvId)
+  const compact = useUIStore((s) => s.compactToolbar)
   useEffect(() => {
     if (!editingEnvId) return
     const env = envs.find((e) => e.id === editingEnvId)
@@ -93,10 +94,12 @@ export function EnvironmentSwitcher() {
             title="Switch environment"
           >
             <Layers className="w-3 h-3" />
-            <span className="truncate max-w-[120px]">
-              {active ? active.name : 'No environment'}
-            </span>
-            <ChevronsUpDown className="w-3 h-3 opacity-60" />
+            {!compact && (
+              <span className="truncate max-w-[120px]">
+                {active ? active.name : 'No environment'}
+              </span>
+            )}
+            {!compact && <ChevronsUpDown className="w-3 h-3 opacity-60" />}
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-[240px] p-1">

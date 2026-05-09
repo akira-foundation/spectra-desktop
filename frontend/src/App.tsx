@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { useUIStore } from '@/store/uiStore'
+import { useMenuShortcuts } from '@/hooks/useMenuShortcuts'
 import { AppShell } from '@/components/app/AppShell'
 import { Dashboard } from '@/components/pages/Dashboard'
 import { APIInspector } from '@/components/pages/APIInspector'
@@ -23,6 +24,8 @@ function App() {
   useEffect(() => {
     void loadFromStorage()
   }, [loadFromStorage])
+
+  useMenuShortcuts()
 
   return (
     <AppShell>

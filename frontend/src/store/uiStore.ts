@@ -32,6 +32,8 @@ export interface UIState {
   setInspectorPending: (p: UIState['inspectorPending']) => void
   endpointListCollapsed: boolean
   setEndpointListCollapsed: (v: boolean) => void
+  compactToolbar: boolean
+  setCompactToolbar: (v: boolean) => void
   pendingCurl: {
     method: string
     url: string
@@ -172,6 +174,8 @@ export const useUIStore = create<UIState>()(
       setInspectorPending: (p) => set({ inspectorPending: p }),
       endpointListCollapsed: false,
       setEndpointListCollapsed: (v) => set({ endpointListCollapsed: v }),
+      compactToolbar: false,
+      setCompactToolbar: (v) => set({ compactToolbar: v }),
       pendingCurl: null,
       setPendingCurl: (c) => set({ pendingCurl: c }),
       navBack: [],
@@ -299,6 +303,7 @@ export const useUIStore = create<UIState>()(
         groupOrderByProject: state.groupOrderByProject,
         inspectorTabsByProject: state.inspectorTabsByProject,
         activeInspectorTabByProject: state.activeInspectorTabByProject,
+        compactToolbar: state.compactToolbar,
       }),
       version: 1,
     },

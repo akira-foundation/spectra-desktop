@@ -219,6 +219,7 @@ function AuthRoutesPopover({
     setPathDraft(loginTokenPath);
   }, [loginEndpointId, logoutEndpointId, loginTokenPath, projectId]);
 
+  const compact = useUIStore((s) => s.compactToolbar);
   const writeEndpoints = useMemo(
     () =>
       endpoints.filter((e) => {
@@ -252,7 +253,7 @@ function AuthRoutesPopover({
           title="Configure auth routes"
         >
           <Settings2 className="w-3 h-3" />
-          <span>Auth routes</span>
+          {!compact && <span>Auth routes</span>}
           {configured && (
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           )}
@@ -416,6 +417,7 @@ function RouteSelect({
 function CollectionsButton() {
   const projectId = useProjectStore((s) => s.activeProjectId);
   const setCurrentPage = useUIStore((s) => s.setCurrentPage);
+  const compact = useUIStore((s) => s.compactToolbar);
   const count = useCollectionsStore((s) =>
     projectId ? (s.byProject[projectId]?.length ?? 0) : 0,
   );
@@ -424,10 +426,10 @@ function CollectionsButton() {
       type="button"
       onClick={() => setCurrentPage("collections")}
       className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-border/50 bg-card text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
-      title="Open Collections page"
+      title={`Collections (${count})`}
     >
       <FolderKanban className="w-3 h-3" />
-      <span>Collections</span>
+      {!compact && <span>Collections</span>}
       <span className="font-mono text-[10.5px] tabular-nums text-muted-foreground">
         {count}
       </span>
