@@ -395,10 +395,8 @@ function CollectionDetail({
           className="h-7 px-3 gap-1.5 text-[11.5px]"
           onClick={async () => {
             try {
-              const path = await collectionsService.exportToFile(collection.id)
-              if (path) console.log('[export] saved to:', path)
+              await collectionsService.exportToFile(collection.id)
             } catch (err) {
-              console.error('[export] failed:', err)
               alert(`Export failed: ${(err as Error).message ?? err}`)
             }
           }}

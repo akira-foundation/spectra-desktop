@@ -52,12 +52,9 @@ export const syncService = {
     }
   },
 
-  async installSDK(projectPath: string, framework: string): Promise<void> {
+  async installSDK(_projectPath: string, _framework: string): Promise<void> {
     return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`SDK installed for ${framework} at ${projectPath}`)
-        resolve()
-      }, 800)
+      setTimeout(resolve, 800)
     })
   },
 }
