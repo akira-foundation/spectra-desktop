@@ -105,7 +105,7 @@ export function ResponsePanel({
             <TabsTrigger
               key={t.v}
               value={t.v}
-              className="text-[11.5px] px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
+              className="text-[11.5px] px-0 h-full rounded-none bg-transparent border-0 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent dark:data-[state=active]:border-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground"
             >
               {t.label}
             </TabsTrigger>
