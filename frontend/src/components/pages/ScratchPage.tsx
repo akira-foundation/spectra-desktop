@@ -6,11 +6,18 @@ import { Button } from '@/components/ui/button'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { useProjectStore } from '@/store/projectStore'
 import { runnerService } from '@/services/runnerService'
-import { JsonEditor } from '@/components/api-inspector/JsonEditor'
 import { BodyEditor } from '@/components/api-inspector/BodyEditor'
 import { CurlImportDialog } from '@/components/api-inspector/CurlImportDialog'
 import { HARImportDialog } from '@/components/api-inspector/HARImportDialog'
 import { HeadersEditor, type HeaderRow } from '@/components/api-inspector/HeadersEditor'
+import {
+  TimelineStrip,
+  ExceptionPanel,
+  ResponseBodyView,
+  HeadersList,
+  type TimelineData,
+} from '@/components/api-inspector/response'
+import { formatBody } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 interface ScratchRequest {
@@ -25,6 +32,7 @@ interface ScratchRequest {
     body: string
     headers: Record<string, string[]>
     durationMs: number
+    timeline?: TimelineData | null
   } | null
 }
 
@@ -148,6 +156,7 @@ export function ScratchPage() {
           body: result.body ?? '',
           headers: result.headers ?? {},
           durationMs: result.durationMs ?? 0,
+          timeline: result.timeline ?? null,
         },
       })
     } catch (err) {
@@ -256,6 +265,7 @@ export function ScratchPage() {
             onChange={(patch) => update(active.id, patch)}
             onRun={run}
             running={running}
+            projectId={projectId ?? null}
           />
         )}
       </main>
@@ -326,11 +336,13 @@ function ScratchEditor({
   onChange,
   onRun,
   running,
+  projectId,
 }: {
   value: ScratchRequest
   onChange: (patch: Partial<ScratchRequest>) => void
   onRun: () => void
   running: boolean
+  projectId: string | null
 }) {
   const setHeader = (idx: number, patch: Partial<HeaderRow>) => {
     const next = value.headers.map((h, i) => (i === idx ? { ...h, ...patch } : h))
@@ -403,6 +415,14 @@ function ScratchEditor({
         </section>
 
         <section className="flex flex-col min-h-0">
+          {value.response?.timeline && <TimelineStrip timeline={value.response.timeline} />}
+          {value.response && value.response.status >= 400 && value.response.body && (
+            <ExceptionPanel
+              projectId={projectId}
+              body={formatBody(value.response.body)}
+              status={value.response.status}
+            />
+          )}
           <Tabs defaultValue="json" className="flex-1 flex flex-col min-h-0">
             <TabsList className="w-full justify-between border-b border-border/40 rounded-none bg-transparent px-3 h-8 py-0">
               <div className="flex items-center gap-4">
@@ -435,40 +455,11 @@ function ScratchEditor({
                   Run to see response
                 </p>
               ) : (
-                <JsonEditor value={prettyJson(value.response.body)} onChange={() => undefined} readOnly />
+                <ResponseBodyView raw={value.response.body} />
               )}
             </TabsContent>
             <TabsContent value="rheaders" className="flex-1 p-0 overflow-auto mt-0">
-              {!value.response || Object.keys(value.response.headers).length === 0 ? (
-                <p className="text-[11px] italic text-muted-foreground/60 text-center py-4">No response headers.</p>
-              ) : (
-                <ul className="m-0 p-0 list-none divide-y divide-border/20">
-                  {Object.entries(value.response.headers).map(([k, v]) => {
-                    const important = isImportantHeader(k)
-                    return (
-                      <li key={k} className="grid grid-cols-[140px_1fr] gap-3 px-3 py-1.5 hover:bg-accent/20">
-                        <code
-                          className={cn(
-                            'text-[10.5px] font-mono truncate',
-                            important ? 'text-foreground font-semibold' : 'text-foreground/70',
-                          )}
-                          title={k}
-                        >
-                          {k}
-                        </code>
-                        <code
-                          className={cn(
-                            'text-[10.5px] font-mono break-all',
-                            important ? 'text-foreground/90' : 'text-muted-foreground',
-                          )}
-                        >
-                          {Array.isArray(v) ? v.join(', ') : String(v)}
-                        </code>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+              <HeadersList headers={value.response?.headers} highlightImportant />
             </TabsContent>
           </Tabs>
         </section>
@@ -477,28 +468,3 @@ function ScratchEditor({
   )
 }
 
-function prettyJson(raw: string): string {
-  if (!raw) return ''
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
-  } catch {
-    return raw
-  }
-}
-
-const IMPORTANT_HEADERS = new Set([
-  'content-type',
-  'authorization',
-  'set-cookie',
-  'cookie',
-  'cache-control',
-  'location',
-  'www-authenticate',
-  'x-request-id',
-  'x-csrf-token',
-  'etag',
-])
-
-function isImportantHeader(name: string): boolean {
-  return IMPORTANT_HEADERS.has(name.toLowerCase())
-}
