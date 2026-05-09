@@ -31,22 +31,12 @@ export function BodyEditor({
   noBodyOverride,
 }: Props) {
   const [mode, setMode] = useState<'json' | 'form' | 'multipart'>('json')
+  const formattedRef = useRef<string | null>(null)
   const isNoBody =
     !noBodyOverride && method !== undefined && method !== null && NO_BODY_METHODS.has(method.toUpperCase())
 
-  if (isNoBody) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8 gap-2">
-        <p className="text-[12.5px] font-medium text-foreground/85">No body needed</p>
-        <p className="text-[11px] text-muted-foreground max-w-xs leading-relaxed">
-          {(method ?? '').toUpperCase()} requests don&apos;t typically carry a payload.
-        </p>
-      </div>
-    )
-  }
-
-  const formattedRef = useRef<string | null>(null)
   useEffect(() => {
+    if (isNoBody) return
     if (mode !== 'json') return
     const trimmed = body.trim()
     if (!trimmed) return
@@ -59,7 +49,18 @@ export function BodyEditor({
         onBodyChange(pretty)
       }
     } catch {}
-  }, [body, mode, onBodyChange])
+  }, [body, mode, onBodyChange, isNoBody])
+
+  if (isNoBody) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8 gap-2">
+        <p className="text-[12.5px] font-medium text-foreground/85">No body needed</p>
+        <p className="text-[11px] text-muted-foreground max-w-xs leading-relaxed">
+          {(method ?? '').toUpperCase()} requests don&apos;t typically carry a payload.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <>
