@@ -492,6 +492,7 @@ export function APIInspector() {
               <RequestPanel
                 method={selected.method}
                 projectId={activeProjectId}
+                endpointId={selected.id}
                 endpointPath={selected.path}
                 testResults={lastTestResults}
                 responseBody={runner.response?.body ?? historySampleBody}

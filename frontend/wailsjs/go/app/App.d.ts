@@ -28,9 +28,13 @@ export function ExecuteRequest(arg1:app.ExecuteRequestInput):Promise<httpclient.
 
 export function ExportOpenAPI(arg1:string):Promise<string>;
 
+export function GenerateDatasetRows(arg1:string,arg2:number):Promise<string>;
+
 export function GetActiveProjectID():Promise<string>;
 
 export function GetDashboardMetrics(arg1:string,arg2:number):Promise<app.DashboardMetrics>;
+
+export function GetEndpointDataset(arg1:string,arg2:string):Promise<string>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
 
@@ -74,9 +78,13 @@ export function RegenerateExampleBody(arg1:string):Promise<string>;
 
 export function RunCollection(arg1:string):Promise<app.CollectionRunDTO>;
 
+export function RunEndpointDataset(arg1:string,arg2:string):Promise<app.DatasetRunDTO>;
+
 export function SaveCollection(arg1:app.SaveCollectionInput):Promise<app.CollectionDTO>;
 
 export function SaveEndpointCaptures(arg1:app.SaveCapturesInput):Promise<void>;
+
+export function SaveEndpointDataset(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SaveEndpointTests(arg1:app.SaveTestsInput):Promise<void>;
 

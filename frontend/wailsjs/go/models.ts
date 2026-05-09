@@ -48,6 +48,7 @@ export namespace app {
 	    bodyOverride?: string;
 	    headersOverride?: string;
 	    skipOnFailure?: boolean;
+	    iterateDataset?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new CollectionItemDTO(source);
@@ -60,6 +61,7 @@ export namespace app {
 	        this.bodyOverride = source["bodyOverride"];
 	        this.headersOverride = source["headersOverride"];
 	        this.skipOnFailure = source["skipOnFailure"];
+	        this.iterateDataset = source["iterateDataset"];
 	    }
 	}
 	export class CollectionDTO {
@@ -312,6 +314,66 @@ export namespace app {
 	        this.topSlow = this.convertValues(source["topSlow"], EndpointMetricDTO);
 	        this.topFailing = this.convertValues(source["topFailing"], EndpointMetricDTO);
 	        this.topUsed = this.convertValues(source["topUsed"], EndpointMetricDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DatasetRowResultDTO {
+	    index: number;
+	    status: number;
+	    durationMs: number;
+	    pass: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DatasetRowResultDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.status = source["status"];
+	        this.durationMs = source["durationMs"];
+	        this.pass = source["pass"];
+	        this.error = source["error"];
+	    }
+	}
+	export class DatasetRunDTO {
+	    endpointKey: string;
+	    total: number;
+	    passCount: number;
+	    failCount: number;
+	    durationMs: number;
+	    rows: DatasetRowResultDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DatasetRunDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointKey = source["endpointKey"];
+	        this.total = source["total"];
+	        this.passCount = source["passCount"];
+	        this.failCount = source["failCount"];
+	        this.durationMs = source["durationMs"];
+	        this.rows = this.convertValues(source["rows"], DatasetRowResultDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Play, X, Loader2, Check, AlertTriangle, GripVertical, FolderKanban, ChevronRight, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Play, X, Loader2, Check, AlertTriangle, GripVertical, FolderKanban, ChevronRight, ExternalLink, Repeat, Database, Sparkles } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { useCollectionsStore } from '@/store/collectionsStore'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { useUIStore } from '@/store/uiStore'
@@ -10,10 +10,12 @@ import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { collectionsService, type Collection, type CollectionRun } from '@/services/collectionsService'
+import { datasetsService } from '@/services/datasetsService'
 import { cn } from '@/lib/utils'
 
 const EMPTY_COLLECTIONS: Collection[] = []
 const EMPTY_ENDPOINTS: any[] = []
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH'])
 
 export function CollectionsPage() {
   const projectId = useProjectStore((s) => s.activeProjectId)
@@ -281,6 +283,7 @@ function CollectionDetail({
   const [description, setDescription] = useState(collection.description ?? '')
   const [items, setItems] = useState(collection.items ?? [])
   const [picker, setPicker] = useState(false)
+  const [datasetFor, setDatasetFor] = useState<{ index: number; endpointId: string; method: string; path: string } | null>(null)
   const { getMethodColor } = useHttpMethod()
 
   useEffect(() => {
@@ -326,6 +329,10 @@ function CollectionDetail({
   }
 
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx))
+
+  const toggleIterate = (idx: number) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, iterateDataset: !it.iterateDataset } : it)))
+  }
 
   const move = (from: number, to: number) => {
     setItems((prev) => {
@@ -400,6 +407,22 @@ function CollectionDetail({
                     <span className="text-[11px] font-mono text-foreground/85 truncate flex-1">
                       {ep?.path ?? <span className="italic text-muted-foreground">missing endpoint</span>}
                     </span>
+                    {ep && BODY_METHODS.has(ep.method.toUpperCase()) && (
+                      <button
+                        type="button"
+                        onClick={() => setDatasetFor({ index: idx, endpointId: it.endpointID, method: ep.method, path: ep.path })}
+                        title={it.iterateDataset ? 'Dataset active — configure' : 'Configure dataset'}
+                        className={cn(
+                          'inline-flex items-center gap-1 h-5 px-1.5 rounded text-[9.5px] font-mono transition-colors shrink-0',
+                          it.iterateDataset
+                            ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                            : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-accent/60 border border-border/40',
+                        )}
+                      >
+                        <Database className="w-3 h-3" />
+                        dataset
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => removeItem(idx)}
@@ -423,6 +446,17 @@ function CollectionDetail({
                 <span className="ml-2">Add request</span>
               </button>
             </div>
+          )}
+          {datasetFor && (
+            <DatasetDialog
+              projectId={projectId}
+              endpointId={datasetFor.endpointId}
+              method={datasetFor.method}
+              path={datasetFor.path}
+              iterating={!!items[datasetFor.index]?.iterateDataset}
+              onToggleIterate={() => toggleIterate(datasetFor.index)}
+              onClose={() => setDatasetFor(null)}
+            />
           )}
           {picker && (
             <EndpointPicker
@@ -602,6 +636,268 @@ function RunRow({
             </ul>
           )}
         </div>
+      )}
+    </li>
+  )
+}
+
+function Switch({
+  checked,
+  onCheckedChange,
+  label,
+}: {
+  checked: boolean
+  onCheckedChange: (v: boolean) => void
+  label?: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onCheckedChange(!checked)}
+      className="inline-flex items-center gap-2 group"
+    >
+      <span
+        className={cn(
+          'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+          checked ? 'bg-emerald-500' : 'bg-muted',
+        )}
+      >
+        <span
+          className={cn(
+            'inline-block h-3 w-3 transform rounded-full bg-background shadow transition-transform',
+            checked ? 'translate-x-3.5' : 'translate-x-0.5',
+          )}
+        />
+      </span>
+      {label && (
+        <span className={cn('text-[10.5px]', checked ? 'text-emerald-500' : 'text-muted-foreground')}>
+          {label}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function DatasetDialog({
+  projectId,
+  endpointId,
+  method,
+  path,
+  iterating,
+  onToggleIterate,
+  onClose,
+}: {
+  projectId: string
+  endpointId: string
+  method: string
+  path: string
+  iterating: boolean
+  onToggleIterate: () => void
+  onClose: () => void
+}) {
+  const endpointKey = `${method.toUpperCase()} ${path}`
+  const [rows, setRows] = useState<unknown[]>([])
+  const [count, setCount] = useState(10)
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    void datasetsService.get(projectId, endpointKey).then((r) => {
+      setRows(r)
+      if (r.length > 0) setCount(r.length)
+      setLoading(false)
+    })
+  }, [projectId, endpointKey])
+
+  const persist = async (next: unknown[]) => {
+    setRows(next)
+    await datasetsService.save(projectId, endpointKey, next)
+  }
+
+  const generate = async () => {
+    setGenerating(true)
+    try {
+      const next = await datasetsService.generate(endpointId, count)
+      await persist(next)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const removeRow = async (i: number) => {
+    await persist(rows.filter((_, idx) => idx !== i))
+  }
+
+  const updateRow = async (i: number, value: string) => {
+    try {
+      const parsed = JSON.parse(value)
+      await persist(rows.map((r, idx) => (idx === i ? parsed : r)))
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  const [expanded, setExpanded] = useState<number | null>(null)
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b border-border/40">
+          <DialogTitle className="text-base">Dataset</DialogTitle>
+          <DialogDescription className="text-[12.5px]">
+            Run this request multiple times with different payloads generated from the schema.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="rounded-md border border-border/60 bg-card/40 p-3 flex items-center gap-3">
+            <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500 shrink-0">
+              <Database className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">Endpoint</p>
+              <code className="text-[11.5px] font-mono text-foreground/85 truncate block">{endpointKey}</code>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Switch checked={iterating} onCheckedChange={onToggleIterate} />
+              <span className={cn('text-[10px] font-medium', iterating ? 'text-emerald-500' : 'text-muted-foreground')}>
+                {iterating ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/60 bg-card/40">
+            <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
+              <Sparkles className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">Payloads</span>
+              <span className="text-[10px] font-mono text-muted-foreground/60 tabular-nums">{rows.length}</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  value={count}
+                  min={1}
+                  max={500}
+                  onChange={(e) => setCount(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+                  className="h-7 w-14 text-[11px] font-mono text-center"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2.5 text-[10.5px] gap-1.5"
+                  onClick={generate}
+                  disabled={generating}
+                >
+                  {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-emerald-500" />}
+                  Generate
+                </Button>
+                {rows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => void persist([])}
+                    className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive ml-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            {loading ? (
+              <p className="px-4 py-8 text-[11px] italic text-muted-foreground/70 text-center">Loading…</p>
+            ) : rows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-8 text-center">
+                <Sparkles className="w-5 h-5 text-muted-foreground/40" />
+                <p className="text-[11.5px] text-muted-foreground/70">
+                  No payloads yet. Set a count and click Generate.
+                </p>
+              </div>
+            ) : (
+              <ul className="m-0 p-0 list-none divide-y divide-border/20 max-h-96 overflow-y-auto">
+                {rows.map((row, i) => (
+                  <DatasetRow
+                    key={i}
+                    index={i}
+                    row={row}
+                    expanded={expanded === i}
+                    onToggle={() => setExpanded((e) => (e === i ? null : i))}
+                    onUpdate={(v) => void updateRow(i, v)}
+                    onRemove={() => void removeRow(i)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="px-6 py-3 shrink-0 border-t border-border/40">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DatasetRow({
+  index,
+  row,
+  expanded,
+  onToggle,
+  onUpdate,
+  onRemove,
+}: {
+  index: number
+  row: any
+  expanded: boolean
+  onToggle: () => void
+  onUpdate: (v: string) => void
+  onRemove: () => void
+}) {
+  const summary = useMemo(() => {
+    if (!row || typeof row !== 'object') return JSON.stringify(row)
+    const entries = Object.entries(row).slice(0, 3)
+    return entries
+      .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+      .join(' · ')
+  }, [row])
+
+  return (
+    <li className="group">
+      <div
+        className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent/20 cursor-pointer"
+        onClick={onToggle}
+      >
+        <ChevronRight
+          className={cn(
+            'w-3 h-3 text-muted-foreground/60 shrink-0 transition-transform',
+            expanded && 'rotate-90',
+          )}
+        />
+        <span className="text-[10px] font-mono text-muted-foreground tabular-nums w-6 shrink-0">
+          #{index + 1}
+        </span>
+        <span className="text-[11px] font-mono text-foreground/75 truncate flex-1">{summary}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
+          className="opacity-0 group-hover:opacity-100 inline-flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+      {expanded && (
+        <textarea
+          defaultValue={JSON.stringify(row, null, 2)}
+          onBlur={(e) => onUpdate(e.target.value)}
+          spellCheck={false}
+          className="w-full bg-input/20 text-[11px] font-mono px-3 py-2 outline-none resize-y min-h-[120px] max-h-72 border-t border-border/20"
+        />
       )}
     </li>
   )

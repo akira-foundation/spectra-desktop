@@ -145,6 +145,10 @@ func (r *CollectionRepository) ReplaceItems(ctx context.Context, collectionID st
 			if it.SkipOnFailure {
 				skip = 1
 			}
+			iter := 0
+			if it.IterateDataset {
+				iter = 1
+			}
 			rows = append(rows, model.CollectionItem{
 				ID:              id,
 				CollectionID:    collectionID,
@@ -153,6 +157,7 @@ func (r *CollectionRepository) ReplaceItems(ctx context.Context, collectionID st
 				BodyOverride:    it.BodyOverride,
 				HeadersOverride: it.HeadersOverride,
 				SkipOnFailure:   skip,
+				IterateDataset:  iter,
 				CreatedAt:       now,
 				UpdatedAt:       now,
 			})
@@ -183,6 +188,7 @@ func toCollectionItemDomain(row model.CollectionItem) domain.CollectionItem {
 		BodyOverride:    row.BodyOverride,
 		HeadersOverride: row.HeadersOverride,
 		SkipOnFailure:   row.SkipOnFailure != 0,
+		IterateDataset:  row.IterateDataset != 0,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 	}

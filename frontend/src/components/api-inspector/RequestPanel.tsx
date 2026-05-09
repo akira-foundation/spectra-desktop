@@ -40,6 +40,7 @@ interface RequestPanelProps {
   variables?: Record<string, string>
   scope?: string
   projectId?: string | null
+  endpointId?: string | null
   endpointPath?: string | null
   testResults?: TestResult[]
   responseBody?: string
@@ -72,6 +73,7 @@ export function RequestPanel({
   executing = false,
   variables,
   projectId,
+  endpointId,
   endpointPath,
   testResults,
   responseBody,

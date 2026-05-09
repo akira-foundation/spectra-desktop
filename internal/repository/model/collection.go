@@ -28,6 +28,7 @@ type CollectionItem struct {
 	BodyOverride    string    `bun:"body_override,notnull"`
 	HeadersOverride string    `bun:"headers_override,notnull"`
 	SkipOnFailure   int       `bun:"skip_on_failure,notnull"`
+	IterateDataset  int       `bun:"iterate_dataset,notnull"`
 	CreatedAt       time.Time `bun:"created_at,notnull"`
 	UpdatedAt       time.Time `bun:"updated_at,notnull"`
 }

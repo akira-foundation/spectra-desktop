@@ -46,6 +46,7 @@ type App struct {
 	captures  domain.CaptureRepository
 	captured  *capturedStore
 	collections domain.CollectionRepository
+	datasets  *repository.DatasetRepository
 	metrics   *repository.MetricsRepository
 	http      *httpclient.Client
 	watcher   *watcher.Watcher
@@ -78,6 +79,7 @@ func New() (*App, error) {
 		tests:     repository.NewTestRepository(store.DB),
 		captures:  repository.NewCaptureRepository(store.DB),
 		collections: repository.NewCollectionRepository(store.DB),
+		datasets:  repository.NewDatasetRepository(store.DB),
 		metrics:   repository.NewMetricsRepository(store.DB),
 		http:      httpclient.New(),
 		watcher:   watcher.New(),
@@ -1625,6 +1627,7 @@ type CollectionItemDTO struct {
 	BodyOverride    string `json:"bodyOverride,omitempty"`
 	HeadersOverride string `json:"headersOverride,omitempty"`
 	SkipOnFailure   bool   `json:"skipOnFailure,omitempty"`
+	IterateDataset  bool   `json:"iterateDataset,omitempty"`
 }
 
 type CollectionDTO struct {
@@ -1714,6 +1717,7 @@ func (a *App) SaveCollection(input SaveCollectionInput) (*CollectionDTO, error) 
 			BodyOverride:    it.BodyOverride,
 			HeadersOverride: it.HeadersOverride,
 			SkipOnFailure:   it.SkipOnFailure,
+			IterateDataset:  it.IterateDataset,
 		})
 	}
 	if err := a.collections.ReplaceItems(a.ctx, c.ID, items); err != nil {
@@ -1796,58 +1800,77 @@ func (a *App) RunCollection(id string) (*CollectionRunDTO, error) {
 		if it.HeadersOverride != "" {
 			_ = json.Unmarshal([]byte(it.HeadersOverride), &headers)
 		}
-		body := it.BodyOverride
-		input := ExecuteRequestInput{
-			ProjectID:  c.ProjectID,
-			EndpointID: ep.ID,
-			Method:     string(ep.Method),
-			Path:       ep.Path,
-			Headers:    headers,
-			Body:       body,
-		}
-		resp, sendErr := a.ExecuteRequest(input)
-		item := CollectionRunItemDTO{
-			EndpointID: ep.ID,
-			Method:     string(ep.Method),
-			Path:       ep.Path,
-		}
-		if sendErr != nil {
-			item.Error = sendErr.Error()
-			item.Pass = false
-		} else if resp != nil {
-			item.Status = resp.Status
-			item.DurationMs = int(resp.DurationMs)
-			results := a.runTestsForRequest(input, resp)
-			passed := true
-			for _, r := range results {
-				item.TestResults = append(item.TestResults, TestResultDTO{
-					ID:      r.ID,
-					Name:    r.Name,
-					Kind:    r.Kind,
-					Pass:    r.Pass,
-					Message: r.Message,
-				})
-				if !r.Pass {
-					passed = false
+		bodies := []string{it.BodyOverride}
+		if it.IterateDataset {
+			rowsJSON, derr := a.datasets.Get(a.ctx, c.ProjectID, endpointTestKey(string(ep.Method), ep.Path))
+			if derr == nil {
+				var rows []json.RawMessage
+				if json.Unmarshal([]byte(rowsJSON), &rows) == nil && len(rows) > 0 {
+					bodies = make([]string, 0, len(rows))
+					for _, r := range rows {
+						bodies = append(bodies, string(r))
+					}
 				}
 			}
-			item.Pass = passed && resp.Status < 400
 		}
-		if item.Pass {
-			run.PassCount++
-		} else {
-			run.FailCount++
-			if it.SkipOnFailure {
-				skipRest = true
+		anyFailed := false
+		for bIdx, body := range bodies {
+			input := ExecuteRequestInput{
+				ProjectID:  c.ProjectID,
+				EndpointID: ep.ID,
+				Method:     string(ep.Method),
+				Path:       ep.Path,
+				Headers:    headers,
+				Body:       body,
 			}
+			resp, sendErr := a.ExecuteRequest(input)
+			item := CollectionRunItemDTO{
+				EndpointID: ep.ID,
+				Method:     string(ep.Method),
+				Path:       ep.Path,
+			}
+			if len(bodies) > 1 {
+				item.Path = fmt.Sprintf("%s [#%d]", ep.Path, bIdx+1)
+			}
+			if sendErr != nil {
+				item.Error = sendErr.Error()
+				item.Pass = false
+			} else if resp != nil {
+				item.Status = resp.Status
+				item.DurationMs = int(resp.DurationMs)
+				results := a.runTestsForRequest(input, resp)
+				passed := true
+				for _, r := range results {
+					item.TestResults = append(item.TestResults, TestResultDTO{
+						ID:      r.ID,
+						Name:    r.Name,
+						Kind:    r.Kind,
+						Pass:    r.Pass,
+						Message: r.Message,
+					})
+					if !r.Pass {
+						passed = false
+					}
+				}
+				item.Pass = passed && resp.Status < 400
+			}
+			if item.Pass {
+				run.PassCount++
+			} else {
+				run.FailCount++
+				anyFailed = true
+			}
+			run.Items = append(run.Items, item)
+			runtime.EventsEmit(a.ctx, "collection:run:progress", map[string]any{
+				"collectionID": id,
+				"index":        idx,
+				"total":        total,
+				"item":         item,
+			})
 		}
-		run.Items = append(run.Items, item)
-		runtime.EventsEmit(a.ctx, "collection:run:progress", map[string]any{
-			"collectionID": id,
-			"index":        idx,
-			"total":        total,
-			"item":         item,
-		})
+		if anyFailed && it.SkipOnFailure {
+			skipRest = true
+		}
 	}
 	run.DurationMs = int(time.Since(start).Milliseconds())
 	runtime.EventsEmit(a.ctx, "collection:run:done", run)
@@ -1863,6 +1886,7 @@ func collectionToDTO(c domain.Collection) CollectionDTO {
 			BodyOverride:    it.BodyOverride,
 			HeadersOverride: it.HeadersOverride,
 			SkipOnFailure:   it.SkipOnFailure,
+			IterateDataset:  it.IterateDataset,
 		})
 	}
 	return CollectionDTO{
@@ -1873,6 +1897,140 @@ func collectionToDTO(c domain.Collection) CollectionDTO {
 		SortOrder:   c.SortOrder,
 		Items:       items,
 	}
+}
+
+type DatasetRowResultDTO struct {
+	Index      int    `json:"index"`
+	Status     int    `json:"status"`
+	DurationMs int    `json:"durationMs"`
+	Pass       bool   `json:"pass"`
+	Error      string `json:"error,omitempty"`
+}
+
+type DatasetRunDTO struct {
+	EndpointKey string                `json:"endpointKey"`
+	Total       int                   `json:"total"`
+	PassCount   int                   `json:"passCount"`
+	FailCount   int                   `json:"failCount"`
+	DurationMs  int                   `json:"durationMs"`
+	Rows        []DatasetRowResultDTO `json:"rows"`
+}
+
+func (a *App) GetEndpointDataset(projectID, endpointKey string) (string, error) {
+	if projectID == "" || endpointKey == "" {
+		return "[]", nil
+	}
+	return a.datasets.Get(a.ctx, projectID, endpointKey)
+}
+
+func (a *App) SaveEndpointDataset(projectID, endpointKey, rowsJSON string) error {
+	if projectID == "" || endpointKey == "" {
+		return fmt.Errorf("project id and endpoint key required")
+	}
+	if rowsJSON == "" {
+		rowsJSON = "[]"
+	}
+	if !json.Valid([]byte(rowsJSON)) {
+		return fmt.Errorf("invalid rows json")
+	}
+	return a.datasets.Save(a.ctx, projectID, endpointKey, rowsJSON)
+}
+
+func (a *App) GenerateDatasetRows(endpointID string, count int) (string, error) {
+	if endpointID == "" {
+		return "[]", nil
+	}
+	if count <= 0 {
+		count = 1
+	}
+	if count > 500 {
+		count = 500
+	}
+	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
+	if err != nil || ep == nil {
+		return "[]", err
+	}
+	var raw struct {
+		Fields []RegenerateFieldInput `json:"fields"`
+	}
+	if ep.RequestSchema != "" {
+		_ = json.Unmarshal([]byte(ep.RequestSchema), &raw)
+	}
+	out := make([]json.RawMessage, 0, count)
+	for i := 0; i < count; i++ {
+		body, err := regenerateFromFields(raw.Fields)
+		if err != nil {
+			return "[]", err
+		}
+		out = append(out, json.RawMessage(body))
+	}
+	buf, err := json.Marshal(out)
+	if err != nil {
+		return "[]", err
+	}
+	return string(buf), nil
+}
+
+func (a *App) RunEndpointDataset(projectID, endpointID string) (*DatasetRunDTO, error) {
+	if projectID == "" || endpointID == "" {
+		return nil, fmt.Errorf("project id and endpoint id required")
+	}
+	ep, err := a.endpoints.GetByID(a.ctx, endpointID)
+	if err != nil || ep == nil {
+		return nil, fmt.Errorf("endpoint not found")
+	}
+	key := endpointTestKey(string(ep.Method), ep.Path)
+	rowsJSON, err := a.datasets.Get(a.ctx, projectID, key)
+	if err != nil {
+		return nil, err
+	}
+	var rows []json.RawMessage
+	if err := json.Unmarshal([]byte(rowsJSON), &rows); err != nil {
+		return nil, fmt.Errorf("invalid dataset rows: %w", err)
+	}
+	run := &DatasetRunDTO{
+		EndpointKey: key,
+		Total:       len(rows),
+		Rows:        make([]DatasetRowResultDTO, 0, len(rows)),
+	}
+	runtime.EventsEmit(a.ctx, "dataset:run:start", map[string]any{
+		"endpointID": endpointID,
+		"total":      len(rows),
+	})
+	start := time.Now()
+	for i, row := range rows {
+		input := ExecuteRequestInput{
+			ProjectID:  projectID,
+			EndpointID: endpointID,
+			Method:     string(ep.Method),
+			Path:       ep.Path,
+			Body:       string(row),
+		}
+		resp, sendErr := a.ExecuteRequest(input)
+		result := DatasetRowResultDTO{Index: i}
+		if sendErr != nil {
+			result.Error = sendErr.Error()
+		} else if resp != nil {
+			result.Status = resp.Status
+			result.DurationMs = int(resp.DurationMs)
+			result.Pass = resp.Status < 400
+		}
+		if result.Pass {
+			run.PassCount++
+		} else {
+			run.FailCount++
+		}
+		run.Rows = append(run.Rows, result)
+		runtime.EventsEmit(a.ctx, "dataset:run:progress", map[string]any{
+			"endpointID": endpointID,
+			"index":      i,
+			"total":      len(rows),
+			"row":        result,
+		})
+	}
+	run.DurationMs = int(time.Since(start).Milliseconds())
+	runtime.EventsEmit(a.ctx, "dataset:run:done", run)
+	return run, nil
 }
 
 func extractCaptureValue(source, path string, body any, headers http.Header) (string, bool) {

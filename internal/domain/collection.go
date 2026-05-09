@@ -24,6 +24,7 @@ type CollectionItem struct {
 	BodyOverride    string
 	HeadersOverride string
 	SkipOnFailure   bool
+	IterateDataset  bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

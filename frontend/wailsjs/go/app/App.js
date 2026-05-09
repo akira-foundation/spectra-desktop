@@ -46,12 +46,20 @@ export function ExportOpenAPI(arg1) {
   return window['go']['app']['App']['ExportOpenAPI'](arg1);
 }
 
+export function GenerateDatasetRows(arg1, arg2) {
+  return window['go']['app']['App']['GenerateDatasetRows'](arg1, arg2);
+}
+
 export function GetActiveProjectID() {
   return window['go']['app']['App']['GetActiveProjectID']();
 }
 
 export function GetDashboardMetrics(arg1, arg2) {
   return window['go']['app']['App']['GetDashboardMetrics'](arg1, arg2);
+}
+
+export function GetEndpointDataset(arg1, arg2) {
+  return window['go']['app']['App']['GetEndpointDataset'](arg1, arg2);
 }
 
 export function GetHistoryEntry(arg1) {
@@ -138,12 +146,20 @@ export function RunCollection(arg1) {
   return window['go']['app']['App']['RunCollection'](arg1);
 }
 
+export function RunEndpointDataset(arg1, arg2) {
+  return window['go']['app']['App']['RunEndpointDataset'](arg1, arg2);
+}
+
 export function SaveCollection(arg1) {
   return window['go']['app']['App']['SaveCollection'](arg1);
 }
 
 export function SaveEndpointCaptures(arg1) {
   return window['go']['app']['App']['SaveEndpointCaptures'](arg1);
+}
+
+export function SaveEndpointDataset(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SaveEndpointDataset'](arg1, arg2, arg3);
 }
 
 export function SaveEndpointTests(arg1) {
