@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, X, Star, GripVertical } from 'lucide-react'
+import { Search, X, Star, GripVertical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useUIStore } from '@/store/uiStore'
 import {
   DndContext,
   PointerSensor,
@@ -103,10 +104,31 @@ export function EndpointList({
   const draggableCategories = filtered.filter((c) => c.category !== PINNED_CATEGORY)
   const pinnedCategory = filtered.find((c) => c.category === PINNED_CATEGORY)
 
+  const collapsed = useUIStore((s) => s.endpointListCollapsed)
+  const setCollapsed = useUIStore((s) => s.setEndpointListCollapsed)
+
+  if (collapsed) {
+    return (
+      <div className="w-9 shrink-0 flex flex-col items-center gap-1 rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] py-2">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/40"
+          title="Expand endpoint list"
+        >
+          <PanelLeftOpen className="w-3.5 h-3.5" />
+        </button>
+        <div className="text-[9px] font-mono text-muted-foreground/60 tabular-nums">
+          {totalMatches}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-64 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden">
-      <div className="h-10 px-1.5 flex items-center border-b border-border/60 shrink-0">
-        <div className="relative w-full">
+      <div className="h-10 px-1.5 flex items-center gap-1 border-b border-border/60 shrink-0">
+        <div className="relative flex-1">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
@@ -126,6 +148,14 @@ export function EndpointList({
             </button>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent/40 shrink-0"
+          title="Collapse endpoint list"
+        >
+          <PanelLeftClose className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">

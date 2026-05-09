@@ -106,6 +106,8 @@ export function SaveOpenAPIToFile(arg1:string):Promise<string>;
 
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
+export function SaveResponseToFile(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function ScanActiveProject():Promise<Array<core.Endpoint>>;
 
 export function ScanWorkspace(arg1:string):Promise<Array<core.Endpoint>>;

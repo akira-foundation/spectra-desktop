@@ -1897,6 +1897,40 @@ type ExportedCollection struct {
 	Items          []ExportedItem `json:"items"`
 }
 
+func (a *App) SaveResponseToFile(method, path, body string) (string, error) {
+	if body == "" {
+		return "", fmt.Errorf("empty body")
+	}
+	defaultName := "response"
+	if path != "" {
+		safe := strings.ReplaceAll(strings.Trim(path, "/"), "/", "_")
+		safe = strings.ReplaceAll(safe, "{", "")
+		safe = strings.ReplaceAll(safe, "}", "")
+		if safe != "" {
+			defaultName = safe
+		}
+	}
+	if method != "" {
+		defaultName = strings.ToLower(method) + "_" + defaultName
+	}
+	defaultName += ".json"
+	target, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save response",
+		DefaultFilename: defaultName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON", Pattern: "*.json"},
+			{DisplayName: "All", Pattern: "*"},
+		},
+	})
+	if err != nil || target == "" {
+		return "", err
+	}
+	if err := os.WriteFile(target, []byte(body), 0644); err != nil {
+		return "", err
+	}
+	return target, nil
+}
+
 func (a *App) ExportCollectionToFile(id string) (string, error) {
 	json, err := a.ExportCollection(id)
 	if err != nil {

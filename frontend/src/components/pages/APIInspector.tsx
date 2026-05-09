@@ -536,6 +536,8 @@ export function APIInspector() {
                   responseHeaders={runner.response.headers as Record<string, string[]>}
                   onReplay={handleReplay}
                   endpointId={selected?.id}
+                  endpointMethod={selected?.method}
+                  endpointPath={selected?.path}
                 />
               ) : (
                 <ResponsePanel
@@ -543,6 +545,8 @@ export function APIInspector() {
                   responseHeaders={undefined}
                   onReplay={handleReplay}
                   endpointId={selected?.id}
+                  endpointMethod={selected?.method}
+                  endpointPath={selected?.path}
                 />
               )}
             </div>

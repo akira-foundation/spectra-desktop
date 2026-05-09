@@ -19,6 +19,8 @@ export interface UIState {
   setEditingEnvId: (id: string | null) => void
   inspectorPending: { endpointId: string; openHistoryLatest: boolean } | null
   setInspectorPending: (p: UIState['inspectorPending']) => void
+  endpointListCollapsed: boolean
+  setEndpointListCollapsed: (v: boolean) => void
   navBack: PageType[]
   navForward: PageType[]
   goBack: () => void
@@ -58,6 +60,8 @@ export const useUIStore = create<UIState>()(
       setEditingEnvId: (id) => set({ editingEnvId: id }),
       inspectorPending: null,
       setInspectorPending: (p) => set({ inspectorPending: p }),
+      endpointListCollapsed: false,
+      setEndpointListCollapsed: (v) => set({ endpointListCollapsed: v }),
       navBack: [],
       navForward: [],
       goBack: () =>

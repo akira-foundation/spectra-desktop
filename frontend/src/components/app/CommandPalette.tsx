@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Compass, LayoutDashboard, Layers, FileText, Settings, Search } from 'lucide-react'
+import { Compass, LayoutDashboard, Layers, FileText, Settings, Search, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CommandPalette() {
@@ -21,6 +21,8 @@ export function CommandPalette() {
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen)
   const setCurrentPage = useUIStore((state) => state.setCurrentPage)
   const setSelectedEndpoint = useUIStore((state) => state.setSelectedEndpoint)
+  const endpointListCollapsed = useUIStore((state) => state.endpointListCollapsed)
+  const setEndpointListCollapsed = useUIStore((state) => state.setEndpointListCollapsed)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const endpoints = useEndpointsStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_EP : EMPTY_EP,
@@ -155,6 +157,17 @@ export function CommandPalette() {
               </CommandItem>
             )
           })}
+        </CommandGroup>
+        <CommandGroup heading="Actions">
+          <CommandItem
+            onSelect={() => {
+              setEndpointListCollapsed(!endpointListCollapsed)
+              close()
+            }}
+          >
+            {endpointListCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            <span>Toggle sidebar</span>
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

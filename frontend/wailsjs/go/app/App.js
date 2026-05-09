@@ -202,6 +202,10 @@ export function SaveProject(arg1) {
   return window['go']['app']['App']['SaveProject'](arg1);
 }
 
+export function SaveResponseToFile(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SaveResponseToFile'](arg1, arg2, arg3);
+}
+
 export function ScanActiveProject() {
   return window['go']['app']['App']['ScanActiveProject']();
 }

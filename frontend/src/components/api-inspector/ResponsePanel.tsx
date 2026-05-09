@@ -19,6 +19,8 @@ interface ResponsePanelProps {
   responseHeaders?: Record<string, string[]>
   onReplay?: (entryId: string) => void
   endpointId?: string
+  endpointMethod?: string
+  endpointPath?: string
 }
 
 export function ResponsePanel({
@@ -26,6 +28,8 @@ export function ResponsePanel({
   responseHeaders,
   onReplay,
   endpointId,
+  endpointMethod,
+  endpointPath,
 }: ResponsePanelProps) {
   const formatted = formatBody(responseData)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -70,7 +74,10 @@ export function ResponsePanel({
             Response
           </h3>
         </div>
-        <CopyButton text={formatted} />
+        <div className="flex items-center gap-1">
+          <SaveButton text={formatted} method={endpointMethod} path={endpointPath} />
+          <CopyButton text={formatted} />
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
@@ -587,6 +594,40 @@ function CopyButton({ text }: { text: string }) {
       title={copied ? 'Copied!' : 'Copy response'}
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+    </button>
+  )
+}
+
+function SaveButton({ text, method, path }: { text: string; method?: string; path?: string }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const handle = async () => {
+    if (!text || saving) return
+    setSaving(true)
+    try {
+      const { SaveResponseToFile } = await import('../../../wailsjs/go/app/App')
+      const result = await SaveResponseToFile(method ?? '', path ?? '', text)
+      if (result) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1500)
+      }
+    } catch {} finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      disabled={!text || saving}
+      className={cn(
+        'inline-flex h-6 w-6 items-center justify-center rounded transition-colors',
+        saved ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+        'disabled:opacity-40 disabled:hover:bg-transparent',
+      )}
+      title={saved ? 'Saved!' : 'Save response to file'}
+    >
+      {saved ? <Check className="w-3 h-3" /> : <Download className="w-3 h-3" />}
     </button>
   )
 }
