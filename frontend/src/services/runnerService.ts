@@ -6,6 +6,7 @@ export type RunnerResponse = httpclient.Response
 export interface RunnerInput {
   projectID: string
   endpointID?: string
+  accountID?: string
   method: string
   path: string
   headers?: Record<string, string>

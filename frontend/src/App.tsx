@@ -8,6 +8,7 @@ import { Settings } from '@/components/pages/Settings'
 import { Changelog } from '@/components/pages/Changelog'
 import { CollectionsPage } from '@/components/pages/CollectionsPage'
 import { ScratchPage } from '@/components/pages/ScratchPage'
+import { AccountsPage } from '@/components/pages/AccountsPage'
 import { EmptyWorkspace } from '@/components/projects/EmptyWorkspace'
 // import { OnboardingFlow } from '@/components/onboarding'
 import '@/styles/globals.css'
@@ -31,6 +32,7 @@ function App() {
           {currentPage === 'inspector' && <APIInspector />}
           {currentPage === 'collections' && <CollectionsPage />}
           {currentPage === 'scratch' && <ScratchPage />}
+          {currentPage === 'accounts' && <AccountsPage />}
           {currentPage === 'dashboard' && <Dashboard />}
           {currentPage === 'changelog' && <Changelog />}
           {currentPage === 'settings' && <Settings />}

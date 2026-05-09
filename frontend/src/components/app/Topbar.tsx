@@ -3,6 +3,10 @@ import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
+import { useAccountsStore } from '@/store/accountsStore'
+import type { ProjectAccount } from '@/services/accountsService'
+
+const EMPTY_ACCOUNTS: ProjectAccount[] = []
 import { Search, RefreshCw, Lock, User, Key, Shield, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SaveOpenAPIToFile } from '../../../wailsjs/go/app/App'
@@ -41,13 +45,41 @@ export function Topbar() {
   const projectAuth = useAuthStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? null : null,
   )
+  // Active-account user takes precedence over the legacy project_auth user
+  // so the topbar reflects whichever identity the Inspector is using.
+  const accountList = useAccountsStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNTS : EMPTY_ACCOUNTS,
+  )
+  const accountActiveId = useAccountsStore((s) =>
+    activeProjectId ? s.activeByProject[activeProjectId] ?? null : null,
+  )
+  const activeAccount =
+    accountList.find((a) => a.id === accountActiveId) ??
+    accountList.find((a) => a.isDefault) ??
+    accountList[0] ??
+    null
+  const accountUser = activeAccount?.user as
+    | { name?: string; username?: string; email?: string; id?: string | number }
+    | undefined
   const authLabel = (() => {
+    if (accountUser) {
+      return (
+        accountUser.name ||
+        accountUser.username ||
+        accountUser.email ||
+        (accountUser.id !== undefined ? String(accountUser.id) : '') ||
+        activeAccount?.label ||
+        authConfig.label
+      )
+    }
+    if (activeAccount) return activeAccount.label
     if (projectAuth?.user) {
       const u = projectAuth.user
       return u.name || u.username || u.email || u.id || authConfig.label
     }
     return authConfig.label
   })()
+  const hasToken = !!activeAccount?.hasToken || !!projectAuth?.hasToken
 
   const activeProject = projects.find((p) => p.id === activeProjectId)
   const openAddProject = () => setAddProjectOpen(true)
@@ -124,7 +156,7 @@ export function Topbar() {
         >
           <AuthIcon className="w-3.5 h-3.5" />
           <span>{authLabel}</span>
-          {projectAuth?.hasToken && (
+          {hasToken && (
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           )}
         </Button>

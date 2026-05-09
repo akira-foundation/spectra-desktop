@@ -24,6 +24,24 @@ export namespace app {
 	        this.logoutRoute = source["logoutRoute"];
 	    }
 	}
+	export class AccountSecretsDTO {
+	    username: string;
+	    password?: string;
+	    token?: string;
+	    apiKey?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccountSecretsDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.username = source["username"];
+	        this.password = source["password"];
+	        this.token = source["token"];
+	        this.apiKey = source["apiKey"];
+	    }
+	}
 	export class CapturedValueDTO {
 	    name: string;
 	    value: string;
@@ -699,6 +717,7 @@ export namespace app {
 	export class ExecuteRequestInput {
 	    projectID: string;
 	    endpointID?: string;
+	    accountID?: string;
 	    method: string;
 	    path: string;
 	    headers?: Record<string, string>;
@@ -716,6 +735,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectID = source["projectID"];
 	        this.endpointID = source["endpointID"];
+	        this.accountID = source["accountID"];
 	        this.method = source["method"];
 	        this.path = source["path"];
 	        this.headers = source["headers"];
@@ -1010,6 +1030,115 @@ export namespace app {
 	
 	
 	
+	export class OAuthConfigDTO {
+	    grantType: string;
+	    tokenUrl: string;
+	    clientId: string;
+	    hasSecret: boolean;
+	    scopes?: string[];
+	    audience?: string;
+	    username?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OAuthConfigDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.grantType = source["grantType"];
+	        this.tokenUrl = source["tokenUrl"];
+	        this.clientId = source["clientId"];
+	        this.hasSecret = source["hasSecret"];
+	        this.scopes = source["scopes"];
+	        this.audience = source["audience"];
+	        this.username = source["username"];
+	    }
+	}
+	export class ProjectAccountDTO {
+	    id: string;
+	    projectID: string;
+	    label: string;
+	    kind: string;
+	    scheme: string;
+	    username: string;
+	    hasPassword: boolean;
+	    hasApiKey: boolean;
+	    apiKeyHeader: string;
+	    apiKeyIn: string;
+	    hasToken: boolean;
+	    tokenPreview?: string;
+	    hasRefreshToken: boolean;
+	    // Go type: time
+	    expiresAt?: any;
+	    oauth?: OAuthConfigDTO;
+	    hasTotp: boolean;
+	    totpParam: string;
+	    loginEndpointId: string;
+	    loginBodyTemplate: string;
+	    tokenPath: string;
+	    user?: Record<string, any>;
+	    hasCookies: boolean;
+	    extraHeaders?: Record<string, string>;
+	    isDefault: boolean;
+	    sortOrder: number;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectAccountDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.label = source["label"];
+	        this.kind = source["kind"];
+	        this.scheme = source["scheme"];
+	        this.username = source["username"];
+	        this.hasPassword = source["hasPassword"];
+	        this.hasApiKey = source["hasApiKey"];
+	        this.apiKeyHeader = source["apiKeyHeader"];
+	        this.apiKeyIn = source["apiKeyIn"];
+	        this.hasToken = source["hasToken"];
+	        this.tokenPreview = source["tokenPreview"];
+	        this.hasRefreshToken = source["hasRefreshToken"];
+	        this.expiresAt = this.convertValues(source["expiresAt"], null);
+	        this.oauth = this.convertValues(source["oauth"], OAuthConfigDTO);
+	        this.hasTotp = source["hasTotp"];
+	        this.totpParam = source["totpParam"];
+	        this.loginEndpointId = source["loginEndpointId"];
+	        this.loginBodyTemplate = source["loginBodyTemplate"];
+	        this.tokenPath = source["tokenPath"];
+	        this.user = source["user"];
+	        this.hasCookies = source["hasCookies"];
+	        this.extraHeaders = source["extraHeaders"];
+	        this.isDefault = source["isDefault"];
+	        this.sortOrder = source["sortOrder"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ProjectAuthState {
 	    projectID: string;
 	    scheme: string;
@@ -1155,6 +1284,105 @@ export namespace app {
 		}
 	}
 	
+	export class SaveOAuthInput {
+	    grantType: string;
+	    tokenUrl: string;
+	    clientId: string;
+	    clientSecret?: string;
+	    scopes?: string[];
+	    audience?: string;
+	    username?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveOAuthInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.grantType = source["grantType"];
+	        this.tokenUrl = source["tokenUrl"];
+	        this.clientId = source["clientId"];
+	        this.clientSecret = source["clientSecret"];
+	        this.scopes = source["scopes"];
+	        this.audience = source["audience"];
+	        this.username = source["username"];
+	    }
+	}
+	export class SaveAccountInput {
+	    id?: string;
+	    projectID: string;
+	    label: string;
+	    kind: string;
+	    scheme?: string;
+	    username?: string;
+	    password?: string;
+	    apiKey?: string;
+	    apiKeyHeader?: string;
+	    apiKeyIn?: string;
+	    token?: string;
+	    refreshToken?: string;
+	    oauth?: SaveOAuthInput;
+	    totpSecret?: string;
+	    totpParam?: string;
+	    loginEndpointId?: string;
+	    loginBodyTemplate?: string;
+	    tokenPath?: string;
+	    extraHeaders?: Record<string, string>;
+	    isDefault?: boolean;
+	    sortOrder?: number;
+	    // Go type: time
+	    expiresAt?: any;
+	    user?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveAccountInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.label = source["label"];
+	        this.kind = source["kind"];
+	        this.scheme = source["scheme"];
+	        this.username = source["username"];
+	        this.password = source["password"];
+	        this.apiKey = source["apiKey"];
+	        this.apiKeyHeader = source["apiKeyHeader"];
+	        this.apiKeyIn = source["apiKeyIn"];
+	        this.token = source["token"];
+	        this.refreshToken = source["refreshToken"];
+	        this.oauth = this.convertValues(source["oauth"], SaveOAuthInput);
+	        this.totpSecret = source["totpSecret"];
+	        this.totpParam = source["totpParam"];
+	        this.loginEndpointId = source["loginEndpointId"];
+	        this.loginBodyTemplate = source["loginBodyTemplate"];
+	        this.tokenPath = source["tokenPath"];
+	        this.extraHeaders = source["extraHeaders"];
+	        this.isDefault = source["isDefault"];
+	        this.sortOrder = source["sortOrder"];
+	        this.expiresAt = this.convertValues(source["expiresAt"], null);
+	        this.user = source["user"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SaveCapturesInput {
 	    projectID: string;
 	    endpointKey: string;
@@ -1249,6 +1477,7 @@ export namespace app {
 	        this.sortOrder = source["sortOrder"];
 	    }
 	}
+	
 	export class SaveTestsInput {
 	    projectID: string;
 	    endpointKey: string;

@@ -31,6 +31,7 @@ import { useHttpMethod } from "@/hooks/useHttpMethod";
 import { cn } from "@/lib/utils";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { CapturedValuesPopover } from "./CapturedValuesPopover";
+import { AccountSelector } from "@/components/accounts/AccountSelector";
 import { useUIStore } from "@/store/uiStore";
 import { useCollectionsStore } from "@/store/collectionsStore";
 import { VarInput } from "./VarInput";
@@ -46,6 +47,9 @@ export function BaseURLBar() {
   const projects = useProjectStore((s) => s.projects);
   const updateBaseURL = useProjectStore((s) => s.updateBaseURL);
   const updateAuthRoutes = useProjectStore((s) => s.updateAuthRoutes);
+  const activeTabId = useUIStore((s) =>
+    activeProjectId ? s.activeInspectorTabByProject[activeProjectId] ?? null : null,
+  );
   const project = projects.find((p) => p.id === activeProjectId);
   const allEndpoints = useEndpointsStore((s) =>
     activeProjectId
@@ -159,6 +163,7 @@ export function BaseURLBar() {
         </button>
       )}
 
+      <AccountSelector projectId={project.id} tabId={activeTabId} />
       <EnvironmentSwitcher />
       <CapturedValuesPopover
         projectId={activeProjectId ?? null}

@@ -18,6 +18,8 @@ export function DeleteEnvironment(arg1:string):Promise<void>;
 
 export function DeleteProject(arg1:string):Promise<void>;
 
+export function DeleteProjectAccount(arg1:string):Promise<void>;
+
 export function DeleteScratchRequest(arg1:string):Promise<void>;
 
 export function DetectFramework(arg1:string):Promise<string>;
@@ -38,7 +40,11 @@ export function ExportOpenAPI(arg1:string):Promise<string>;
 
 export function FormatException(arg1:string,arg2:string,arg3:number):Promise<core.FormattedException|boolean>;
 
+export function GenerateAccountTOTP(arg1:string):Promise<string>;
+
 export function GenerateDatasetRows(arg1:string,arg2:number):Promise<string>;
+
+export function GetAccountSecrets(arg1:string):Promise<app.AccountSecretsDTO>;
 
 export function GetActiveProjectID():Promise<string>;
 
@@ -86,6 +92,8 @@ export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryLi
 
 export function ListLastCollectionRuns(arg1:string):Promise<Record<string, app.CollectionRunDTO>>;
 
+export function ListProjectAccounts(arg1:string):Promise<Array<app.ProjectAccountDTO>>;
+
 export function ListProjects():Promise<Array<domain.Project>>;
 
 export function ListScratchRequests(arg1:string):Promise<Array<app.ScratchRequestDTO>>;
@@ -99,6 +107,8 @@ export function OpenProject(arg1:string):Promise<workspace.Workspace>;
 export function PickFile():Promise<string>;
 
 export function PreviewAPIRoutes(arg1:string,arg2:string,arg3:string):Promise<app.APIDetection>;
+
+export function RefreshAccountToken(arg1:string):Promise<app.ProjectAccountDTO>;
 
 export function RegenerateBodyValues(arg1:app.RegenerateBodyInput):Promise<string>;
 
@@ -122,6 +132,8 @@ export function SaveOpenAPIToFile(arg1:string):Promise<string>;
 
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
+export function SaveProjectAccount(arg1:app.SaveAccountInput):Promise<app.ProjectAccountDTO>;
+
 export function SaveResponseToFile(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function SaveScratchRequest(arg1:app.ScratchRequestDTO):Promise<app.ScratchRequestDTO>;
@@ -135,6 +147,8 @@ export function SelectProjectFolder():Promise<string>;
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<void>;
 
 export function SetActiveProjectID(arg1:string):Promise<void>;
+
+export function SetDefaultProjectAccount(arg1:string,arg2:string):Promise<void>;
 
 export function SetProjectAuthManual(arg1:app.SetProjectAuthInput):Promise<void>;
 

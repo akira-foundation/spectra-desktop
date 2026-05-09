@@ -10,7 +10,11 @@ import (
 
 const DriverName = "laravel"
 
-type Driver struct{}
+// Driver embeds AuthCapability so the type assertion to core.AuthCapable
+// succeeds in callers that need login-response token extraction.
+type Driver struct {
+	AuthCapability
+}
 
 func New() *Driver {
 	return &Driver{}

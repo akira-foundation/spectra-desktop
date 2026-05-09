@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"spectra-desktop/internal/auth"
 	"spectra-desktop/internal/core"
 	"spectra-desktop/internal/domain"
 	"spectra-desktop/internal/drivers/laravel"
@@ -24,6 +25,7 @@ import (
 	"spectra-desktop/internal/httpclient"
 	"spectra-desktop/internal/repository"
 	"spectra-desktop/internal/repository/model"
+	"spectra-desktop/internal/secrets"
 	"spectra-desktop/internal/storage"
 	"spectra-desktop/internal/watcher"
 	"spectra-desktop/internal/workspace"
@@ -39,7 +41,10 @@ type App struct {
 	projects  domain.ProjectRepository
 	settings  domain.SettingsRepository
 	endpoints domain.EndpointRepository
-	auth      domain.AuthRepository
+	auth        domain.AuthRepository
+	accounts    domain.AccountRepository
+	vault       *secrets.Vault
+	authResolve *auth.Resolver
 	history   domain.HistoryRepository
 	envs      domain.EnvironmentRepository
 	snapshots domain.SnapshotRepository
@@ -75,6 +80,7 @@ func New() (*App, error) {
 		settings:  repository.NewSettingsRepository(store.DB),
 		endpoints: repository.NewEndpointRepository(store.DB),
 		auth:      repository.NewAuthRepository(store.DB),
+		accounts:  repository.NewAccountRepository(store.DB),
 		history:   repository.NewHistoryRepository(store.DB),
 		envs:      repository.NewEnvironmentRepository(store.DB),
 		snapshots: repository.NewSnapshotRepository(store.DB),
@@ -93,6 +99,15 @@ func New() (*App, error) {
 		}
 		return context.Background()
 	})
+
+	vault, err := secrets.Default()
+	if err != nil {
+		log.Printf("secrets vault init failed (continuing without encryption): %v", err)
+	} else {
+		a.vault = vault
+		a.authResolve = auth.NewResolver(a.accounts, vault)
+	}
+
 	return a, nil
 }
 
@@ -400,6 +415,7 @@ func previewToken(token string) string {
 type ExecuteRequestInput struct {
 	ProjectID  string             `json:"projectID"`
 	EndpointID string             `json:"endpointID,omitempty"`
+	AccountID  string             `json:"accountID,omitempty"`
 	Method     string             `json:"method"`
 	Path       string             `json:"path"`
 	Headers    map[string]string  `json:"headers,omitempty"`
@@ -429,6 +445,11 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 		return nil, fmt.Errorf("missing base url")
 	}
 	vars := a.resolveEnvVars(input.ProjectID)
+	// Inject account-bound vars (account.username, account.password, etc.)
+	// so login bodies can template `{{account.username}}` and similar.
+	if !input.SkipAuth && input.ProjectID != "" {
+		a.injectAccountVars(vars, input.ProjectID, input.AccountID)
+	}
 	resolvedPath := substituteVars(input.Path, vars)
 	target, err := joinURL(baseURL, resolvedPath)
 	if err != nil {
@@ -440,10 +461,15 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 	headers := substituteHeaderVars(input.Headers, vars)
 	body := substituteVars(input.Body, vars)
 	var cookies []http.Cookie
+	var queryParams map[string]string
 	if !input.SkipAuth && input.ProjectID != "" {
-		merged, ck := a.applyProjectAuth(input.ProjectID, headers)
+		merged, ck, qp := a.applyProjectAuth(input.ProjectID, input.AccountID, headers)
 		headers = merged
 		cookies = ck
+		queryParams = qp
+	}
+	if len(queryParams) > 0 {
+		target = appendQueryParams(target, queryParams)
 	}
 
 	if len(input.Multipart) > 0 {
@@ -492,7 +518,7 @@ func (a *App) ExecuteRequest(input ExecuteRequestInput) (*httpclient.Response, e
 				log.Printf("clear auth on logout: %v", err)
 			}
 		} else {
-			a.captureAuthFromResponse(input.ProjectID, input.EndpointID, resp)
+			a.captureAuthFromResponse(input.ProjectID, input.EndpointID, input.AccountID, resp)
 		}
 	}
 	return resp, nil
@@ -2869,20 +2895,46 @@ func (a *App) UpdateProjectAuthRoutes(projectID, loginID, logoutID, tokenPath st
 	return a.projects.UpdateAuthRoutes(a.ctx, projectID, loginID, logoutID, tokenPath)
 }
 
-func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[string]string, []http.Cookie) {
-	rec, err := a.auth.Get(a.ctx, projectID)
-	log.Printf("applyProjectAuth project=%s err=%v rec_nil=%t token_len=%d", projectID, err, rec == nil, func() int {
-		if rec == nil {
-			return 0
-		}
-		return len(rec.Token)
-	}())
-	if err != nil || rec == nil {
-		return base, nil
-	}
+func (a *App) applyProjectAuth(projectID, accountID string, base map[string]string) (map[string]string, []http.Cookie, map[string]string) {
 	headers := map[string]string{}
 	for k, v := range base {
 		headers[k] = v
+	}
+	queryParams := map[string]string{}
+
+	// New path: resolve via accounts when available.
+	if a.authResolve != nil {
+		acc, err := a.resolveActiveAccount(projectID, accountID)
+		if err == nil && acc != nil {
+			injection, err := a.authResolve.Resolve(a.ctx, acc)
+			if err == nil {
+				applyInjection(headers, queryParams, injection)
+			}
+			if totp, err := a.authResolve.MergeTOTP(acc); err == nil {
+				applyInjection(headers, queryParams, totp)
+			}
+			if acc.HeadersJSON != "" {
+				var extra map[string]string
+				if err := json.Unmarshal([]byte(acc.HeadersJSON), &extra); err == nil {
+					for k, v := range extra {
+						if _, exists := headers[k]; !exists {
+							headers[k] = v
+						}
+					}
+				}
+			}
+			var cookies []http.Cookie
+			if acc.CookiesJSON != "" {
+				_ = json.Unmarshal([]byte(acc.CookiesJSON), &cookies)
+			}
+			return headers, cookies, queryParams
+		}
+	}
+
+	// Legacy fallback: pre-accounts project_auth row.
+	rec, err := a.auth.Get(a.ctx, projectID)
+	if err != nil || rec == nil {
+		return headers, nil, queryParams
 	}
 	if rec.Token != "" {
 		if _, exists := headers["Authorization"]; !exists {
@@ -2903,10 +2955,59 @@ func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[st
 	if rec.CookiesJSON != "" {
 		_ = json.Unmarshal([]byte(rec.CookiesJSON), &cookies)
 	}
-	return headers, cookies
+	return headers, cookies, queryParams
 }
 
-func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpclient.Response) {
+// resolveActiveAccount picks the account for this request:
+//   1. Explicit accountID (per-tab override).
+//   2. Project default account.
+//   3. nil (callers fall back to legacy auth).
+func (a *App) resolveActiveAccount(projectID, accountID string) (*domain.ProjectAccount, error) {
+	if a.accounts == nil {
+		return nil, nil
+	}
+	if accountID != "" {
+		acc, err := a.accounts.Get(a.ctx, accountID)
+		if err != nil || acc == nil {
+			return nil, err
+		}
+		if acc.ProjectID == projectID {
+			return acc, nil
+		}
+	}
+	return a.accounts.GetDefault(a.ctx, projectID)
+}
+
+func applyInjection(headers, query map[string]string, inj auth.HeaderInjection) {
+	if inj.Header != "" && inj.Value != "" {
+		if _, exists := headers[inj.Header]; !exists {
+			headers[inj.Header] = inj.Value
+		}
+	}
+	if inj.QueryKey != "" && inj.QueryValue != "" {
+		query[inj.QueryKey] = inj.QueryValue
+	}
+}
+
+func appendQueryParams(target string, params map[string]string) string {
+	if len(params) == 0 {
+		return target
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	q := parsed.Query()
+	for k, v := range params {
+		if !q.Has(k) {
+			q.Set(k, v)
+		}
+	}
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
+func (a *App) captureAuthFromResponse(projectID, endpointID, accountID string, resp *httpclient.Response) {
 	if resp == nil || resp.Status >= 400 {
 		return
 	}
@@ -2916,7 +3017,6 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 		log.Printf("capture: project nil err=%v", err)
 		return
 	}
-	log.Printf("capture: project_login=%q endpoint=%q match=%t", project.LoginEndpointID, endpointID, project.LoginEndpointID == endpointID)
 	if project.LoginEndpointID == "" || project.LoginEndpointID != endpointID {
 		return
 	}
@@ -2971,6 +3071,23 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 		log.Printf("save project auth: %v", err)
 	} else {
 		log.Printf("capture: saved token_len=%d user=%v", len(rec.Token), extraction.User)
+	}
+
+	// Mirror token into the active account so multi-account setups stay in sync.
+	if a.accounts != nil && a.vault != nil && extraction.Token != "" {
+		if acc, err := a.resolveActiveAccount(projectID, accountID); err == nil && acc != nil {
+			if tokenEnc, err := a.vault.Encrypt(extraction.Token); err == nil {
+				acc.TokenEnc = tokenEnc
+				acc.Scheme = string(cap.DefaultScheme())
+				acc.TokenPath = extraction.TokenPath
+				acc.ExpiresAt = extraction.ExpiresAt
+				acc.UserJSON = rec.UserJSON
+				acc.CookiesJSON = rec.CookiesJSON
+				if err := a.accounts.Save(a.ctx, *acc); err != nil {
+					log.Printf("save account token: %v", err)
+				}
+			}
+		}
 	}
 }
 

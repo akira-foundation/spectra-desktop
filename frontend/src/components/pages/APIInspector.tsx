@@ -3,6 +3,8 @@ import { useUIStore } from '@/store/uiStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
+import { useAccountsStore } from '@/store/accountsStore'
+import { accountsService, type ProjectAccount } from '@/services/accountsService'
 import { useHistoryStore } from '@/store/historyStore'
 import { useEnvironmentStore } from '@/store/environmentStore'
 import { historyService } from '@/services/historyService'
@@ -32,6 +34,45 @@ import type { ScannedEndpoint } from '@/services/scannerService'
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
 const EMPTY_CAPTURED: CapturedValue[] = []
+const EMPTY_ACCOUNT_LIST: ProjectAccount[] = []
+
+const USERNAME_KEYS = ['email', 'username', 'login', 'user', 'identifier']
+const PASSWORD_KEYS = ['password', 'pass', 'pwd', 'secret']
+
+// fillLoginBody replaces username/password values inside an existing JSON
+// body without altering its structure. When the body is empty or not JSON,
+// returns a default shape {email, password}.
+function fillLoginBody(current: string, username: string, password: string): string {
+  const trimmed = current.trim()
+  if (!trimmed) {
+    return JSON.stringify({ email: username, password }, null, 2)
+  }
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const next = { ...parsed } as Record<string, unknown>
+      let touched = false
+      for (const k of Object.keys(next)) {
+        const lower = k.toLowerCase()
+        if (USERNAME_KEYS.includes(lower)) {
+          next[k] = username
+          touched = true
+        } else if (PASSWORD_KEYS.includes(lower)) {
+          next[k] = password
+          touched = true
+        }
+      }
+      if (!touched) {
+        next.email = username
+        next.password = password
+      }
+      return JSON.stringify(next, null, 2)
+    }
+  } catch {
+    // fall through
+  }
+  return JSON.stringify({ email: username, password }, null, 2)
+}
 import {
   buildQueryString,
   extractRouteParams,
@@ -80,6 +121,27 @@ export function APIInspector() {
   const refreshAuth = useAuthStore((s) => s.refresh)
   const authState = useAuthStore((s) => (activeProjectId ? s.byProject[activeProjectId] : null))
   const setAuthDrawerOpen = useUIStore((s) => s.setAuthDrawerOpen)
+  // Account selection drives the auto-Authorization preview and the AccountID
+  // sent with each ExecuteRequest call. We subscribe to all three slices so
+  // the UI updates when the active account or per-tab override changes.
+  const accountList = useAccountsStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNT_LIST : EMPTY_ACCOUNT_LIST,
+  )
+  const loadAccounts = useAccountsStore((s) => s.list)
+  useEffect(() => {
+    if (activeProjectId) void loadAccounts(activeProjectId)
+  }, [activeProjectId, loadAccounts])
+  const accountActiveByProject = useAccountsStore((s) =>
+    activeProjectId ? s.activeByProject[activeProjectId] ?? null : null,
+  )
+  const accountActiveByTab = useAccountsStore((s) =>
+    activeInspectorTabId ? s.activeByTab[activeInspectorTabId] ?? null : null,
+  )
+  const activeAccount = useMemo(() => {
+    const targetId = accountActiveByTab || accountActiveByProject
+    if (targetId) return accountList.find((a) => a.id === targetId) ?? null
+    return accountList.find((a) => a.isDefault) ?? accountList[0] ?? null
+  }, [accountList, accountActiveByProject, accountActiveByTab])
 
   useEffect(() => {
     if (activeProjectId) void loadAuth(activeProjectId)
@@ -308,6 +370,34 @@ export function APIInspector() {
     }
   }, [persistedHeadersForSelected])
 
+  // Auto-fill the login endpoint body with the active account's credentials.
+  // Triggers when:
+  //   - the selected endpoint matches the project's login route
+  //   - the active account is a login/basic kind and has credentials saved
+  // The fill replaces the value of any field that looks like an
+  // email/username/password key while leaving the structure untouched.
+  const autoFillKeyRef = useRef<string>('')
+  useEffect(() => {
+    const loginId = project?.loginEndpointId ?? ''
+    if (!selected || !loginId || selected.id !== loginId) return
+    if (!activeAccount) return
+    // Any account kind with stored credentials can auto-fill the login body.
+    if (activeAccount.kind === 'apikey') return
+    if (!activeAccount.hasPassword) return
+    const fingerprint = `${selected.id}::${activeAccount.id}::${activeAccount.updatedAt}`
+    if (autoFillKeyRef.current === fingerprint) return
+    let cancelled = false
+    void (async () => {
+      const secrets = await accountsService.secrets(activeAccount.id)
+      if (cancelled || !secrets) return
+      autoFillKeyRef.current = fingerprint
+      setRequestBody((current) => fillLoginBody(current, secrets.username, secrets.password ?? ''))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selected, project?.loginEndpointId, activeAccount])
+
   const resolvedPath = useMemo(() => {
     if (!selected) return ''
     return resolveRoutePath(selected.path, routeValues) + buildQueryString(queryParams)
@@ -407,10 +497,12 @@ export function APIInspector() {
     const prevToken = activeProjectId
       ? useAuthStore.getState().byProject[activeProjectId]?.tokenPreview ?? null
       : null
+    const accountID = activeAccount?.id
     void runner
       .execute({
         projectID: activeProjectId,
         endpointID: selected.id,
+        accountID: accountID ?? undefined,
         method: selected.method,
         path: resolvedPath,
         headers: headerMap,
@@ -434,6 +526,9 @@ export function APIInspector() {
           } catch {}
         }
         await refreshCaptured(activeProjectId)
+        // Reload accounts so the active account picks up any token captured
+        // by the backend (e.g. after a successful login).
+        await useAccountsStore.getState().list(activeProjectId, true)
       })
   }
 
@@ -454,9 +549,11 @@ export function APIInspector() {
         Object.entries(headerMap).map(([key, value]) => ({ key, value, enabled: true })),
       )
 
+      const replayAccountID = activeAccount?.id
       await runner.execute({
         projectID: activeProjectId,
         endpointID: selected.id,
+        accountID: replayAccountID ?? undefined,
         method: detail.method || selected.method,
         path: resolvedPath,
         headers: headerMap,
@@ -555,7 +652,16 @@ export function APIInspector() {
                   (runner.response?.headers as Record<string, string[]> | undefined) ??
                   historySampleHeaders
                 }
-                autoAuth={authState ? { scheme: authState.scheme, tokenPreview: authState.tokenPreview } : null}
+                autoAuth={
+                  activeAccount
+                    ? {
+                        scheme: activeAccount.scheme || activeAccount.kind.toUpperCase(),
+                        tokenPreview: activeAccount.label,
+                      }
+                    : authState
+                      ? { scheme: authState.scheme, tokenPreview: authState.tokenPreview }
+                      : null
+                }
                 onOpenAuth={() => setAuthDrawerOpen(true)}
                 capturedValues={capturedValues}
                 onCapturedChange={setCapturedValues}

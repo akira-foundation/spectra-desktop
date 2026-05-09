@@ -1,4 +1,4 @@
-import { Compass, LayoutDashboard, FileText, Layers, Settings, Terminal } from 'lucide-react'
+import { Compass, LayoutDashboard, FileText, Layers, Settings, Terminal, KeyRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUIStore, type PageType } from '@/store/uiStore'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -17,6 +17,7 @@ const primary: NavItem[] = [
   { id: 'inspector', label: 'API Inspector', icon: Compass, page: 'inspector' },
   { id: 'collections', label: 'Collections', icon: Layers, page: 'collections' },
   { id: 'scratch', label: 'Scratch', icon: Terminal, page: 'scratch' },
+  { id: 'accounts', label: 'Accounts', icon: KeyRound, page: 'accounts' },
   { id: 'changelog', label: 'Snapshots', icon: FileText, page: 'changelog' },
 ]
 

@@ -12,9 +12,14 @@ import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useProjectStore } from '@/store/projectStore'
+import { useAccountsStore } from '@/store/accountsStore'
+import { AccountKindBadge } from '@/components/accounts/AccountKindBadge'
+import type { ProjectAccount } from '@/services/accountsService'
 import { SetProjectAuthManual } from '../../../wailsjs/go/app/App'
 import { app } from '../../../wailsjs/go/models'
 import { cn } from '@/lib/utils'
+
+const EMPTY_ACCOUNTS: ProjectAccount[] = []
 
 interface AuthenticationDrawerProps {
   activeMethod: string
@@ -30,22 +35,52 @@ export function AuthenticationDrawer(_props: AuthenticationDrawerProps) {
   )
   const refreshAuth = useAuthStore((s) => s.refresh)
   const clearAuth = useAuthStore((s) => s.clear)
+  // Active-account overrides the legacy project_auth view when present.
+  const accountList = useAccountsStore((s) =>
+    activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_ACCOUNTS : EMPTY_ACCOUNTS,
+  )
+  const accountActiveByProject = useAccountsStore((s) =>
+    activeProjectId ? s.activeByProject[activeProjectId] ?? null : null,
+  )
+  const activeAccount =
+    accountList.find((a) => a.id === accountActiveByProject) ??
+    accountList.find((a) => a.isDefault) ??
+    accountList[0] ??
+    null
+  const accountUser = activeAccount?.user as
+    | { name?: string; username?: string; email?: string; role?: string; id?: string | number }
+    | undefined
   const [manualToken, setManualToken] = useState('')
   const [pasting, setPasting] = useState(false)
+
+  const saveAccount = useAccountsStore((s) => s.save)
 
   const handlePaste = async () => {
     if (!activeProjectId || !manualToken.trim()) return
     setPasting(true)
     try {
-      await SetProjectAuthManual(
-        app.SetProjectAuthInput.createFrom({
+      if (activeAccount) {
+        // Write the pasted token into the active account, not the legacy
+        // project_auth row. This keeps multi-account state in sync.
+        await saveAccount({
+          id: activeAccount.id,
           projectID: activeProjectId,
-          scheme: 'bearer',
+          label: activeAccount.label,
+          kind: activeAccount.kind,
+          scheme: activeAccount.scheme || 'Bearer',
           token: manualToken.trim(),
-        }),
-      )
+        })
+      } else {
+        await SetProjectAuthManual(
+          app.SetProjectAuthInput.createFrom({
+            projectID: activeProjectId,
+            scheme: 'bearer',
+            token: manualToken.trim(),
+          }),
+        )
+        await refreshAuth(activeProjectId)
+      }
       setManualToken('')
-      await refreshAuth(activeProjectId)
     } finally {
       setPasting(false)
     }
@@ -76,8 +111,28 @@ export function AuthenticationDrawer(_props: AuthenticationDrawerProps) {
         </DrawerHeader>
 
         <div className="flex-1 overflow-auto px-4 py-4 space-y-5">
+          {activeAccount && (
+            <Section title="Active account">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-[12.5px]">{activeAccount.label}</span>
+                <AccountKindBadge kind={activeAccount.kind} />
+                {activeAccount.isDefault && (
+                  <span className="text-[10px] text-muted-foreground">default</span>
+                )}
+              </div>
+            </Section>
+          )}
+
           <Section title="Authenticated user">
-            {auth?.user ? (
+            {accountUser && (accountUser.name || accountUser.username || accountUser.email) ? (
+              <div className="space-y-1.5">
+                {accountUser.name && <UserRow icon={UserRound} label="Name" value={String(accountUser.name)} />}
+                {accountUser.username && <UserRow icon={Hash} label="Username" value={String(accountUser.username)} />}
+                {accountUser.email && <UserRow icon={Mail} label="Email" value={String(accountUser.email)} />}
+                {accountUser.role && <UserRow icon={Shield} label="Role" value={String(accountUser.role)} />}
+                {accountUser.id !== undefined && <UserRow icon={Hash} label="ID" value={String(accountUser.id)} />}
+              </div>
+            ) : auth?.user ? (
               <div className="space-y-1.5">
                 {auth.user.name && <UserRow icon={UserRound} label="Name" value={auth.user.name} />}
                 {auth.user.username && <UserRow icon={Hash} label="Username" value={auth.user.username} />}
@@ -91,7 +146,26 @@ export function AuthenticationDrawer(_props: AuthenticationDrawerProps) {
           </Section>
 
           <Section title="Token">
-            {auth?.hasToken ? (
+            {activeAccount?.hasToken ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-3.5 h-3.5 text-emerald-500" />
+                  <code className="font-mono text-[11.5px] text-foreground/85 truncate flex-1">
+                    {activeAccount.tokenPreview ?? '••••••••'}
+                  </code>
+                </div>
+                {activeAccount.tokenPath && (
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Captured from <code className="font-mono">{activeAccount.tokenPath}</code>
+                  </p>
+                )}
+                {activeAccount.expiresAt && (
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Expires {new Date(activeAccount.expiresAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            ) : auth?.hasToken ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <KeyRound className="w-3.5 h-3.5 text-emerald-500" />

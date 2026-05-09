@@ -26,6 +26,10 @@ export function DeleteProject(arg1) {
   return window['go']['app']['App']['DeleteProject'](arg1);
 }
 
+export function DeleteProjectAccount(arg1) {
+  return window['go']['app']['App']['DeleteProjectAccount'](arg1);
+}
+
 export function DeleteScratchRequest(arg1) {
   return window['go']['app']['App']['DeleteScratchRequest'](arg1);
 }
@@ -66,8 +70,16 @@ export function FormatException(arg1, arg2, arg3) {
   return window['go']['app']['App']['FormatException'](arg1, arg2, arg3);
 }
 
+export function GenerateAccountTOTP(arg1) {
+  return window['go']['app']['App']['GenerateAccountTOTP'](arg1);
+}
+
 export function GenerateDatasetRows(arg1, arg2) {
   return window['go']['app']['App']['GenerateDatasetRows'](arg1, arg2);
+}
+
+export function GetAccountSecrets(arg1) {
+  return window['go']['app']['App']['GetAccountSecrets'](arg1);
 }
 
 export function GetActiveProjectID() {
@@ -162,6 +174,10 @@ export function ListLastCollectionRuns(arg1) {
   return window['go']['app']['App']['ListLastCollectionRuns'](arg1);
 }
 
+export function ListProjectAccounts(arg1) {
+  return window['go']['app']['App']['ListProjectAccounts'](arg1);
+}
+
 export function ListProjects() {
   return window['go']['app']['App']['ListProjects']();
 }
@@ -188,6 +204,10 @@ export function PickFile() {
 
 export function PreviewAPIRoutes(arg1, arg2, arg3) {
   return window['go']['app']['App']['PreviewAPIRoutes'](arg1, arg2, arg3);
+}
+
+export function RefreshAccountToken(arg1) {
+  return window['go']['app']['App']['RefreshAccountToken'](arg1);
 }
 
 export function RegenerateBodyValues(arg1) {
@@ -234,6 +254,10 @@ export function SaveProject(arg1) {
   return window['go']['app']['App']['SaveProject'](arg1);
 }
 
+export function SaveProjectAccount(arg1) {
+  return window['go']['app']['App']['SaveProjectAccount'](arg1);
+}
+
 export function SaveResponseToFile(arg1, arg2, arg3) {
   return window['go']['app']['App']['SaveResponseToFile'](arg1, arg2, arg3);
 }
@@ -260,6 +284,10 @@ export function SetActiveEnvironment(arg1, arg2) {
 
 export function SetActiveProjectID(arg1) {
   return window['go']['app']['App']['SetActiveProjectID'](arg1);
+}
+
+export function SetDefaultProjectAccount(arg1, arg2) {
+  return window['go']['app']['App']['SetDefaultProjectAccount'](arg1, arg2);
 }
 
 export function SetProjectAuthManual(arg1) {
