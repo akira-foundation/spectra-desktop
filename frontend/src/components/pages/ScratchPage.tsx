@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { useProjectStore } from '@/store/projectStore'
 import { runnerService } from '@/services/runnerService'
+import { scratchService, type ScratchRequest } from '@/services/scratchService'
 import { BodyEditor } from '@/components/api-inspector/BodyEditor'
 import { CurlImportDialog } from '@/components/api-inspector/CurlImportDialog'
 import { HARImportDialog } from '@/components/api-inspector/HARImportDialog'
@@ -17,56 +18,24 @@ import {
   HeadersList,
   CopyButton,
   SaveResponseButton,
-  type TimelineData,
 } from '@/components/api-inspector/response'
 import { formatBody, prettyJSON } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-interface ScratchRequest {
-  id: string
-  name: string
-  method: string
-  url: string
-  headers: HeaderRow[]
-  body: string
-  response?: {
-    status: number
-    body: string
-    headers: Record<string, string[]>
-    durationMs: number
-    timeline?: TimelineData | null
-  } | null
-}
-
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-const STORAGE_KEY = 'spectra:scratch-requests'
+const LEGACY_KEY = 'spectra:scratch-requests'
 
-function loadScratch(): ScratchRequest[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch {
-    return []
-  }
-}
-
-function saveScratch(items: ScratchRequest[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  } catch {}
-}
-
-function newScratch(): ScratchRequest {
+function newScratch(projectID: string): ScratchRequest {
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: '',
+    projectID,
     name: 'Untitled',
     method: 'GET',
     url: '',
     headers: [],
     body: '',
+    response: null,
+    sortOrder: 0,
   }
 }
 
@@ -101,13 +70,48 @@ function ImportMenu({ onCurl, onHAR }: { onCurl: (p: any) => void; onHAR: (e: an
 
 export function ScratchPage() {
   const projectId = useProjectStore((s) => s.activeProjectId)
-  const [items, setItems] = useState<ScratchRequest[]>(() => loadScratch())
+  const [items, setItems] = useState<ScratchRequest[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
-    saveScratch(items)
-  }, [items])
+    if (!projectId) return
+    void (async () => {
+      const rows = await scratchService.list(projectId)
+      // one-time migration from legacy localStorage if backend empty
+      if (rows.length === 0) {
+        try {
+          const legacy = localStorage.getItem(LEGACY_KEY)
+          if (legacy) {
+            const parsed = JSON.parse(legacy)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const migrated: ScratchRequest[] = []
+              for (const old of parsed) {
+                const saved = await scratchService.save({
+                  id: '',
+                  projectID: projectId,
+                  name: old.name ?? 'Untitled',
+                  method: old.method ?? 'GET',
+                  url: old.url ?? '',
+                  headers: old.headers ?? [],
+                  body: old.body ?? '',
+                  response: old.response ?? null,
+                  sortOrder: migrated.length,
+                })
+                migrated.push(saved)
+              }
+              localStorage.removeItem(LEGACY_KEY)
+              setItems(migrated)
+              if (migrated[0]) setActiveId(migrated[0].id)
+              return
+            }
+          }
+        } catch {}
+      }
+      setItems(rows)
+    })()
+  }, [projectId])
 
   useEffect(() => {
     if (!activeId && items.length > 0) setActiveId(items[0].id)
@@ -118,18 +122,36 @@ export function ScratchPage() {
 
   const active = useMemo(() => items.find((i) => i.id === activeId) ?? null, [items, activeId])
 
-  const create = () => {
-    const s = newScratch()
-    setItems((prev) => [s, ...prev])
-    setActiveId(s.id)
+  const scheduleSave = (req: ScratchRequest) => {
+    const existing = saveTimers.current[req.id]
+    if (existing) clearTimeout(existing)
+    saveTimers.current[req.id] = setTimeout(() => {
+      void scratchService.save(req)
+    }, 400)
   }
 
-  const remove = (id: string) => {
+  const create = async () => {
+    if (!projectId) return
+    const draft = { ...newScratch(projectId), sortOrder: items.length }
+    const saved = await scratchService.save(draft)
+    setItems((prev) => [saved, ...prev])
+    setActiveId(saved.id)
+  }
+
+  const remove = async (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id))
+    try {
+      await scratchService.remove(id)
+    } catch {}
   }
 
   const update = (id: string, patch: Partial<ScratchRequest>) => {
-    setItems((prev) => prev.map((i) => (i === active ? i : i)).map((i) => (i.id === id ? { ...i, ...patch } : i)))
+    setItems((prev) => {
+      const next = prev.map((i) => (i.id === id ? { ...i, ...patch } : i))
+      const updated = next.find((i) => i.id === id)
+      if (updated) scheduleSave(updated)
+      return next
+    })
   }
 
   const run = async () => {
@@ -175,9 +197,11 @@ export function ScratchPage() {
     }
   }
 
-  const importCurl = (parsed: any) => {
-    const s: ScratchRequest = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  const importCurl = async (parsed: any) => {
+    if (!projectId) return
+    const draft: ScratchRequest = {
+      id: '',
+      projectID: projectId,
       name: parsed.path || parsed.url || 'Imported',
       method: parsed.method || 'GET',
       url: parsed.url || `${parsed.baseURL ?? ''}${parsed.path ?? ''}`,
@@ -187,24 +211,36 @@ export function ScratchPage() {
         enabled: true,
       })),
       body: prettyJSON(parsed.body || ''),
+      response: null,
+      sortOrder: items.length,
     }
-    setItems((prev) => [s, ...prev])
-    setActiveId(s.id)
+    const saved = await scratchService.save(draft)
+    setItems((prev) => [saved, ...prev])
+    setActiveId(saved.id)
   }
 
-  const importHAR = (entries: any[]) => {
-    const created: ScratchRequest[] = entries.map((e) => ({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: `${e.method} ${e.path || e.url}`,
-      method: e.method,
-      url: e.url,
-      headers: Object.entries(e.headers ?? {}).map(([k, v]) => ({
-        key: k,
-        value: String(v),
-        enabled: true,
-      })),
-      body: prettyJSON(e.body || ''),
-    }))
+  const importHAR = async (entries: any[]) => {
+    if (!projectId) return
+    const created: ScratchRequest[] = []
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i]
+      const saved = await scratchService.save({
+        id: '',
+        projectID: projectId,
+        name: `${e.method} ${e.path || e.url}`,
+        method: e.method,
+        url: e.url,
+        headers: Object.entries(e.headers ?? {}).map(([k, v]) => ({
+          key: k,
+          value: String(v),
+          enabled: true,
+        })),
+        body: prettyJSON(e.body || ''),
+        response: null,
+        sortOrder: items.length + i,
+      })
+      created.push(saved)
+    }
     setItems((prev) => [...created, ...prev])
     if (created[0]) setActiveId(created[0].id)
   }

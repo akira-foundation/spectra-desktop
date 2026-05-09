@@ -1283,6 +1283,34 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class ScratchRequestDTO {
+	    id: string;
+	    projectID: string;
+	    name: string;
+	    method: string;
+	    url: string;
+	    headersJson: string;
+	    body: string;
+	    responseJson?: string;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScratchRequestDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.projectID = source["projectID"];
+	        this.name = source["name"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headersJson = source["headersJson"];
+	        this.body = source["body"];
+	        this.responseJson = source["responseJson"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
 	export class SetProjectAuthInput {
 	    projectID: string;
 	    scheme: string;

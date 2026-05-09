@@ -18,6 +18,8 @@ export function DeleteEnvironment(arg1:string):Promise<void>;
 
 export function DeleteProject(arg1:string):Promise<void>;
 
+export function DeleteScratchRequest(arg1:string):Promise<void>;
+
 export function DetectFramework(arg1:string):Promise<string>;
 
 export function DetectProject(arg1:string):Promise<core.DetectionResult>;
@@ -86,6 +88,8 @@ export function ListLastCollectionRuns(arg1:string):Promise<Record<string, app.C
 
 export function ListProjects():Promise<Array<domain.Project>>;
 
+export function ListScratchRequests(arg1:string):Promise<Array<app.ScratchRequestDTO>>;
+
 export function ListSnapshots(arg1:string,arg2:number):Promise<Array<app.SnapshotSummary>>;
 
 export function MarkProjectSynced(arg1:string):Promise<void>;
@@ -119,6 +123,8 @@ export function SaveOpenAPIToFile(arg1:string):Promise<string>;
 export function SaveProject(arg1:domain.ProjectInput):Promise<domain.Project>;
 
 export function SaveResponseToFile(arg1:string,arg2:string,arg3:string):Promise<string>;
+
+export function SaveScratchRequest(arg1:app.ScratchRequestDTO):Promise<app.ScratchRequestDTO>;
 
 export function ScanActiveProject():Promise<Array<core.Endpoint>>;
 

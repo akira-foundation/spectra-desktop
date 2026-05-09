@@ -26,6 +26,10 @@ export function DeleteProject(arg1) {
   return window['go']['app']['App']['DeleteProject'](arg1);
 }
 
+export function DeleteScratchRequest(arg1) {
+  return window['go']['app']['App']['DeleteScratchRequest'](arg1);
+}
+
 export function DetectFramework(arg1) {
   return window['go']['app']['App']['DetectFramework'](arg1);
 }
@@ -162,6 +166,10 @@ export function ListProjects() {
   return window['go']['app']['App']['ListProjects']();
 }
 
+export function ListScratchRequests(arg1) {
+  return window['go']['app']['App']['ListScratchRequests'](arg1);
+}
+
 export function ListSnapshots(arg1, arg2) {
   return window['go']['app']['App']['ListSnapshots'](arg1, arg2);
 }
@@ -228,6 +236,10 @@ export function SaveProject(arg1) {
 
 export function SaveResponseToFile(arg1, arg2, arg3) {
   return window['go']['app']['App']['SaveResponseToFile'](arg1, arg2, arg3);
+}
+
+export function SaveScratchRequest(arg1) {
+  return window['go']['app']['App']['SaveScratchRequest'](arg1);
 }
 
 export function ScanActiveProject() {
