@@ -26,6 +26,10 @@ export function Drivers():Promise<Array<string>>;
 
 export function ExecuteRequest(arg1:app.ExecuteRequestInput):Promise<httpclient.Response>;
 
+export function ExportCollection(arg1:string):Promise<string>;
+
+export function ExportCollectionToFile(arg1:string):Promise<string>;
+
 export function ExportOpenAPI(arg1:string):Promise<string>;
 
 export function GenerateDatasetRows(arg1:string,arg2:number):Promise<string>;
@@ -38,6 +42,8 @@ export function GetEndpointDataset(arg1:string,arg2:string):Promise<string>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
 
+export function GetLastCollectionRun(arg1:string):Promise<app.CollectionRunDTO>;
+
 export function GetProjectAuth(arg1:string):Promise<app.ProjectAuthState>;
 
 export function GetProjectStats(arg1:string):Promise<domain.ProjectStats>;
@@ -45,6 +51,8 @@ export function GetProjectStats(arg1:string):Promise<domain.ProjectStats>;
 export function GetProjectStatsReport(arg1:string):Promise<core.StatsReport>;
 
 export function GetSnapshotDiff(arg1:string):Promise<app.SnapshotDiff>;
+
+export function ImportCollection(arg1:string,arg2:string):Promise<app.ImportCollectionResult>;
 
 export function InspectProject(arg1:string):Promise<app.ProjectInfo>;
 
@@ -61,6 +69,8 @@ export function ListEndpoints(arg1:string):Promise<Array<core.Endpoint>>;
 export function ListEnvironments(arg1:string):Promise<Array<app.EnvironmentDTO>>;
 
 export function ListHistory(arg1:string,arg2:number):Promise<Array<app.HistoryListItem>>;
+
+export function ListLastCollectionRuns(arg1:string):Promise<Record<string, app.CollectionRunDTO>>;
 
 export function ListProjects():Promise<Array<domain.Project>>;
 

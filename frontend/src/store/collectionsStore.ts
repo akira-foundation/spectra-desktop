@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { collectionsService, type Collection, type CollectionRun } from '@/services/collectionsService'
+import { ListLastCollectionRuns } from '../../wailsjs/go/app/App'
 
 interface CollectionsState {
   byProject: Record<string, Collection[]>
@@ -23,8 +24,20 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   refresh: async (projectId) => {
     if (!projectId) return
     try {
-      const rows = await collectionsService.list(projectId)
-      set((s) => ({ byProject: { ...s.byProject, [projectId]: rows } }))
+      const [rows, runs] = await Promise.all([
+        collectionsService.list(projectId),
+        ListLastCollectionRuns(projectId).catch(() => ({})),
+      ])
+      const lastRun: Record<string, CollectionRun | null> = { ...get().lastRun }
+      if (runs && typeof runs === 'object') {
+        for (const [id, r] of Object.entries(runs as Record<string, any>)) {
+          if (r) lastRun[id] = r as CollectionRun
+        }
+      }
+      set((s) => ({
+        byProject: { ...s.byProject, [projectId]: rows },
+        lastRun,
+      }))
     } catch (err) {
       console.error('collections refresh failed:', err)
     }

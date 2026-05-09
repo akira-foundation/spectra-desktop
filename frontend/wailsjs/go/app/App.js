@@ -42,6 +42,14 @@ export function ExecuteRequest(arg1) {
   return window['go']['app']['App']['ExecuteRequest'](arg1);
 }
 
+export function ExportCollection(arg1) {
+  return window['go']['app']['App']['ExportCollection'](arg1);
+}
+
+export function ExportCollectionToFile(arg1) {
+  return window['go']['app']['App']['ExportCollectionToFile'](arg1);
+}
+
 export function ExportOpenAPI(arg1) {
   return window['go']['app']['App']['ExportOpenAPI'](arg1);
 }
@@ -66,6 +74,10 @@ export function GetHistoryEntry(arg1) {
   return window['go']['app']['App']['GetHistoryEntry'](arg1);
 }
 
+export function GetLastCollectionRun(arg1) {
+  return window['go']['app']['App']['GetLastCollectionRun'](arg1);
+}
+
 export function GetProjectAuth(arg1) {
   return window['go']['app']['App']['GetProjectAuth'](arg1);
 }
@@ -80,6 +92,10 @@ export function GetProjectStatsReport(arg1) {
 
 export function GetSnapshotDiff(arg1) {
   return window['go']['app']['App']['GetSnapshotDiff'](arg1);
+}
+
+export function ImportCollection(arg1, arg2) {
+  return window['go']['app']['App']['ImportCollection'](arg1, arg2);
 }
 
 export function InspectProject(arg1) {
@@ -112,6 +128,10 @@ export function ListEnvironments(arg1) {
 
 export function ListHistory(arg1, arg2) {
   return window['go']['app']['App']['ListHistory'](arg1, arg2);
+}
+
+export function ListLastCollectionRuns(arg1) {
+  return window['go']['app']['App']['ListLastCollectionRuns'](arg1);
 }
 
 export function ListProjects() {

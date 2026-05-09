@@ -3,6 +3,9 @@ import {
   SaveCollection,
   DeleteCollection,
   RunCollection,
+  ExportCollection,
+  ExportCollectionToFile,
+  ImportCollection,
 } from '../../wailsjs/go/app/App'
 import { app } from '../../wailsjs/go/models'
 
@@ -43,5 +46,18 @@ export const collectionsService = {
   },
   async run(id: string): Promise<CollectionRun | null> {
     return (await RunCollection(id)) ?? null
+  },
+  async export(id: string): Promise<string> {
+    return (await ExportCollection(id)) ?? ''
+  },
+  async exportToFile(id: string): Promise<string> {
+    return (await ExportCollectionToFile(id)) ?? ''
+  },
+  async import(projectId: string, payload: string): Promise<{ collection: Collection | null; missingEndpoints: string[] }> {
+    const result = await ImportCollection(projectId, payload)
+    return {
+      collection: result?.collection ?? null,
+      missingEndpoints: result?.missingEndpoints ?? [],
+    }
   },
 }

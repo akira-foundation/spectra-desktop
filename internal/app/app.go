@@ -1731,6 +1731,234 @@ func (a *App) SaveCollection(input SaveCollectionInput) (*CollectionDTO, error) 
 	return &dto, nil
 }
 
+type ExportedTest struct {
+	Name     string `json:"name,omitempty"`
+	Kind     string `json:"kind"`
+	JSONPath string `json:"jsonPath,omitempty"`
+	Op       string `json:"op,omitempty"`
+	Expected string `json:"expected,omitempty"`
+}
+
+type ExportedCapture struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+	Path   string `json:"path"`
+}
+
+type ExportedItem struct {
+	Method          string            `json:"method"`
+	Path            string            `json:"path"`
+	IterateDataset  bool              `json:"iterateDataset,omitempty"`
+	SkipOnFailure   bool              `json:"skipOnFailure,omitempty"`
+	BodyOverride    string            `json:"bodyOverride,omitempty"`
+	HeadersOverride string            `json:"headersOverride,omitempty"`
+	Tests           []ExportedTest    `json:"tests,omitempty"`
+	Captures        []ExportedCapture `json:"captures,omitempty"`
+	Dataset         []json.RawMessage `json:"dataset,omitempty"`
+}
+
+type ExportedCollection struct {
+	SpectraVersion string         `json:"spectraVersion"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description,omitempty"`
+	ExportedAt     int64          `json:"exportedAt"`
+	Items          []ExportedItem `json:"items"`
+}
+
+func (a *App) ExportCollectionToFile(id string) (string, error) {
+	json, err := a.ExportCollection(id)
+	if err != nil {
+		return "", err
+	}
+	c, _ := a.collections.Get(a.ctx, id)
+	defaultName := "collection.spectra.json"
+	if c != nil && c.Name != "" {
+		defaultName = strings.ToLower(strings.ReplaceAll(c.Name, " ", "_")) + ".spectra.json"
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export collection",
+		DefaultFilename: defaultName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON", Pattern: "*.json"},
+		},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	if err := os.WriteFile(path, []byte(json), 0644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func (a *App) ExportCollection(id string) (string, error) {
+	if id == "" {
+		return "", fmt.Errorf("id required")
+	}
+	c, err := a.collections.Get(a.ctx, id)
+	if err != nil || c == nil {
+		return "", fmt.Errorf("collection not found")
+	}
+	endpoints, err := a.endpoints.List(a.ctx, c.ProjectID)
+	if err != nil {
+		return "", err
+	}
+	byID := map[string]core.Endpoint{}
+	for _, e := range endpoints {
+		byID[e.ID] = e
+	}
+	out := ExportedCollection{
+		SpectraVersion: "1",
+		Name:           c.Name,
+		Description:    c.Description,
+		ExportedAt:     time.Now().UTC().Unix(),
+		Items:          make([]ExportedItem, 0, len(c.Items)),
+	}
+	for _, it := range c.Items {
+		ep, ok := byID[it.EndpointID]
+		if !ok {
+			continue
+		}
+		key := endpointTestKey(string(ep.Method), ep.Path)
+		exported := ExportedItem{
+			Method:          string(ep.Method),
+			Path:            ep.Path,
+			IterateDataset:  it.IterateDataset,
+			SkipOnFailure:   it.SkipOnFailure,
+			BodyOverride:    it.BodyOverride,
+			HeadersOverride: it.HeadersOverride,
+		}
+		if tests, err := a.tests.List(a.ctx, c.ProjectID, key); err == nil {
+			for _, t := range tests {
+				exported.Tests = append(exported.Tests, ExportedTest{
+					Name:     t.Name,
+					Kind:     t.Kind,
+					JSONPath: t.JSONPath,
+					Op:       t.Op,
+					Expected: t.Expected,
+				})
+			}
+		}
+		if caps, err := a.captures.List(a.ctx, c.ProjectID, key); err == nil {
+			for _, cap := range caps {
+				exported.Captures = append(exported.Captures, ExportedCapture{
+					Name:   cap.Name,
+					Source: cap.Source,
+					Path:   cap.Path,
+				})
+			}
+		}
+		if it.IterateDataset {
+			if rowsJSON, err := a.datasets.Get(a.ctx, c.ProjectID, key); err == nil {
+				var rows []json.RawMessage
+				if json.Unmarshal([]byte(rowsJSON), &rows) == nil {
+					exported.Dataset = rows
+				}
+			}
+		}
+		out.Items = append(out.Items, exported)
+	}
+	buf, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
+type ImportCollectionResult struct {
+	Collection      CollectionDTO `json:"collection"`
+	MissingEndpoints []string     `json:"missingEndpoints,omitempty"`
+}
+
+func (a *App) ImportCollection(projectID, payload string) (*ImportCollectionResult, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("project id required")
+	}
+	if payload == "" {
+		return nil, fmt.Errorf("payload required")
+	}
+	var imported ExportedCollection
+	if err := json.Unmarshal([]byte(payload), &imported); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	if imported.Name == "" {
+		imported.Name = "Imported collection"
+	}
+	endpoints, err := a.endpoints.List(a.ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	byKey := map[string]core.Endpoint{}
+	for _, e := range endpoints {
+		byKey[endpointTestKey(string(e.Method), e.Path)] = e
+	}
+	c := domain.Collection{
+		ProjectID:   projectID,
+		Name:        imported.Name,
+		Description: imported.Description,
+	}
+	created, err := a.collections.Create(a.ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]domain.CollectionItem, 0, len(imported.Items))
+	missing := []string{}
+	for _, it := range imported.Items {
+		key := endpointTestKey(it.Method, it.Path)
+		ep, ok := byKey[key]
+		if !ok {
+			missing = append(missing, key)
+			continue
+		}
+		items = append(items, domain.CollectionItem{
+			CollectionID:    created.ID,
+			EndpointID:      ep.ID,
+			BodyOverride:    it.BodyOverride,
+			HeadersOverride: it.HeadersOverride,
+			SkipOnFailure:   it.SkipOnFailure,
+			IterateDataset:  it.IterateDataset,
+		})
+		if len(it.Tests) > 0 {
+			tests := make([]domain.EndpointTest, 0, len(it.Tests))
+			for _, t := range it.Tests {
+				tests = append(tests, domain.EndpointTest{
+					Name:     t.Name,
+					Kind:     t.Kind,
+					JSONPath: t.JSONPath,
+					Op:       t.Op,
+					Expected: t.Expected,
+				})
+			}
+			_ = a.tests.Replace(a.ctx, projectID, key, tests)
+		}
+		if len(it.Captures) > 0 {
+			caps := make([]domain.EndpointCapture, 0, len(it.Captures))
+			for _, cp := range it.Captures {
+				caps = append(caps, domain.EndpointCapture{
+					Name:   cp.Name,
+					Source: cp.Source,
+					Path:   cp.Path,
+				})
+			}
+			_ = a.captures.Replace(a.ctx, projectID, key, caps)
+		}
+		if len(it.Dataset) > 0 {
+			if buf, err := json.Marshal(it.Dataset); err == nil {
+				_ = a.datasets.Save(a.ctx, projectID, key, string(buf))
+			}
+		}
+	}
+	if err := a.collections.ReplaceItems(a.ctx, created.ID, items); err != nil {
+		return nil, err
+	}
+	full, err := a.collections.Get(a.ctx, created.ID)
+	if err != nil || full == nil {
+		return nil, err
+	}
+	dto := collectionToDTO(*full)
+	return &ImportCollectionResult{Collection: dto, MissingEndpoints: missing}, nil
+}
+
 func (a *App) DeleteCollection(id string) error {
 	if id == "" {
 		return fmt.Errorf("id required")
@@ -1873,8 +2101,85 @@ func (a *App) RunCollection(id string) (*CollectionRunDTO, error) {
 		}
 	}
 	run.DurationMs = int(time.Since(start).Milliseconds())
+	a.persistCollectionRun(id, run)
 	runtime.EventsEmit(a.ctx, "collection:run:done", run)
 	return run, nil
+}
+
+func (a *App) persistCollectionRun(collectionID string, run *CollectionRunDTO) {
+	buf, err := json.Marshal(run)
+	if err != nil {
+		log.Printf("collection run marshal: %v", err)
+		return
+	}
+	now := time.Now().UTC()
+	_, err = a.storage.DB.NewRaw(
+		`INSERT INTO collection_runs (collection_id, run_json, started_at, duration_ms, pass_count, fail_count, skip_count, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(collection_id) DO UPDATE SET
+		   run_json = excluded.run_json,
+		   started_at = excluded.started_at,
+		   duration_ms = excluded.duration_ms,
+		   pass_count = excluded.pass_count,
+		   fail_count = excluded.fail_count,
+		   skip_count = excluded.skip_count,
+		   updated_at = excluded.updated_at`,
+		collectionID, string(buf), time.Unix(run.StartedAt, 0).UTC(), run.DurationMs,
+		run.PassCount, run.FailCount, run.SkipCount, now, now,
+	).Exec(a.ctx)
+	if err != nil {
+		log.Printf("collection run persist: %v", err)
+	}
+}
+
+func (a *App) GetLastCollectionRun(collectionID string) (*CollectionRunDTO, error) {
+	if collectionID == "" {
+		return nil, nil
+	}
+	var runJSON string
+	err := a.storage.DB.NewRaw(
+		`SELECT run_json FROM collection_runs WHERE collection_id = ?`,
+		collectionID,
+	).Scan(a.ctx, &runJSON)
+	if err != nil {
+		return nil, nil
+	}
+	if runJSON == "" {
+		return nil, nil
+	}
+	var run CollectionRunDTO
+	if err := json.Unmarshal([]byte(runJSON), &run); err != nil {
+		return nil, err
+	}
+	return &run, nil
+}
+
+func (a *App) ListLastCollectionRuns(projectID string) (map[string]*CollectionRunDTO, error) {
+	if projectID == "" {
+		return map[string]*CollectionRunDTO{}, nil
+	}
+	type row struct {
+		CollectionID string `bun:"collection_id"`
+		RunJSON      string `bun:"run_json"`
+	}
+	var rows []row
+	err := a.storage.DB.NewRaw(
+		`SELECT cr.collection_id, cr.run_json FROM collection_runs cr
+		 JOIN collections c ON c.id = cr.collection_id
+		 WHERE c.project_id = ?`,
+		projectID,
+	).Scan(a.ctx, &rows)
+	if err != nil {
+		return map[string]*CollectionRunDTO{}, nil
+	}
+	out := map[string]*CollectionRunDTO{}
+	for _, r := range rows {
+		var run CollectionRunDTO
+		if err := json.Unmarshal([]byte(r.RunJSON), &run); err == nil {
+			out[r.CollectionID] = &run
+		}
+	}
+	return out, nil
 }
 
 func collectionToDTO(c domain.Collection) CollectionDTO {

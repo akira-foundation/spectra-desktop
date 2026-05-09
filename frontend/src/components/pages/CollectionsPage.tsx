@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Play, X, Loader2, Check, AlertTriangle, GripVertical, FolderKanban, ChevronRight, ExternalLink, Repeat, Database, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Play, X, Loader2, Check, AlertTriangle, GripVertical, FolderKanban, ChevronRight, ExternalLink, Repeat, Database, Sparkles, Download, Upload } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -54,6 +54,29 @@ export function CollectionsPage() {
     })
     await refresh(projectId)
     if (result?.id) setActiveId(result.id)
+  }
+
+  const importFile = () => {
+    if (!projectId) return
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,application/json'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const text = await file.text()
+      try {
+        const result = await collectionsService.import(projectId, text)
+        await refresh(projectId)
+        if (result.collection?.id) setActiveId(result.collection.id)
+        if (result.missingEndpoints.length > 0) {
+          alert(`Imported with ${result.missingEndpoints.length} missing endpoint(s):\n${result.missingEndpoints.join('\n')}`)
+        }
+      } catch (err) {
+        alert(`Import failed: ${(err as Error).message}`)
+      }
+    }
+    input.click()
   }
 
   const handleRun = async (id: string) => {
@@ -133,6 +156,17 @@ export function CollectionsPage() {
               ))}
             </ul>
           )}
+        </div>
+        <div className="px-3 py-2 border-t border-border/40 shrink-0">
+          <button
+            type="button"
+            onClick={importFile}
+            className="group w-full h-8 inline-flex items-center rounded-md border border-border/60 bg-card hover:bg-accent/60 active:bg-accent text-foreground text-[12px] font-medium transition-colors px-2.5"
+            title="Import collection JSON"
+          >
+            <Upload className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span className="ml-2">Import collection</span>
+          </button>
         </div>
       </aside>
 
@@ -353,7 +387,25 @@ function CollectionDetail({
     <>
       <div className="h-9 px-3 flex items-center justify-end gap-2 border-b border-border/40 shrink-0">
         {dirty && <span className="text-[10px] text-muted-foreground/70 italic">Saving…</span>}
-        <Button size="sm" className="h-7 gap-1.5" onClick={onRun} disabled={isRunning || items.length === 0}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-3 gap-1.5 text-[11.5px]"
+          onClick={async () => {
+            try {
+              const path = await collectionsService.exportToFile(collection.id)
+              if (path) console.log('[export] saved to:', path)
+            } catch (err) {
+              console.error('[export] failed:', err)
+              alert(`Export failed: ${(err as Error).message ?? err}`)
+            }
+          }}
+          title="Export as JSON"
+        >
+          <Download className="w-3 h-3" />
+          Export
+        </Button>
+        <Button size="sm" className="h-7 px-3 gap-1.5 text-[11.5px]" onClick={onRun} disabled={isRunning || items.length === 0}>
           {isRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3 fill-current" />}
           {isRunning ? 'Running…' : 'Run collection'}
         </Button>
