@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Wand2 } from 'lucide-react'
 import { JsonEditor } from './JsonEditor'
 import { FormBodyEditor } from './FormBodyEditor'
 import { MultipartEditor, type MultipartPart } from './MultipartEditor'
@@ -45,6 +46,13 @@ export function BodyEditor({
     )
   }
 
+  const formatJson = () => {
+    if (!body.trim()) return
+    try {
+      onBodyChange(JSON.stringify(JSON.parse(body), null, 2))
+    } catch {}
+  }
+
   return (
     <>
       <div className="flex items-center gap-2 mb-2">
@@ -64,6 +72,18 @@ export function BodyEditor({
           </ModeButton>
         )}
         {schemaBadge}
+        {mode === 'json' && (
+          <button
+            type="button"
+            onClick={formatJson}
+            disabled={!body.trim()}
+            title="Format JSON"
+            className="ml-auto inline-flex items-center gap-1 h-5 px-1.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/60 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          >
+            <Wand2 className="w-3 h-3" />
+            Format
+          </button>
+        )}
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
         {mode === 'multipart' && onMultipartChange ? (
