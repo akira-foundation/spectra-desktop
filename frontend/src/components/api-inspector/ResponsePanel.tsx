@@ -1,16 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Copy, Download, Trash2, Play, ChevronLeft, Check } from 'lucide-react'
-import { Skeleton } from '@/components/ui/skeleton'
-import { historyService } from '@/services/historyService'
+import { useEffect, useState } from 'react'
+import { Download, Trash2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { JsonEditor } from './JsonEditor'
 import { useHistoryStore } from '@/store/historyStore'
 import type { HistoryListItem } from '@/services/historyService'
 import { useProjectStore } from '@/store/projectStore'
 import { useUIStore } from '@/store/uiStore'
-import { useHttpMethod } from '@/hooks/useHttpMethod'
-import { cn } from '@/lib/utils'
+import { formatBody } from '@/lib/format'
+import {
+  TimelineStrip,
+  ExceptionPanel,
+  HeadersList,
+  CopyButton,
+  SaveResponseButton,
+  ResponseBodyView,
+  HistoryRow,
+  HistoryDetailView,
+  type TimelineData,
+} from './response'
 
 const EMPTY_HISTORY: HistoryListItem[] = []
 
@@ -22,7 +29,7 @@ interface ResponsePanelProps {
   endpointMethod?: string
   endpointPath?: string
   responseStatus?: number
-  responseTimeline?: { dnsMs: number; connectMs: number; tlsMs: number; ttfbMs: number; downloadMs: number } | null
+  responseTimeline?: TimelineData | null
 }
 
 export function ResponsePanel({
@@ -40,13 +47,12 @@ export function ResponsePanel({
   const allHistory = useHistoryStore((s) =>
     activeProjectId ? s.byProject[activeProjectId] ?? EMPTY_HISTORY : EMPTY_HISTORY,
   )
-  const history = endpointId
-    ? allHistory.filter((h) => h.endpointID === endpointId)
-    : allHistory
+  const history = endpointId ? allHistory.filter((h) => h.endpointID === endpointId) : allHistory
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [tab, setTab] = useState<string>('json')
   const inspectorPending = useUIStore((s) => s.inspectorPending)
   const setInspectorPending = useUIStore((s) => s.setInspectorPending)
+
   useEffect(() => {
     setExpandedId(null)
   }, [endpointId, activeProjectId])
@@ -61,7 +67,7 @@ export function ResponsePanel({
     }
     setInspectorPending(null)
   }, [inspectorPending, endpointId, history])
-  const refreshHistory = useHistoryStore((s) => s.refresh)
+
   const clearHistory = useHistoryStore((s) => s.clear)
   const loadHistory = useHistoryStore((s) => s.load)
 
@@ -79,8 +85,8 @@ export function ResponsePanel({
           </h3>
         </div>
         <div className="flex items-center gap-1">
-          <SaveButton text={formatted} method={endpointMethod} path={endpointPath} />
-          <CopyButton text={formatted} />
+          <SaveResponseButton text={formatted} method={endpointMethod} path={endpointPath} />
+          <CopyButton text={formatted} title="Copy response" />
         </div>
       </div>
 
@@ -165,579 +171,6 @@ export function ResponsePanel({
           )}
         </TabsContent>
       </Tabs>
-    </div>
-  )
-}
-
-interface HistoryRowProps {
-  entry: ReturnType<typeof useHistoryStore.getState>['byProject'][string][number]
-  onReplay?: (entryId: string) => void
-  onOpen: () => void
-}
-
-function HistoryRow({ entry, onReplay, onOpen }: HistoryRowProps) {
-  const { getMethodColor } = useHttpMethod()
-  const ago = timeAgo(new Date(entry.createdAt))
-  const statusTone =
-    entry.error
-      ? 'text-destructive'
-      : entry.responseStatus >= 500
-        ? 'text-destructive'
-        : entry.responseStatus >= 400
-          ? 'text-amber-500'
-          : entry.responseStatus >= 200
-            ? 'text-emerald-500'
-            : 'text-muted-foreground'
-
-  return (
-    <li className="rounded-md hover:bg-accent/30 transition-colors group">
-      <div className="flex items-center gap-2 px-2 py-1.5">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left"
-        >
-          <span
-            className={cn(
-              'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
-              getMethodColor(entry.method),
-            )}
-          >
-            {entry.method}
-          </span>
-          <span className={cn('text-[11px] font-mono tabular-nums w-9 text-right shrink-0', statusTone)}>
-            {entry.error ? 'ERR' : entry.responseStatus}
-          </span>
-          <span className="text-[11.5px] font-mono truncate flex-1 text-foreground/85">
-            {shortUrl(entry.url)}
-          </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-            {entry.durationMs}ms
-          </span>
-          <span className="text-[10px] text-muted-foreground/70 shrink-0 w-12 text-right">
-            {ago}
-          </span>
-        </button>
-        <CopyHistoryButton entryId={entry.id} />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onReplay?.(entry.id)
-          }}
-          aria-label="Replay this request"
-          title="Replay"
-          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-        >
-          <Play className="w-3 h-3" />
-        </button>
-      </div>
-    </li>
-  )
-}
-
-function CopyHistoryButton({ entryId }: { entryId: string }) {
-  const [copied, setCopied] = useState(false)
-  const handle = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    try {
-      const detail = await historyService.get(entryId)
-      const body = detail?.responseBody ?? ''
-      if (!body) return
-      await navigator.clipboard.writeText(body)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {}
-  }
-  return (
-    <button
-      type="button"
-      onClick={handle}
-      title={copied ? 'Copied!' : 'Copy response'}
-      className={cn(
-        'inline-flex h-5 w-5 items-center justify-center rounded transition-all',
-        copied
-          ? 'text-emerald-500 bg-emerald-500/10 opacity-100'
-          : 'text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent/60',
-      )}
-    >
-      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-    </button>
-  )
-}
-
-interface HistoryDetailViewProps {
-  entryId: string
-  entry?: ReturnType<typeof useHistoryStore.getState>['byProject'][string][number]
-  onBack: () => void
-  onReplay?: (entryId: string) => void
-}
-
-function HistoryDetailView({ entryId, entry, onBack, onReplay }: HistoryDetailViewProps) {
-  const { getMethodColor } = useHttpMethod()
-  const [detail, setDetail] = useState<Awaited<ReturnType<typeof historyService.get>> | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    setLoading(true)
-    historyService
-      .get(entryId)
-      .then((d) => setDetail(d))
-      .finally(() => setLoading(false))
-  }, [entryId])
-
-  const statusTone = entry?.error
-    ? 'text-destructive'
-    : (entry?.responseStatus ?? 0) >= 500
-      ? 'text-destructive'
-      : (entry?.responseStatus ?? 0) >= 400
-        ? 'text-amber-500'
-        : (entry?.responseStatus ?? 0) >= 200
-          ? 'text-emerald-500'
-          : 'text-muted-foreground'
-
-  return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-3 py-1.5 border-b border-border/40 flex items-center gap-2">
-        <Button size="icon-sm" variant="ghost" className="h-6 w-6" onClick={onBack} title="Back">
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </Button>
-        {entry && (
-          <>
-            <span
-              className={cn(
-                'inline-flex w-10 shrink-0 justify-center text-[9px] font-bold tracking-wider rounded px-1 py-0.5',
-                getMethodColor(entry.method),
-              )}
-            >
-              {entry.method}
-            </span>
-            <span className={cn('text-[11px] font-mono tabular-nums', statusTone)}>
-              {entry.error ? 'ERR' : entry.responseStatus}
-            </span>
-            <span className="text-[11.5px] font-mono truncate flex-1 text-foreground/85">
-              {shortUrl(entry.url)}
-            </span>
-            <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-              {entry.durationMs}ms
-            </span>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              className="h-6 w-6 hover:text-emerald-500 hover:bg-emerald-500/10"
-              onClick={() => onReplay?.(entryId)}
-              title="Replay"
-            >
-              <Play className="w-3 h-3" />
-            </Button>
-          </>
-        )}
-      </div>
-      <div className="flex-1 min-h-0 p-3 overflow-hidden">
-        {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-        ) : detail ? (
-          <div className="h-full">
-            <JsonEditor
-              value={prettyJSON(detail.responseBody) || ''}
-              onChange={() => undefined}
-              readOnly
-            />
-          </div>
-        ) : (
-          <p className="text-[11.5px] text-muted-foreground italic">Failed to load entry</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function prettyJSON(raw: string): string {
-  if (!raw) return ''
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
-  } catch {
-    return raw
-  }
-}
-
-function HeadersList({ headers }: { headers?: Record<string, string[]> }) {
-  const entries = Object.entries(headers ?? {})
-  if (entries.length === 0) {
-    return <p className="text-[11.5px] text-muted-foreground italic text-center">No headers</p>
-  }
-  return (
-    <ul className="space-y-1">
-      {entries.map(([k, vs]) => (
-        <li key={k} className="flex gap-2 text-[11.5px] font-mono">
-          <span className="text-muted-foreground/80 shrink-0 min-w-[140px]">{k}:</span>
-          <span className="text-foreground/90 break-all">{vs.join(', ')}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function formatBody(data: unknown): string {
-  if (data == null) return ''
-  if (typeof data === 'string') return data
-  try {
-    return JSON.stringify(data, null, 2)
-  } catch {
-    return String(data)
-  }
-}
-
-function shortUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    return u.pathname + u.search
-  } catch {
-    return url
-  }
-}
-
-function timeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
-  const days = Math.floor(hours / 24)
-  return `${days}d`
-}
-
-function ResponseBodyView({ raw }: { raw: string }) {
-  type Mode = 'json' | 'tree' | 'table' | 'raw'
-  const [mode, setMode] = useState<Mode>('json')
-  const parsed = useMemo(() => {
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
-    }
-  }, [raw])
-
-  const tableRows = useMemo(() => extractTableRows(parsed), [parsed])
-  const isJson = parsed !== null
-
-  return (
-    <div className="h-full min-h-0 flex flex-col gap-2">
-      <div className="flex items-center gap-1 shrink-0">
-        {(['json', 'tree', 'table', 'raw'] as Mode[])
-          .filter((m) => {
-            if (m === 'json' || m === 'tree') return isJson
-            if (m === 'table') return tableRows != null
-            return true
-          })
-          .map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={cn(
-                'h-6 px-2 text-[10.5px] rounded transition-colors',
-                mode === m ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent/40',
-              )}
-            >
-              {m.toUpperCase()}
-            </button>
-          ))}
-      </div>
-      <div className="flex-1 min-h-0 overflow-auto">
-        {mode === 'json' && (isJson ? <JsonEditor value={raw} onChange={() => undefined} readOnly /> : <RawView raw={raw} />)}
-        {mode === 'tree' && parsed !== null && <TreeView value={parsed} />}
-        {mode === 'table' && tableRows && <TableView rows={tableRows} />}
-        {mode === 'raw' && <RawView raw={raw} />}
-      </div>
-    </div>
-  )
-}
-
-function RawView({ raw }: { raw: string }) {
-  return (
-    <pre className="h-full w-full m-0 p-3 text-[11px] font-mono whitespace-pre-wrap break-all text-foreground/85 bg-muted/20 rounded-md border border-border/40 overflow-auto">
-      {raw}
-    </pre>
-  )
-}
-
-function TreeView({ value, depth = 0, label }: { value: any; depth?: number; label?: string }) {
-  const [open, setOpen] = useState(depth < 2)
-  const isObj = value && typeof value === 'object'
-  const isArr = Array.isArray(value)
-  if (!isObj) {
-    return (
-      <div className="flex items-baseline gap-2 py-0.5" style={{ paddingLeft: depth * 12 }}>
-        {label && <code className="text-[11px] font-mono text-foreground/70">{label}:</code>}
-        <code className={cn('text-[11px] font-mono', valueTone(value))}>{formatLeaf(value)}</code>
-      </div>
-    )
-  }
-  const entries = isArr
-    ? (value as any[]).map((v, i) => [`[${i}]`, v] as [string, any])
-    : Object.entries(value as Record<string, any>)
-  const summary = isArr ? `Array(${entries.length})` : `{${entries.length}}`
-  return (
-    <div style={{ paddingLeft: depth * 12 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-baseline gap-2 py-0.5 hover:bg-accent/20 px-1 rounded"
-      >
-        <span className="text-[10px] text-muted-foreground/60 w-3">{open ? '▼' : '▶'}</span>
-        {label && <code className="text-[11px] font-mono text-foreground/70">{label}:</code>}
-        <code className="text-[10.5px] font-mono text-muted-foreground">{summary}</code>
-      </button>
-      {open && (
-        <div>
-          {entries.map(([k, v]) => (
-            <TreeView key={k} value={v} depth={depth + 1} label={k} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TableView({ rows }: { rows: { columns: string[]; data: any[][] } }) {
-  return (
-    <div className="overflow-auto rounded-md border border-border/40">
-      <table className="w-full text-[11px] font-mono">
-        <thead className="sticky top-0 bg-muted/50">
-          <tr>
-            {rows.columns.map((c) => (
-              <th key={c} className="px-2 py-1.5 text-left text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80 border-b border-border/40">
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.data.map((r, i) => (
-            <tr key={i} className="border-b border-border/20 hover:bg-accent/20">
-              {r.map((v, j) => (
-                <td key={j} className={cn('px-2 py-1 align-top truncate max-w-[300px]', valueTone(v))}>
-                  {formatLeaf(v)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function extractTableRows(value: any): { columns: string[]; data: any[][] } | null {
-  const arr = findArrayOfObjects(value)
-  if (!arr || arr.length === 0) return null
-  const columns = Array.from(
-    new Set(arr.flatMap((row) => (row && typeof row === 'object' ? Object.keys(row) : []))),
-  )
-  if (columns.length === 0) return null
-  const data = arr.map((row) =>
-    columns.map((c) => (row && typeof row === 'object' ? (row as any)[c] : undefined)),
-  )
-  return { columns, data }
-}
-
-function findArrayOfObjects(value: any, depth = 0): any[] | null {
-  if (depth > 6) return null
-  if (Array.isArray(value)) {
-    if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
-      return value
-    }
-    return null
-  }
-  if (value && typeof value === 'object') {
-    for (const v of Object.values(value)) {
-      const found = findArrayOfObjects(v, depth + 1)
-      if (found) return found
-    }
-  }
-  return null
-}
-
-function formatLeaf(v: any): string {
-  if (v === null || v === undefined) return v === null ? 'null' : ''
-  if (typeof v === 'string') return `"${v}"`
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
-}
-
-function valueTone(v: any): string {
-  if (v === null || v === undefined) return 'text-muted-foreground/60 italic'
-  if (typeof v === 'string') return 'text-emerald-500/90'
-  if (typeof v === 'number') return 'text-purple-400'
-  if (typeof v === 'boolean') return 'text-amber-500'
-  return 'text-foreground/85'
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const handle = async () => {
-    if (!text) return
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {}
-  }
-  return (
-    <button
-      type="button"
-      onClick={handle}
-      disabled={!text}
-      className={cn(
-        'inline-flex h-6 w-6 items-center justify-center rounded transition-colors',
-        copied ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
-        'disabled:opacity-40 disabled:hover:bg-transparent',
-      )}
-      title={copied ? 'Copied!' : 'Copy response'}
-    >
-      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-    </button>
-  )
-}
-
-function SaveButton({ text, method, path }: { text: string; method?: string; path?: string }) {
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const handle = async () => {
-    if (!text || saving) return
-    setSaving(true)
-    try {
-      const { SaveResponseToFile } = await import('../../../wailsjs/go/app/App')
-      const result = await SaveResponseToFile(method ?? '', path ?? '', text)
-      if (result) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 1500)
-      }
-    } catch {} finally {
-      setSaving(false)
-    }
-  }
-  return (
-    <button
-      type="button"
-      onClick={handle}
-      disabled={!text || saving}
-      className={cn(
-        'inline-flex h-6 w-6 items-center justify-center rounded transition-colors',
-        saved ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
-        'disabled:opacity-40 disabled:hover:bg-transparent',
-      )}
-      title={saved ? 'Saved!' : 'Save response to file'}
-    >
-      {saved ? <Check className="w-3 h-3" /> : <Download className="w-3 h-3" />}
-    </button>
-  )
-}
-
-function TimelineStrip({ timeline }: { timeline: { dnsMs: number; connectMs: number; tlsMs: number; ttfbMs: number; downloadMs: number } }) {
-  const total = timeline.dnsMs + timeline.connectMs + timeline.tlsMs + timeline.ttfbMs + timeline.downloadMs
-  if (total === 0) return null
-  const segments = [
-    { label: 'DNS', ms: timeline.dnsMs, color: 'bg-cyan-500/70' },
-    { label: 'TCP', ms: timeline.connectMs, color: 'bg-blue-500/70' },
-    { label: 'TLS', ms: timeline.tlsMs, color: 'bg-violet-500/70' },
-    { label: 'TTFB', ms: timeline.ttfbMs, color: 'bg-amber-500/70' },
-    { label: 'DL', ms: timeline.downloadMs, color: 'bg-emerald-500/70' },
-  ]
-  return (
-    <div className="px-3 py-1.5 border-b border-border/40 flex items-center gap-2">
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 shrink-0">
-        Timeline
-      </span>
-      <div className="flex h-2 flex-1 rounded-full overflow-hidden bg-muted/30">
-        {segments.map((s) => {
-          const pct = total > 0 ? (s.ms / total) * 100 : 0
-          if (pct === 0) return null
-          return (
-            <div
-              key={s.label}
-              className={s.color}
-              style={{ width: `${pct}%` }}
-              title={`${s.label}: ${s.ms}ms`}
-            />
-          )
-        })}
-      </div>
-      <div className="flex items-center gap-2 text-[9px] font-mono text-muted-foreground tabular-nums shrink-0">
-        {segments
-          .filter((s) => s.ms > 0)
-          .map((s) => (
-            <span key={s.label} className="flex items-center gap-1">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.color}`} />
-              {s.label} {s.ms}ms
-            </span>
-          ))}
-      </div>
-    </div>
-  )
-}
-
-function ExceptionPanel({ projectId, body, status }: { projectId: string | null; body: string; status: number }) {
-  const [exc, setExc] = useState<any | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    if (!projectId || !body || status < 400) return
-    void import('../../../wailsjs/go/app/App').then(async ({ FormatException }) => {
-      try {
-        const result = await FormatException(projectId, body, status)
-        if (cancelled) return
-        if (Array.isArray(result) && result[1]) setExc(result[0])
-        else if (result && typeof result === 'object' && (result as any).message) setExc(result)
-      } catch {}
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, body, status])
-  if (!exc) return null
-  return (
-    <div className="px-3 py-2 border-b border-border/40 bg-rose-500/5">
-      <div className="flex items-baseline gap-2 mb-1">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-rose-500/90">
-          Exception
-        </span>
-        {exc.class && <code className="text-[10.5px] font-mono text-rose-500/80">{exc.class}</code>}
-      </div>
-      <p className="text-[11.5px] text-foreground/90 mb-1.5">{exc.message}</p>
-      {exc.file && (
-        <p className="text-[10px] font-mono text-muted-foreground">
-          {exc.file}
-          {exc.line ? `:${exc.line}` : ''}
-        </p>
-      )}
-      {exc.trace && exc.trace.length > 0 && (
-        <details className="mt-1.5">
-          <summary className="text-[10px] text-muted-foreground/70 cursor-pointer hover:text-foreground">
-            Stack trace ({exc.trace.length})
-          </summary>
-          <ul className="m-0 mt-1 p-0 list-none space-y-0.5 max-h-40 overflow-auto">
-            {exc.trace.map((t: any, i: number) => (
-              <li key={i} className="text-[10px] font-mono text-muted-foreground">
-                <span className="text-foreground/70">{t.function}</span>
-                {t.file && (
-                  <span className="text-muted-foreground/60">
-                    {' '}
-                    @ {t.file}
-                    {t.line ? `:${t.line}` : ''}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
     </div>
   )
 }
