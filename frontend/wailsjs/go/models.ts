@@ -412,6 +412,98 @@ export namespace app {
 	        this.path = source["path"];
 	    }
 	}
+	export class LatencyPointDTO {
+	    day: string;
+	    avgMs: number;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LatencyPointDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.day = source["day"];
+	        this.avgMs = source["avgMs"];
+	        this.count = source["count"];
+	    }
+	}
+	export class EndpointFailureSeriesDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    failures: number;
+	    points: LatencyPointDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointFailureSeriesDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.failures = source["failures"];
+	        this.points = this.convertValues(source["points"], LatencyPointDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EndpointLatencySeriesDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    avgMs: number;
+	    points: LatencyPointDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointLatencySeriesDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.avgMs = source["avgMs"];
+	        this.points = this.convertValues(source["points"], LatencyPointDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class EndpointTestDTO {
 	    id?: string;
@@ -434,6 +526,44 @@ export namespace app {
 	        this.op = source["op"];
 	        this.expected = source["expected"];
 	    }
+	}
+	export class EndpointUsageSeriesDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    total: number;
+	    points: LatencyPointDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointUsageSeriesDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.total = source["total"];
+	        this.points = this.convertValues(source["points"], LatencyPointDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class EnvironmentDTO {
 	    id: string;
@@ -481,6 +611,30 @@ export namespace app {
 	        this.baseUrl = source["baseUrl"];
 	        this.timeoutMs = source["timeoutMs"];
 	        this.skipAuth = source["skipAuth"];
+	    }
+	}
+	export class FlakyEndpointDTO {
+	    endpointID: string;
+	    method: string;
+	    path: string;
+	    total: number;
+	    successes: number;
+	    failures: number;
+	    flakeScore: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FlakyEndpointDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.endpointID = source["endpointID"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.total = source["total"];
+	        this.successes = source["successes"];
+	        this.failures = source["failures"];
+	        this.flakeScore = source["flakeScore"];
 	    }
 	}
 	export class HistoryEntryDetail {
@@ -587,6 +741,22 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class HourlyCellDTO {
+	    day: number;
+	    hour: number;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new HourlyCellDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.day = source["day"];
+	        this.hour = source["hour"];
+	        this.count = source["count"];
+	    }
+	}
 	export class ImportCollectionResult {
 	    collection: CollectionDTO;
 	    missingEndpoints?: string[];
@@ -619,6 +789,45 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class InsightsDTO {
+	    latencyOverTime: EndpointLatencySeriesDTO[];
+	    usageOverTime: EndpointUsageSeriesDTO[];
+	    failuresOverTime: EndpointFailureSeriesDTO[];
+	    hourlyHeatmap: HourlyCellDTO[];
+	    flaky: FlakyEndpointDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new InsightsDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.latencyOverTime = this.convertValues(source["latencyOverTime"], EndpointLatencySeriesDTO);
+	        this.usageOverTime = this.convertValues(source["usageOverTime"], EndpointUsageSeriesDTO);
+	        this.failuresOverTime = this.convertValues(source["failuresOverTime"], EndpointFailureSeriesDTO);
+	        this.hourlyHeatmap = this.convertValues(source["hourlyHeatmap"], HourlyCellDTO);
+	        this.flaky = this.convertValues(source["flaky"], FlakyEndpointDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	
 	export class ProjectAuthState {
 	    projectID: string;

@@ -1402,6 +1402,123 @@ func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardM
 	return out, nil
 }
 
+type LatencyPointDTO struct {
+	Day   string `json:"day"`
+	AvgMs int    `json:"avgMs"`
+	Count int    `json:"count"`
+}
+
+type EndpointLatencySeriesDTO struct {
+	EndpointID string            `json:"endpointID"`
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	AvgMs      int               `json:"avgMs"`
+	Points     []LatencyPointDTO `json:"points"`
+}
+
+type HourlyCellDTO struct {
+	Day   int `json:"day"`
+	Hour  int `json:"hour"`
+	Count int `json:"count"`
+}
+
+type FlakyEndpointDTO struct {
+	EndpointID string  `json:"endpointID"`
+	Method     string  `json:"method"`
+	Path       string  `json:"path"`
+	Total      int     `json:"total"`
+	Successes  int     `json:"successes"`
+	Failures   int     `json:"failures"`
+	FlakeScore float64 `json:"flakeScore"`
+}
+
+type EndpointUsageSeriesDTO struct {
+	EndpointID string            `json:"endpointID"`
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	Total      int               `json:"total"`
+	Points     []LatencyPointDTO `json:"points"`
+}
+
+type EndpointFailureSeriesDTO struct {
+	EndpointID string            `json:"endpointID"`
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	Failures   int               `json:"failures"`
+	Points     []LatencyPointDTO `json:"points"`
+}
+
+type InsightsDTO struct {
+	LatencyOverTime  []EndpointLatencySeriesDTO `json:"latencyOverTime"`
+	UsageOverTime    []EndpointUsageSeriesDTO   `json:"usageOverTime"`
+	FailuresOverTime []EndpointFailureSeriesDTO `json:"failuresOverTime"`
+	HourlyHeatmap    []HourlyCellDTO            `json:"hourlyHeatmap"`
+	Flaky            []FlakyEndpointDTO         `json:"flaky"`
+}
+
+func (a *App) GetInsights(projectID string, days int) (*InsightsDTO, error) {
+	if projectID == "" {
+		return &InsightsDTO{LatencyOverTime: []EndpointLatencySeriesDTO{}, HourlyHeatmap: []HourlyCellDTO{}, Flaky: []FlakyEndpointDTO{}}, nil
+	}
+	if days <= 0 {
+		days = 7
+	}
+	out := &InsightsDTO{
+		LatencyOverTime:  []EndpointLatencySeriesDTO{},
+		UsageOverTime:    []EndpointUsageSeriesDTO{},
+		FailuresOverTime: []EndpointFailureSeriesDTO{},
+		HourlyHeatmap:    []HourlyCellDTO{},
+		Flaky:            []FlakyEndpointDTO{},
+	}
+	if series, err := a.metrics.LatencyOverTime(a.ctx, projectID, days, 5); err == nil {
+		for _, s := range series {
+			pts := make([]LatencyPointDTO, 0, len(s.Points))
+			for _, p := range s.Points {
+				pts = append(pts, LatencyPointDTO{Day: p.Day.Format("2006-01-02"), AvgMs: p.AvgMs, Count: p.Count})
+			}
+			out.LatencyOverTime = append(out.LatencyOverTime, EndpointLatencySeriesDTO{
+				EndpointID: s.EndpointID, Method: s.Method, Path: s.Path, AvgMs: s.AvgMs, Points: pts,
+			})
+		}
+	}
+	if series, err := a.metrics.UsageOverTime(a.ctx, projectID, days, 5); err == nil {
+		for _, s := range series {
+			pts := make([]LatencyPointDTO, 0, len(s.Points))
+			for _, p := range s.Points {
+				pts = append(pts, LatencyPointDTO{Day: p.Day.Format("2006-01-02"), Count: p.Count})
+			}
+			out.UsageOverTime = append(out.UsageOverTime, EndpointUsageSeriesDTO{
+				EndpointID: s.EndpointID, Method: s.Method, Path: s.Path, Total: s.Total, Points: pts,
+			})
+		}
+	}
+	if series, err := a.metrics.FailuresOverTime(a.ctx, projectID, days, 5); err == nil {
+		for _, s := range series {
+			pts := make([]LatencyPointDTO, 0, len(s.Points))
+			for _, p := range s.Points {
+				pts = append(pts, LatencyPointDTO{Day: p.Day.Format("2006-01-02"), Count: p.Count})
+			}
+			out.FailuresOverTime = append(out.FailuresOverTime, EndpointFailureSeriesDTO{
+				EndpointID: s.EndpointID, Method: s.Method, Path: s.Path, Failures: s.Failures, Points: pts,
+			})
+		}
+	}
+	if cells, err := a.metrics.HourlyHeatmap(a.ctx, projectID, days); err == nil {
+		for _, c := range cells {
+			out.HourlyHeatmap = append(out.HourlyHeatmap, HourlyCellDTO{Day: c.Day, Hour: c.Hour, Count: c.Count})
+		}
+	}
+	if flaky, err := a.metrics.FlakyEndpoints(a.ctx, projectID, 3); err == nil {
+		for _, f := range flaky {
+			out.Flaky = append(out.Flaky, FlakyEndpointDTO{
+				EndpointID: f.EndpointID, Method: f.Method, Path: f.Path,
+				Total: f.Total, Successes: f.Successes, Failures: f.Failures, FlakeScore: f.FlakeScore,
+			})
+		}
+	}
+	return out, nil
+}
+
 func topNBy(items []EndpointMetricDTO, less func(a, b EndpointMetricDTO) bool, n int) []EndpointMetricDTO {
 	out := append([]EndpointMetricDTO(nil), items...)
 	for i := 0; i < len(out); i++ {

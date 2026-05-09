@@ -74,6 +74,10 @@ export function GetHistoryEntry(arg1) {
   return window['go']['app']['App']['GetHistoryEntry'](arg1);
 }
 
+export function GetInsights(arg1, arg2) {
+  return window['go']['app']['App']['GetInsights'](arg1, arg2);
+}
+
 export function GetLastCollectionRun(arg1) {
   return window['go']['app']['App']['GetLastCollectionRun'](arg1);
 }

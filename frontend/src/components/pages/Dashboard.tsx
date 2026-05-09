@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, Tooltip as RechartsTooltip, XAxis } from 'recharts'
 import { metricsService, type DashboardMetrics, type EndpointMetricDTO } from '@/services/metricsService'
+import { InsightsSection } from '@/components/dashboard/InsightsSection'
 import { useProjectStore } from '@/store/projectStore'
 import { useStatsStore } from '@/store/statsStore'
 import { useAuthStore } from '@/store/authStore'
@@ -148,36 +149,17 @@ export function Dashboard() {
         </div>
       </header>
 
+      <SectionHeader title="Overview" subtitle="Status, latency and request volume" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatusCard metrics={metrics} />
         <LatencyCard metrics={metrics} />
         <VolumeCard metrics={metrics} days={volumeDays} onChangeDays={setVolumeDays} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <EndpointTopCard
-          title="Slowest"
-          icon={Timer}
-          entries={metrics?.topSlow ?? []}
-          metric="ms"
-          onOpen={(id) => goToInspector(id)}
-        />
-        <EndpointTopCard
-          title="Failing"
-          icon={AlertTriangle}
-          entries={metrics?.topFailing ?? []}
-          metric="errorRate"
-          onOpen={(id) => goToInspector(id)}
-        />
-        <EndpointTopCard
-          title="Most used"
-          icon={Zap}
-          entries={metrics?.topUsed ?? []}
-          metric="count"
-          onOpen={(id) => goToInspector(id)}
-        />
-      </div>
+      <SectionHeader title="Insights" subtitle="Trends and diagnostics over the selected window" />
+      <InsightsSection projectId={activeProjectId ?? null} days={volumeDays} refreshKey={history?.length ?? 0} />
 
+      <SectionHeader title="Activity" subtitle="Recent requests and latest snapshot" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2">
           <RecentActivityCard
@@ -190,6 +172,15 @@ export function Dashboard() {
           onOpen={() => setCurrentPage('changelog')}
         />
       </div>
+    </div>
+  )
+}
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-baseline gap-2 pt-1">
+      <h2 className="text-[12px] font-semibold uppercase tracking-wider text-foreground/85">{title}</h2>
+      {subtitle && <span className="text-[11px] text-muted-foreground/70">{subtitle}</span>}
     </div>
   )
 }

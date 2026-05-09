@@ -42,6 +42,8 @@ export function GetEndpointDataset(arg1:string,arg2:string):Promise<string>;
 
 export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
 
+export function GetInsights(arg1:string,arg2:number):Promise<app.InsightsDTO>;
+
 export function GetLastCollectionRun(arg1:string):Promise<app.CollectionRunDTO>;
 
 export function GetProjectAuth(arg1:string):Promise<app.ProjectAuthState>;
