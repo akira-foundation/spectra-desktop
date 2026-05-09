@@ -1,4 +1,12 @@
 import { Play, Send, FileCheck, Sparkles, Shuffle, FileX2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogHeader,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useState } from 'react'
@@ -277,23 +285,113 @@ function SchemaBadge({ schema, requiredCount, touched }: SchemaBadgeProps) {
   const Icon = schema.confidence === 'high' ? FileCheck : Sparkles
   const tone =
     schema.confidence === 'high'
-      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
-      : 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/15'
+      : 'border-amber-500/30 bg-amber-500/10 text-amber-500 hover:bg-amber-500/15'
   return (
-    <span
-      className={cn(
-        'ml-auto inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border',
-        tone,
-      )}
-      title={`${sourceLabel(schema.source)} · ${schema.confidence} confidence`}
-    >
-      <Icon className="w-3 h-3" />
-      {sourceLabel(schema.source)}
-      <span className="text-muted-foreground/80">·</span>
-      <span>{requiredCount} required</span>
-      {touched && <span className="text-muted-foreground/70 ml-0.5">· edited</span>}
-    </span>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'ml-auto inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors cursor-pointer',
+            tone,
+          )}
+          title={`${sourceLabel(schema.source)} · ${schema.confidence} confidence`}
+        >
+          <Icon className="w-3 h-3" />
+          {sourceLabel(schema.source)}
+          <span className="text-muted-foreground/80">·</span>
+          <span>{requiredCount} required</span>
+          {touched && <span className="text-muted-foreground/70 ml-0.5">· edited</span>}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b border-border/40">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Icon className={cn('w-4 h-4', schema.confidence === 'high' ? 'text-emerald-500' : 'text-amber-500')} />
+            Validation rules
+          </DialogTitle>
+          <DialogDescription className="text-[12.5px]">
+            Detected from {sourceLabel(schema.source)} with {schema.confidence} confidence.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <Stat label="Fields" value={schema.fields.length} />
+            <Stat label="Required" value={requiredCount} accent="rose" />
+            <Stat label="Optional" value={schema.fields.length - requiredCount} />
+          </div>
+          {schema.fields.length === 0 ? (
+            <div className="rounded-md border border-border/60 bg-card/40 px-4 py-8 text-center">
+              <p className="text-[11.5px] italic text-muted-foreground/70">No fields detected.</p>
+            </div>
+          ) : (
+            <ul className="m-0 p-0 list-none space-y-2">
+              {schema.fields.map((f) => (
+                <li key={f.name} className="rounded-md border border-border/50 bg-card/40 overflow-hidden">
+                  <div className="px-3 py-2 flex items-center gap-2 bg-muted/20 border-b border-border/30">
+                    <code className="text-[12px] font-mono font-semibold text-foreground">
+                      {f.name}
+                    </code>
+                    {f.required && (
+                      <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-rose-500 px-1.5 py-0.5 rounded bg-rose-500/10">
+                        required
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        'ml-auto text-[9.5px] font-mono px-1.5 py-0.5 rounded',
+                        typeTone(f.type),
+                      )}
+                    >
+                      {f.type || 'mixed'}
+                    </span>
+                  </div>
+                  {f.rules && f.rules.length > 0 ? (
+                    <div className="px-3 py-2 flex flex-wrap gap-1.5">
+                      {f.rules.map((r, i) => (
+                        <code
+                          key={i}
+                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground/90 border border-border/30"
+                        >
+                          {r}
+                        </code>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-3 py-1.5 text-[10px] italic text-muted-foreground/50">No rules</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+      </DialogContent>
+    </Dialog>
   )
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent?: 'rose' }) {
+  return (
+    <div className="rounded-md border border-border/60 bg-card/40 px-3 py-2">
+      <div className={cn('text-[16px] font-semibold tabular-nums', accent === 'rose' && 'text-rose-500')}>
+        {value}
+      </div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</div>
+    </div>
+  )
+}
+
+function typeTone(t: string): string {
+  const k = (t || '').toLowerCase()
+  if (k.startsWith('string') || k === 'email' || k === 'uuid') return 'bg-blue-500/15 text-blue-400'
+  if (k.startsWith('int') || k === 'numeric' || k === 'number') return 'bg-purple-500/15 text-purple-400'
+  if (k.startsWith('bool')) return 'bg-amber-500/15 text-amber-500'
+  if (k === 'date' || k === 'datetime' || k === 'timestamp') return 'bg-pink-500/15 text-pink-400'
+  if (k === 'array' || k === 'object') return 'bg-teal-500/15 text-teal-400'
+  return 'bg-muted/40 text-muted-foreground'
 }
 
 function NoBodyState({ method }: { method: string }) {
