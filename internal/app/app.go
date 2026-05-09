@@ -1321,6 +1321,7 @@ func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardM
 	if volumeDays <= 0 {
 		volumeDays = 7
 	}
+	since := time.Now().UTC().AddDate(0, 0, -volumeDays+1).Truncate(24 * time.Hour)
 	out := &DashboardMetrics{
 		StatusBuckets: []StatusBucketDTO{},
 		Volume:        []VolumePoint{},
@@ -1329,7 +1330,7 @@ func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardM
 		TopUsed:       []EndpointMetricDTO{},
 	}
 
-	buckets, err := a.metrics.StatusBuckets(a.ctx, projectID)
+	buckets, err := a.metrics.StatusBuckets(a.ctx, projectID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,7 +1348,7 @@ func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardM
 		out.ErrorRate = float64(errs) / float64(total)
 	}
 
-	lat, err := a.metrics.LatencyStats(a.ctx, projectID)
+	lat, err := a.metrics.LatencyStats(a.ctx, projectID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -1369,7 +1370,7 @@ func (a *App) GetDashboardMetrics(projectID string, volumeDays int) (*DashboardM
 		out.Volume = append(out.Volume, VolumePoint{Day: v.Day.Format("2006-01-02"), Count: v.Count})
 	}
 
-	endpointStats, err := a.metrics.EndpointMetrics(a.ctx, projectID)
+	endpointStats, err := a.metrics.EndpointMetrics(a.ctx, projectID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -1448,12 +1449,19 @@ type EndpointFailureSeriesDTO struct {
 	Points     []LatencyPointDTO `json:"points"`
 }
 
+type MethodShareDTO struct {
+	Method  string  `json:"method"`
+	Count   int     `json:"count"`
+	Percent float64 `json:"percent"`
+}
+
 type InsightsDTO struct {
 	LatencyOverTime  []EndpointLatencySeriesDTO `json:"latencyOverTime"`
 	UsageOverTime    []EndpointUsageSeriesDTO   `json:"usageOverTime"`
 	FailuresOverTime []EndpointFailureSeriesDTO `json:"failuresOverTime"`
 	HourlyHeatmap    []HourlyCellDTO            `json:"hourlyHeatmap"`
 	Flaky            []FlakyEndpointDTO         `json:"flaky"`
+	MethodShare      []MethodShareDTO           `json:"methodShare"`
 }
 
 func (a *App) GetInsights(projectID string, days int) (*InsightsDTO, error) {
@@ -1469,6 +1477,13 @@ func (a *App) GetInsights(projectID string, days int) (*InsightsDTO, error) {
 		FailuresOverTime: []EndpointFailureSeriesDTO{},
 		HourlyHeatmap:    []HourlyCellDTO{},
 		Flaky:            []FlakyEndpointDTO{},
+		MethodShare:      []MethodShareDTO{},
+	}
+	since := time.Now().UTC().AddDate(0, 0, -days+1).Truncate(24 * time.Hour)
+	if shares, err := a.metrics.MethodShare(a.ctx, projectID, since); err == nil {
+		for _, s := range shares {
+			out.MethodShare = append(out.MethodShare, MethodShareDTO{Method: s.Method, Count: s.Count, Percent: s.Percent})
+		}
 	}
 	if series, err := a.metrics.LatencyOverTime(a.ctx, projectID, days, 5); err == nil {
 		for _, s := range series {

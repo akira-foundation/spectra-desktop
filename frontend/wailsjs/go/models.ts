@@ -789,12 +789,29 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class MethodShareDTO {
+	    method: string;
+	    count: number;
+	    percent: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MethodShareDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.method = source["method"];
+	        this.count = source["count"];
+	        this.percent = source["percent"];
+	    }
+	}
 	export class InsightsDTO {
 	    latencyOverTime: EndpointLatencySeriesDTO[];
 	    usageOverTime: EndpointUsageSeriesDTO[];
 	    failuresOverTime: EndpointFailureSeriesDTO[];
 	    hourlyHeatmap: HourlyCellDTO[];
 	    flaky: FlakyEndpointDTO[];
+	    methodShare: MethodShareDTO[];
 	
 	    static createFrom(source: any = {}) {
 	        return new InsightsDTO(source);
@@ -807,6 +824,7 @@ export namespace app {
 	        this.failuresOverTime = this.convertValues(source["failuresOverTime"], EndpointFailureSeriesDTO);
 	        this.hourlyHeatmap = this.convertValues(source["hourlyHeatmap"], HourlyCellDTO);
 	        this.flaky = this.convertValues(source["flaky"], FlakyEndpointDTO);
+	        this.methodShare = this.convertValues(source["methodShare"], MethodShareDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -827,6 +845,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	
 	
 	export class ProjectAuthState {

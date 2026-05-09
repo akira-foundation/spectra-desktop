@@ -156,11 +156,43 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
     setPopover(null)
   }
 
+  const validation = useMemo(() => validateJson(value), [value])
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (readOnly) return
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    const text = await file.text()
+    onChangeRef.current(text)
+  }
+
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full overflow-auto rounded-md border border-border/40 bg-muted/20 ${className ?? ''}`}
+      onDragOver={(e) => {
+        if (readOnly) return
+        e.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      className={`relative h-full w-full overflow-auto rounded-md border bg-muted/20 ${
+        dragOver ? 'border-primary/60 bg-primary/5' :
+        validation.ok ? 'border-border/40' : 'border-rose-500/40'
+      } ${className ?? ''}`}
     >
+      {!validation.ok && validation.message && (
+        <div className="absolute top-1.5 right-2 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500 text-[10px] font-mono pointer-events-none">
+          <span>JSON</span>
+          <span className="text-rose-500/80">·</span>
+          <span className="truncate max-w-[280px]" title={validation.message}>
+            {validation.message}
+          </span>
+        </div>
+      )}
       <CodeMirror
         ref={cmRef}
         value={value}
@@ -189,4 +221,18 @@ export function JsonEditor({ value, onChange, placeholder, className, readOnly, 
       )}
     </div>
   )
+}
+
+function validateJson(raw: string): { ok: boolean; message?: string } {
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed === '{}' || trimmed === '[]') return { ok: true }
+  // strip {{var}} placeholders so they don't break parsing
+  const stripped = trimmed.replace(/\{\{[A-Za-z0-9_.\-]+\}\}/g, '"__var__"')
+  try {
+    JSON.parse(stripped)
+    return { ok: true }
+  } catch (err) {
+    const msg = (err as Error).message.replace(/^JSON\.parse:\s*/i, '').replace(/^Unexpected token.*?in JSON/, 'syntax error')
+    return { ok: false, message: msg }
+  }
 }

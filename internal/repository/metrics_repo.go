@@ -47,13 +47,16 @@ type EndpointMetric struct {
 	AvgMs      int
 }
 
-func (r *MetricsRepository) StatusBuckets(ctx context.Context, projectID string) ([]StatusBucket, error) {
+func (r *MetricsRepository) StatusBuckets(ctx context.Context, projectID string, since time.Time) ([]StatusBucket, error) {
 	var rows []model.RequestHistory
-	err := r.db.NewSelect().
+	q := r.db.NewSelect().
 		Model(&rows).
 		Column("response_status", "error").
-		Where("project_id = ?", projectID).
-		Scan(ctx)
+		Where("project_id = ?", projectID)
+	if !since.IsZero() {
+		q = q.Where("created_at >= ?", since)
+	}
+	err := q.Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,15 +89,18 @@ func (r *MetricsRepository) StatusBuckets(ctx context.Context, projectID string)
 	return buckets, nil
 }
 
-func (r *MetricsRepository) LatencyStats(ctx context.Context, projectID string) (LatencyStats, error) {
+func (r *MetricsRepository) LatencyStats(ctx context.Context, projectID string, since time.Time) (LatencyStats, error) {
 	var rows []model.RequestHistory
-	err := r.db.NewSelect().
+	q := r.db.NewSelect().
 		Model(&rows).
 		Column("duration_ms").
 		Where("project_id = ?", projectID).
 		Where("error = ''").
-		Where("duration_ms > 0").
-		Scan(ctx)
+		Where("duration_ms > 0")
+	if !since.IsZero() {
+		q = q.Where("created_at >= ?", since)
+	}
+	err := q.Scan(ctx)
 	if err != nil {
 		return LatencyStats{}, err
 	}
@@ -158,14 +164,17 @@ func (r *MetricsRepository) DailyVolume(ctx context.Context, projectID string, d
 	return out, nil
 }
 
-func (r *MetricsRepository) EndpointMetrics(ctx context.Context, projectID string) ([]EndpointMetric, error) {
+func (r *MetricsRepository) EndpointMetrics(ctx context.Context, projectID string, since time.Time) ([]EndpointMetric, error) {
 	var rows []model.RequestHistory
-	err := r.db.NewSelect().
+	q := r.db.NewSelect().
 		Model(&rows).
 		Column("endpoint_id", "method", "url", "duration_ms", "response_status", "error").
 		Where("project_id = ?", projectID).
-		Where("endpoint_id != ''").
-		Scan(ctx)
+		Where("endpoint_id != ''")
+	if !since.IsZero() {
+		q = q.Where("created_at >= ?", since)
+	}
+	err := q.Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -499,6 +508,46 @@ func (r *MetricsRepository) UsageOverTime(ctx context.Context, projectID string,
 	if len(out) > topN {
 		out = out[:topN]
 	}
+	return out, nil
+}
+
+type MethodShare struct {
+	Method  string
+	Count   int
+	Percent float64
+}
+
+func (r *MetricsRepository) MethodShare(ctx context.Context, projectID string, since time.Time) ([]MethodShare, error) {
+	var rows []model.RequestHistory
+	q := r.db.NewSelect().
+		Model(&rows).
+		Column("method").
+		Where("project_id = ?", projectID)
+	if !since.IsZero() {
+		q = q.Where("created_at >= ?", since)
+	}
+	if err := q.Scan(ctx); err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	total := 0
+	for _, row := range rows {
+		m := row.Method
+		if m == "" {
+			continue
+		}
+		counts[m]++
+		total++
+	}
+	out := make([]MethodShare, 0, len(counts))
+	for m, c := range counts {
+		pct := 0.0
+		if total > 0 {
+			pct = float64(c) / float64(total)
+		}
+		out = append(out, MethodShare{Method: m, Count: c, Percent: pct})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Count > out[j].Count })
 	return out, nil
 }
 

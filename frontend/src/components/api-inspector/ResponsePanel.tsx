@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Copy, Download, Trash2, Play, ChevronLeft } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Copy, Download, Trash2, Play, ChevronLeft, Check } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { historyService } from '@/services/historyService'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -70,9 +70,7 @@ export function ResponsePanel({
             Response
           </h3>
         </div>
-        <Button variant="ghost" size="icon-sm" className="h-6 w-6">
-          <Copy className="w-3 h-3 text-muted-foreground" />
-        </Button>
+        <CopyButton text={formatted} />
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
@@ -98,9 +96,7 @@ export function ResponsePanel({
               No response yet
             </p>
           ) : (
-            <div className="h-full min-h-0 overflow-auto">
-              <JsonEditor value={formatted} onChange={() => undefined} readOnly />
-            </div>
+            <ResponseBodyView raw={formatted} />
           )}
         </TabsContent>
 
@@ -206,6 +202,7 @@ function HistoryRow({ entry, onReplay, onOpen }: HistoryRowProps) {
             {ago}
           </span>
         </button>
+        <CopyHistoryButton entryId={entry.id} />
         <button
           type="button"
           onClick={(e) => {
@@ -220,6 +217,36 @@ function HistoryRow({ entry, onReplay, onOpen }: HistoryRowProps) {
         </button>
       </div>
     </li>
+  )
+}
+
+function CopyHistoryButton({ entryId }: { entryId: string }) {
+  const [copied, setCopied] = useState(false)
+  const handle = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const detail = await historyService.get(entryId)
+      const body = detail?.responseBody ?? ''
+      if (!body) return
+      await navigator.clipboard.writeText(body)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {}
+  }
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      title={copied ? 'Copied!' : 'Copy response'}
+      className={cn(
+        'inline-flex h-5 w-5 items-center justify-center rounded transition-all',
+        copied
+          ? 'text-emerald-500 bg-emerald-500/10 opacity-100'
+          : 'text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent/60',
+      )}
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+    </button>
   )
 }
 
@@ -368,4 +395,198 @@ function timeAgo(date: Date): string {
   if (hours < 24) return `${hours}h`
   const days = Math.floor(hours / 24)
   return `${days}d`
+}
+
+function ResponseBodyView({ raw }: { raw: string }) {
+  type Mode = 'json' | 'tree' | 'table' | 'raw'
+  const [mode, setMode] = useState<Mode>('json')
+  const parsed = useMemo(() => {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }, [raw])
+
+  const tableRows = useMemo(() => extractTableRows(parsed), [parsed])
+  const isJson = parsed !== null
+
+  return (
+    <div className="h-full min-h-0 flex flex-col gap-2">
+      <div className="flex items-center gap-1 shrink-0">
+        {(['json', 'tree', 'table', 'raw'] as Mode[])
+          .filter((m) => {
+            if (m === 'json' || m === 'tree') return isJson
+            if (m === 'table') return tableRows != null
+            return true
+          })
+          .map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={cn(
+                'h-6 px-2 text-[10.5px] rounded transition-colors',
+                mode === m ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent/40',
+              )}
+            >
+              {m.toUpperCase()}
+            </button>
+          ))}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {mode === 'json' && (isJson ? <JsonEditor value={raw} onChange={() => undefined} readOnly /> : <RawView raw={raw} />)}
+        {mode === 'tree' && parsed !== null && <TreeView value={parsed} />}
+        {mode === 'table' && tableRows && <TableView rows={tableRows} />}
+        {mode === 'raw' && <RawView raw={raw} />}
+      </div>
+    </div>
+  )
+}
+
+function RawView({ raw }: { raw: string }) {
+  return (
+    <pre className="h-full w-full m-0 p-3 text-[11px] font-mono whitespace-pre-wrap break-all text-foreground/85 bg-muted/20 rounded-md border border-border/40 overflow-auto">
+      {raw}
+    </pre>
+  )
+}
+
+function TreeView({ value, depth = 0, label }: { value: any; depth?: number; label?: string }) {
+  const [open, setOpen] = useState(depth < 2)
+  const isObj = value && typeof value === 'object'
+  const isArr = Array.isArray(value)
+  if (!isObj) {
+    return (
+      <div className="flex items-baseline gap-2 py-0.5" style={{ paddingLeft: depth * 12 }}>
+        {label && <code className="text-[11px] font-mono text-foreground/70">{label}:</code>}
+        <code className={cn('text-[11px] font-mono', valueTone(value))}>{formatLeaf(value)}</code>
+      </div>
+    )
+  }
+  const entries = isArr
+    ? (value as any[]).map((v, i) => [`[${i}]`, v] as [string, any])
+    : Object.entries(value as Record<string, any>)
+  const summary = isArr ? `Array(${entries.length})` : `{${entries.length}}`
+  return (
+    <div style={{ paddingLeft: depth * 12 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-baseline gap-2 py-0.5 hover:bg-accent/20 px-1 rounded"
+      >
+        <span className="text-[10px] text-muted-foreground/60 w-3">{open ? '▼' : '▶'}</span>
+        {label && <code className="text-[11px] font-mono text-foreground/70">{label}:</code>}
+        <code className="text-[10.5px] font-mono text-muted-foreground">{summary}</code>
+      </button>
+      {open && (
+        <div>
+          {entries.map(([k, v]) => (
+            <TreeView key={k} value={v} depth={depth + 1} label={k} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TableView({ rows }: { rows: { columns: string[]; data: any[][] } }) {
+  return (
+    <div className="overflow-auto rounded-md border border-border/40">
+      <table className="w-full text-[11px] font-mono">
+        <thead className="sticky top-0 bg-muted/50">
+          <tr>
+            {rows.columns.map((c) => (
+              <th key={c} className="px-2 py-1.5 text-left text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/80 border-b border-border/40">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.data.map((r, i) => (
+            <tr key={i} className="border-b border-border/20 hover:bg-accent/20">
+              {r.map((v, j) => (
+                <td key={j} className={cn('px-2 py-1 align-top truncate max-w-[300px]', valueTone(v))}>
+                  {formatLeaf(v)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function extractTableRows(value: any): { columns: string[]; data: any[][] } | null {
+  const arr = findArrayOfObjects(value)
+  if (!arr || arr.length === 0) return null
+  const columns = Array.from(
+    new Set(arr.flatMap((row) => (row && typeof row === 'object' ? Object.keys(row) : []))),
+  )
+  if (columns.length === 0) return null
+  const data = arr.map((row) =>
+    columns.map((c) => (row && typeof row === 'object' ? (row as any)[c] : undefined)),
+  )
+  return { columns, data }
+}
+
+function findArrayOfObjects(value: any, depth = 0): any[] | null {
+  if (depth > 6) return null
+  if (Array.isArray(value)) {
+    if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+      return value
+    }
+    return null
+  }
+  if (value && typeof value === 'object') {
+    for (const v of Object.values(value)) {
+      const found = findArrayOfObjects(v, depth + 1)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function formatLeaf(v: any): string {
+  if (v === null || v === undefined) return v === null ? 'null' : ''
+  if (typeof v === 'string') return `"${v}"`
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+function valueTone(v: any): string {
+  if (v === null || v === undefined) return 'text-muted-foreground/60 italic'
+  if (typeof v === 'string') return 'text-emerald-500/90'
+  if (typeof v === 'number') return 'text-purple-400'
+  if (typeof v === 'boolean') return 'text-amber-500'
+  return 'text-foreground/85'
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handle = async () => {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {}
+  }
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      disabled={!text}
+      className={cn(
+        'inline-flex h-6 w-6 items-center justify-center rounded transition-colors',
+        copied ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+        'disabled:opacity-40 disabled:hover:bg-transparent',
+      )}
+      title={copied ? 'Copied!' : 'Copy response'}
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+    </button>
+  )
 }
