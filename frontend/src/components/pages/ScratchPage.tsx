@@ -15,6 +15,8 @@ import {
   ExceptionPanel,
   ResponseBodyView,
   HeadersList,
+  CopyButton,
+  SaveResponseButton,
   type TimelineData,
 } from '@/components/api-inspector/response'
 import { formatBody, prettyJSON } from '@/lib/format'
@@ -439,15 +441,23 @@ function ScratchEditor({
                   </TabsTrigger>
                 ))}
               </div>
-              {value.response && (
-                <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
-                  <span className={cn(value.response.status >= 400 ? 'text-rose-500/90' : 'text-emerald-500/80')}>
-                    {value.response.status || 'ERR'}
+              <div className="flex items-center gap-2">
+                {value.response && (
+                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+                    <span className={cn(value.response.status >= 400 ? 'text-rose-500/90' : 'text-emerald-500/80')}>
+                      {value.response.status || 'ERR'}
+                    </span>
+                    {' · '}
+                    {value.response.durationMs}ms
                   </span>
-                  {' · '}
-                  {value.response.durationMs}ms
-                </span>
-              )}
+                )}
+                {value.response && (
+                  <>
+                    <SaveResponseButton text={value.response.body} method={value.method} path={value.url} />
+                    <CopyButton text={value.response.body} title="Copy response" />
+                  </>
+                )}
+              </div>
             </TabsList>
             <TabsContent value="json" className="flex-1 min-h-0 p-3 overflow-hidden mt-0">
               {!value.response ? (
