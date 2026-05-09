@@ -54,6 +54,15 @@ func (r *EndpointRepository) GetByID(ctx context.Context, id string) (*core.Endp
 	return &ep, nil
 }
 
+func (r *EndpointRepository) ProjectIDOf(ctx context.Context, endpointID string) (string, error) {
+	var row model.Endpoint
+	err := r.db.NewSelect().Model(&row).Column("project_id").Where("id = ?", endpointID).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return row.ProjectID, err
+}
+
 func (r *EndpointRepository) Replace(ctx context.Context, projectID string, endpoints []core.Endpoint) error {
 	now := time.Now().UTC()
 	return r.db.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {

@@ -19,6 +19,7 @@ type ProjectStats struct {
 type EndpointRepository interface {
 	List(ctx context.Context, projectID string) ([]core.Endpoint, error)
 	GetByID(ctx context.Context, id string) (*core.Endpoint, error)
+	ProjectIDOf(ctx context.Context, endpointID string) (string, error)
 	Replace(ctx context.Context, projectID string, endpoints []core.Endpoint) error
 	DeleteByProject(ctx context.Context, projectID string) error
 	UpdateAuthOverride(ctx context.Context, endpointID string, role core.AuthRole, tokenPath string) error

@@ -106,3 +106,13 @@ func (d *Driver) Capabilities() core.DriverCapabilities {
 		HasFormRequests: true,
 	}
 }
+
+// GenerateValue implements core.BodyValueGen.
+func (d *Driver) GenerateValue(name, fieldType string, rules []string) any {
+	return RegenerateValue(name, fieldType, rules)
+}
+
+// FormatException implements core.ExceptionFormatter for Laravel error responses.
+func (d *Driver) FormatException(body string, status int) (core.FormattedException, bool) {
+	return parseLaravelException(body, status)
+}

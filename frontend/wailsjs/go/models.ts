@@ -1067,6 +1067,7 @@ export namespace app {
 	    }
 	}
 	export class RegenerateBodyInput {
+	    projectID?: string;
 	    body: string;
 	    fields?: RegenerateFieldInput[];
 	
@@ -1076,6 +1077,7 @@ export namespace app {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectID = source["projectID"];
 	        this.body = source["body"];
 	        this.fields = this.convertValues(source["fields"], RegenerateFieldInput);
 	    }

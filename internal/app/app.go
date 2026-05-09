@@ -1145,8 +1145,9 @@ type RegenerateFieldInput struct {
 }
 
 type RegenerateBodyInput struct {
-	Body   string                 `json:"body"`
-	Fields []RegenerateFieldInput `json:"fields,omitempty"`
+	ProjectID string                 `json:"projectID,omitempty"`
+	Body      string                 `json:"body"`
+	Fields    []RegenerateFieldInput `json:"fields,omitempty"`
 }
 
 func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
@@ -1163,26 +1164,28 @@ func (a *App) RegenerateExampleBody(endpointID string) (string, error) {
 	if err := json.Unmarshal([]byte(ep.RequestSchema), &raw); err != nil {
 		return "{}", err
 	}
-	return regenerateFromFields(raw.Fields)
+	pid, _ := a.endpoints.ProjectIDOf(a.ctx, endpointID)
+	return a.regenerateFromFields(raw.Fields, pid)
 }
 
 func (a *App) RegenerateBodyValues(input RegenerateBodyInput) (string, error) {
 	body := strings.TrimSpace(input.Body)
 	if body == "" || body == "{}" {
-		return regenerateFromFields(input.Fields)
+		return a.regenerateFromFields(input.Fields, input.ProjectID)
 	}
 	current := orderedMap{}
 	if err := json.Unmarshal([]byte(body), &current); err != nil {
-		return regenerateFromFields(input.Fields)
+		return a.regenerateFromFields(input.Fields, input.ProjectID)
 	}
 	if len(current.Keys) == 0 {
-		return regenerateFromFields(input.Fields)
+		return a.regenerateFromFields(input.Fields, input.ProjectID)
 	}
 	fieldByName := map[string]RegenerateFieldInput{}
 	for _, f := range input.Fields {
 		fieldByName[f.Name] = f
 	}
 	out := orderedMap{}
+	gen := a.bodyValueGen(input.ProjectID)
 	for _, key := range current.Keys {
 		oldVal := current.Values[key]
 		var inferredType string
@@ -1193,20 +1196,62 @@ func (a *App) RegenerateBodyValues(input RegenerateBodyInput) (string, error) {
 		} else {
 			inferredType = inferTypeFromValue(oldVal)
 		}
-		out.Set(key, laravel.RegenerateValue(key, inferredType, rules))
+		out.Set(key, gen.GenerateValue(key, inferredType, rules))
 	}
 	return marshalOrdered(out)
 }
 
-func regenerateFromFields(fields []RegenerateFieldInput) (string, error) {
+func (a *App) regenerateFromFields(fields []RegenerateFieldInput, projectID string) (string, error) {
 	if len(fields) == 0 {
 		return "{}", nil
 	}
+	gen := a.bodyValueGen(projectID)
 	out := orderedMap{}
 	for _, f := range fields {
-		out.Set(f.Name, laravel.RegenerateValue(f.Name, f.Type, f.Rules))
+		out.Set(f.Name, gen.GenerateValue(f.Name, f.Type, f.Rules))
 	}
 	return marshalOrdered(out)
+}
+
+func (a *App) bodyValueGen(projectID string) core.BodyValueGen {
+	driver := a.driverForProject(projectID)
+	if driver != nil {
+		if gen, ok := driver.(core.BodyValueGen); ok {
+			return gen
+		}
+	}
+	return fallbackBodyValueGen{}
+}
+
+func (a *App) driverForProject(projectID string) core.FrameworkDriver {
+	if projectID == "" {
+		return nil
+	}
+	project, err := a.projects.GetByID(a.ctx, projectID)
+	if err != nil || project == nil {
+		return nil
+	}
+	driver, err := a.scanner.ResolveByName(project.Framework)
+	if err != nil {
+		return nil
+	}
+	return driver
+}
+
+type fallbackBodyValueGen struct{}
+
+func (fallbackBodyValueGen) GenerateValue(_, fieldType string, _ []string) any {
+	switch strings.ToLower(fieldType) {
+	case "integer", "int", "number", "numeric":
+		return 0
+	case "boolean", "bool":
+		return false
+	case "array":
+		return []any{}
+	case "object", "map":
+		return map[string]any{}
+	}
+	return ""
 }
 
 type orderedMap struct {
@@ -2551,6 +2596,7 @@ func (a *App) GenerateDatasetRows(endpointID string, count int) (string, error) 
 	if err != nil || ep == nil {
 		return "[]", err
 	}
+	projectID, _ := a.endpoints.ProjectIDOf(a.ctx, endpointID)
 	var raw struct {
 		Fields []RegenerateFieldInput `json:"fields"`
 	}
@@ -2559,7 +2605,7 @@ func (a *App) GenerateDatasetRows(endpointID string, count int) (string, error) 
 	}
 	out := make([]json.RawMessage, 0, count)
 	for i := 0; i < count; i++ {
-		body, err := regenerateFromFields(raw.Fields)
+		body, err := a.regenerateFromFields(raw.Fields, projectID)
 		if err != nil {
 			return "[]", err
 		}
@@ -2762,10 +2808,7 @@ func (a *App) applyProjectAuth(projectID string, base map[string]string) (map[st
 	}
 	if rec.Token != "" {
 		if _, exists := headers["Authorization"]; !exists {
-			scheme := rec.Scheme
-			if scheme == "" || scheme == string(core.AuthSchemeBearer) {
-				headers["Authorization"] = "Bearer " + rec.Token
-			}
+			a.applyAuthScheme(projectID, headers, rec)
 		}
 	}
 	if rec.HeadersJSON != "" {
@@ -2853,15 +2896,42 @@ func (a *App) captureAuthFromResponse(projectID, endpointID string, resp *httpcl
 	}
 }
 
+func (a *App) applyAuthScheme(projectID string, headers map[string]string, rec *domain.ProjectAuth) {
+	driver := a.driverForProject(projectID)
+	cap, ok := authCapabilityFor(driver)
+	scheme := core.AuthScheme(rec.Scheme)
+	if scheme == "" && ok {
+		scheme = cap.DefaultScheme()
+	}
+	if !ok || cap == nil {
+		// no driver support — fall back to bearer if scheme matches or empty
+		if scheme == core.AuthSchemeBearer || scheme == core.AuthSchemeNone {
+			headers["Authorization"] = "Bearer " + rec.Token
+		}
+		return
+	}
+	req, err := http.NewRequest("GET", "http://placeholder.local/", nil)
+	if err != nil {
+		return
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	cap.ApplyAuth(req, core.AuthContext{
+		Scheme: scheme,
+		Token:  rec.Token,
+	})
+	for k := range req.Header {
+		headers[k] = req.Header.Get(k)
+	}
+}
+
 func authCapabilityFor(driver core.FrameworkDriver) (core.AuthCapable, bool) {
 	if driver == nil {
-		return laravel.AuthCapability{}, true
+		return nil, false
 	}
 	if cap, ok := driver.(core.AuthCapable); ok {
 		return cap, true
-	}
-	if driver.Name() == laravel.DriverName {
-		return laravel.AuthCapability{}, true
 	}
 	return nil, false
 }
