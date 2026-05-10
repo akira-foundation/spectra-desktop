@@ -19,8 +19,9 @@ const (
 )
 
 type Storage struct {
-	DB *bun.DB
-	sql *sql.DB
+	DB     *bun.DB
+	sql    *sql.DB
+	dbPath string
 }
 
 func New() *Storage {
@@ -51,6 +52,7 @@ func (s *Storage) Open(path string) error {
 
 	s.sql = sqldb
 	s.DB = bun.NewDB(sqldb, sqlitedialect.New())
+	s.dbPath = path
 	return nil
 }
 

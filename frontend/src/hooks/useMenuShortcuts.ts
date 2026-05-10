@@ -5,6 +5,7 @@ import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useMockStore } from '@/store/mockStore'
 import { SaveOpenAPIToFile } from '../../wailsjs/go/app/App'
+import { spectraIOService } from '@/services/spectraIOService'
 import toast from 'react-hot-toast'
 
 export function useMenuShortcuts() {
@@ -42,6 +43,10 @@ export function useMenuShortcuts() {
         await useMockStore.getState().stop()
         toast.success('Mock server stopped')
       }],
+      ['menu:export-spectra', () => useUIStore.getState().setCurrentPage('settings')],
+      ['menu:import-spectra', () => useUIStore.getState().setCurrentPage('settings')],
+      ['menu:backup-db', () => useUIStore.getState().setCurrentPage('settings')],
+      ['menu:restore-db', () => useUIStore.getState().setCurrentPage('settings')],
     ]
     for (const [event, fn] of handlers) EventsOn(event, fn)
     return () => {

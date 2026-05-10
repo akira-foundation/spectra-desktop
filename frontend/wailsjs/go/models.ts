@@ -376,6 +376,44 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class DatabaseBackupRequest {
+	    passphrase?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DatabaseBackupRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.passphrase = source["passphrase"];
+	    }
+	}
+	export class DatabaseRestoreRequest {
+	    passphrase?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DatabaseRestoreRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.passphrase = source["passphrase"];
+	    }
+	}
+	export class DatabaseRestoreResult {
+	    path?: string;
+	    needsPassphrase: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DatabaseRestoreResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.needsPassphrase = source["needsPassphrase"];
+	    }
+	}
 	export class DatasetRowResultDTO {
 	    index: number;
 	    status: number;
@@ -1860,6 +1898,52 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class SpectraExportRequest {
+	    projectId: string;
+	    includeSecrets?: boolean;
+	    includeHistory?: boolean;
+	    passphrase?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpectraExportRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.includeSecrets = source["includeSecrets"];
+	        this.includeHistory = source["includeHistory"];
+	        this.passphrase = source["passphrase"];
+	    }
+	}
+	export class SpectraImportRequest {
+	    passphrase?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpectraImportRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.passphrase = source["passphrase"];
+	    }
+	}
+	export class SpectraImportResult {
+	    newProjectId: string;
+	    projectName: string;
+	    needsPassphrase: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpectraImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.newProjectId = source["newProjectId"];
+	        this.projectName = source["projectName"];
+	        this.needsPassphrase = source["needsPassphrase"];
+	    }
 	}
 	
 	

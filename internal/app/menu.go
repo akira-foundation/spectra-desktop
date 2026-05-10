@@ -20,6 +20,12 @@ func (a *App) BuildApplicationMenu() *menu.Menu {
 	fileMenu.AddSeparator()
 	fileMenu.AddText("Sync endpoints", keys.CmdOrCtrl("r"), a.emitMenu("menu:sync"))
 	fileMenu.AddText("Export OpenAPI", keys.CmdOrCtrl("e"), a.emitMenu("menu:export-openapi"))
+	fileMenu.AddSeparator()
+	fileMenu.AddText("Export project archive…", keys.Combo("e", keys.CmdOrCtrlKey, keys.ShiftKey), a.emitMenu("menu:export-spectra"))
+	fileMenu.AddText("Import project archive…", keys.Combo("i", keys.CmdOrCtrlKey, keys.ShiftKey), a.emitMenu("menu:import-spectra"))
+	fileMenu.AddSeparator()
+	fileMenu.AddText("Backup database…", nil, a.emitMenu("menu:backup-db"))
+	fileMenu.AddText("Restore database…", nil, a.emitMenu("menu:restore-db"))
 
 	if runtime.GOOS == "darwin" {
 		appMenu.Append(menu.EditMenu())

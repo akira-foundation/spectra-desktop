@@ -66,6 +66,12 @@ func New() (*App, error) {
 	scanner := core.NewScanner()
 	scanner.Register(laravel.New())
 
+	if applied, err := storage.ApplyPendingRestoreIfAny(); err != nil {
+		log.Printf("apply pending restore: %v", err)
+	} else if applied {
+		log.Printf("storage: pending restore applied")
+	}
+
 	store := storage.New()
 	if err := store.Open(""); err != nil {
 		return nil, fmt.Errorf("open storage: %w", err)
