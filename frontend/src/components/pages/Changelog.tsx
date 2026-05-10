@@ -7,6 +7,7 @@ import { Welcome } from '@/components/pages/Welcome'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useHttpMethod } from '@/hooks/useHttpMethod'
 import type { SnapshotSummary, SnapshotDiff, SnapshotDiffEntry } from '@/services/changelogService'
+import { Island } from '@/components/app/Island'
 import { cn } from '@/lib/utils'
 
 const EMPTY_SNAPSHOTS: SnapshotSummary[] = []
@@ -33,7 +34,7 @@ export function Changelog() {
 
   return (
     <div className="h-full flex gap-2 p-2 overflow-hidden">
-      <div className="w-72 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden">
+      <Island className="w-72 shrink-0">
         <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
           <History className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -55,7 +56,7 @@ export function Changelog() {
               No scans yet. Run Sync to capture the first snapshot.
             </p>
           ) : (
-            <ul className="p-1 space-y-px">
+            <ul className="px-1.5 py-1 space-y-px">
               {snapshots.map((snap) => (
                 <li key={snap.id}>
                   <button
@@ -63,7 +64,7 @@ export function Changelog() {
                     onClick={() => setSelected(snap.id)}
                     className={cn(
                       'w-full text-left px-2.5 py-2 rounded-md hover:bg-accent/40 transition-colors',
-                      selected === snap.id && 'bg-accent text-foreground',
+                      selected === snap.id && 'bg-accent/60 text-foreground',
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -90,11 +91,11 @@ export function Changelog() {
             </ul>
           )}
         </div>
-      </div>
+      </Island>
 
-      <div className="flex-1 rounded-md border border-border/40 bg-card/30 overflow-hidden flex flex-col">
+      <Island className="flex-1">
         {selected ? <DiffView snapshotId={selected} /> : <EmptyDiff />}
-      </div>
+      </Island>
     </div>
   )
 }

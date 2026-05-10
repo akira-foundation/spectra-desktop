@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X, Star, GripVertical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
+import { Island } from '@/components/app/Island'
 import {
   DndContext,
   PointerSensor,
@@ -269,7 +270,7 @@ export function EndpointList({
 
   if (collapsed) {
     return (
-      <div className="w-9 shrink-0 flex flex-col items-center gap-1 rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] py-2">
+      <Island className="w-9 shrink-0 items-center py-2 gap-1">
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -281,16 +282,16 @@ export function EndpointList({
         <div className="text-[9px] font-mono text-muted-foreground/60 tabular-nums">
           {totalMatches}
         </div>
-      </div>
+      </Island>
     )
   }
 
   return (
-    <div
+    <Island
       ref={containerRef}
       tabIndex={0}
       onKeyDown={onListKeyDown}
-      className="w-64 shrink-0 flex flex-col rounded-md border border-border/40 bg-foreground/[0.025] dark:bg-white/[0.02] overflow-hidden focus:outline-none"
+      className="w-64 shrink-0 focus:outline-none"
     >
       <div className="h-10 px-1.5 flex items-center gap-1 border-b border-border/60 shrink-0">
         <div className="relative flex-1">
@@ -381,7 +382,7 @@ export function EndpointList({
           {totalMatches} match{totalMatches === 1 ? '' : 'es'}
         </div>
       )}
-    </div>
+    </Island>
   )
 }
 
