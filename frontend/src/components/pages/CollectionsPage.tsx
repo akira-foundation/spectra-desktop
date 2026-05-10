@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, FolderKanban, Upload } from 'lucide-react'
+import { Island } from '@/components/app/Island'
 import { useCollectionsStore } from '@/store/collectionsStore'
 import { useHistoryStore } from '@/store/historyStore'
 import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime'
@@ -114,7 +115,7 @@ export function CollectionsPage() {
 
   return (
     <div className="h-full flex gap-2 p-2 overflow-hidden">
-      <aside className="w-64 shrink-0 rounded-md border border-border/40 bg-card/30 flex flex-col">
+      <Island as="aside" className="w-64 shrink-0">
         <div className="h-9 px-3 flex items-center justify-between border-b border-border/40">
           <div className="flex items-center gap-1.5">
             <FolderKanban className="w-3 h-3 text-muted-foreground" />
@@ -140,7 +141,7 @@ export function CollectionsPage() {
               No collections yet.
             </p>
           ) : (
-            <ul className="m-0 p-0 list-none">
+            <ul className="m-0 py-1 p-0 list-none space-y-px">
               {collections.map((c) => (
                 <SidebarItem
                   key={c.id}
@@ -165,9 +166,9 @@ export function CollectionsPage() {
             <span className="ml-2">Import collection</span>
           </button>
         </div>
-      </aside>
+      </Island>
 
-      <main className="flex-1 flex flex-col min-w-0 rounded-md border border-border/40 bg-card/30 overflow-hidden">
+      <Island as="main" className="flex-1">
         {!active ? (
           <div className="flex-1 flex items-center justify-center text-[12px] text-muted-foreground">
             Select or create a collection
@@ -185,7 +186,7 @@ export function CollectionsPage() {
             onChanged={() => projectId && refresh(projectId)}
           />
         )}
-      </main>
+      </Island>
     </div>
   )
 }

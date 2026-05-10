@@ -34,6 +34,8 @@ export interface UIState {
   setEndpointListCollapsed: (v: boolean) => void
   compactToolbar: boolean
   setCompactToolbar: (v: boolean) => void
+  pendingArchiveAction: 'export' | 'import' | 'backup' | 'restore' | null
+  setPendingArchiveAction: (v: UIState['pendingArchiveAction']) => void
   pendingCurl: {
     method: string
     url: string
@@ -176,6 +178,8 @@ export const useUIStore = create<UIState>()(
       setEndpointListCollapsed: (v) => set({ endpointListCollapsed: v }),
       compactToolbar: false,
       setCompactToolbar: (v) => set({ compactToolbar: v }),
+      pendingArchiveAction: null,
+      setPendingArchiveAction: (v) => set({ pendingArchiveAction: v }),
       pendingCurl: null,
       setPendingCurl: (c) => set({ pendingCurl: c }),
       navBack: [],

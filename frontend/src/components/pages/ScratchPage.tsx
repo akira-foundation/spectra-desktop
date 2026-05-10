@@ -7,6 +7,7 @@ import { useHttpMethod } from '@/hooks/useHttpMethod'
 import { useProjectStore } from '@/store/projectStore'
 import { runnerService } from '@/services/runnerService'
 import { scratchService, type ScratchRequest } from '@/services/scratchService'
+import { Island } from '@/components/app/Island'
 import { BodyEditor } from '@/components/api-inspector/BodyEditor'
 import { CurlImportDialog } from '@/components/api-inspector/CurlImportDialog'
 import { HARImportDialog } from '@/components/api-inspector/HARImportDialog'
@@ -247,7 +248,7 @@ export function ScratchPage() {
 
   return (
     <div className="h-full flex gap-2 p-2 overflow-hidden">
-      <aside className="w-72 shrink-0 rounded-md border border-border/40 bg-card/30 flex flex-col">
+      <Island as="aside" className="w-72 shrink-0">
         <div className="h-10 px-3 flex items-center justify-between border-b border-border/40 shrink-0">
           <div className="flex items-center gap-1.5">
             <Terminal className="w-3 h-3 text-muted-foreground" />
@@ -273,7 +274,7 @@ export function ScratchPage() {
               No scratch requests yet.
             </p>
           ) : (
-            <ul className="m-0 p-0 list-none">
+            <ul className="m-0 py-1 p-0 list-none space-y-px">
               {items.map((it) => (
                 <ScratchItemRow
                   key={it.id}
@@ -289,9 +290,9 @@ export function ScratchPage() {
         <div className="px-3 py-2 border-t border-border/40 shrink-0">
           <ImportMenu onCurl={importCurl} onHAR={importHAR} />
         </div>
-      </aside>
+      </Island>
 
-      <main className="flex-1 flex flex-col min-w-0 rounded-md border border-border/40 bg-card/30 overflow-hidden">
+      <Island as="main" className="flex-1">
         {!active ? (
           <div className="flex-1 flex items-center justify-center text-[12px] text-muted-foreground">
             Create or import a scratch request
@@ -306,7 +307,7 @@ export function ScratchPage() {
             projectId={projectId ?? null}
           />
         )}
-      </main>
+      </Island>
     </div>
   )
 }
@@ -324,10 +325,10 @@ function ScratchItemRow({
 }) {
   const { getMethodColor } = useHttpMethod()
   return (
-    <li>
+    <li className="px-1.5">
       <div
         className={cn(
-          'group flex items-center gap-2 px-3 py-2 hover:bg-accent/40 cursor-pointer',
+          'group flex items-center gap-2 px-2.5 py-2 rounded-md hover:bg-accent/40 cursor-pointer',
           active && 'bg-accent/60',
         )}
         onClick={onSelect}

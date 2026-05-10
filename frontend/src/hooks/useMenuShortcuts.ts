@@ -43,10 +43,22 @@ export function useMenuShortcuts() {
         await useMockStore.getState().stop()
         toast.success('Mock server stopped')
       }],
-      ['menu:export-spectra', () => useUIStore.getState().setCurrentPage('settings')],
-      ['menu:import-spectra', () => useUIStore.getState().setCurrentPage('settings')],
-      ['menu:backup-db', () => useUIStore.getState().setCurrentPage('settings')],
-      ['menu:restore-db', () => useUIStore.getState().setCurrentPage('settings')],
+      ['menu:export-spectra', () => {
+        useUIStore.getState().setCurrentPage('settings')
+        useUIStore.getState().setPendingArchiveAction('export')
+      }],
+      ['menu:import-spectra', () => {
+        useUIStore.getState().setCurrentPage('settings')
+        useUIStore.getState().setPendingArchiveAction('import')
+      }],
+      ['menu:backup-db', () => {
+        useUIStore.getState().setCurrentPage('settings')
+        useUIStore.getState().setPendingArchiveAction('backup')
+      }],
+      ['menu:restore-db', () => {
+        useUIStore.getState().setCurrentPage('settings')
+        useUIStore.getState().setPendingArchiveAction('restore')
+      }],
     ]
     for (const [event, fn] of handlers) EventsOn(event, fn)
     return () => {

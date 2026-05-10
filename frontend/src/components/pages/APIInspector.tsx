@@ -32,6 +32,7 @@ import { EndpointListSkeleton } from '@/components/api-inspector/EndpointListSke
 import { Skeleton } from '@/components/ui/skeleton'
 import { groupEndpoints, type GroupedEndpoint, PINNED_CATEGORY } from '@/lib/group-endpoints'
 import type { ScannedEndpoint } from '@/services/scannerService'
+import { Island } from '@/components/app/Island'
 
 const EMPTY_ENDPOINTS: ScannedEndpoint[] = []
 const EMPTY_CAPTURED: CapturedValue[] = []
@@ -613,7 +614,7 @@ export function APIInspector() {
         onReorder={(order) => activeProjectId && setGroupOrder(activeProjectId, order)}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden rounded-md border border-border/40 bg-card/30">
+      <Island as="main" className="flex-1">
         <InspectorTabs />
         <BaseURLBar />
 
@@ -711,7 +712,7 @@ export function APIInspector() {
             </div>
           </>
         )}
-      </div>
+      </Island>
 
       {selected && (
         <EndpointInfoSheet

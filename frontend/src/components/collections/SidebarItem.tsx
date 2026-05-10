@@ -46,10 +46,10 @@ export function SidebarItem({ collection: c, active, run, onSelect, onChanged }:
   }
 
   return (
-    <li>
+    <li className="px-1.5">
       <div
         className={cn(
-          'group flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] hover:bg-accent/40',
+          'group flex items-center gap-1.5 px-2 py-1.5 text-[11.5px] rounded-md hover:bg-accent/40',
           active && 'bg-accent/60',
         )}
       >
