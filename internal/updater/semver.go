@@ -7,24 +7,48 @@ import (
 )
 
 // compareSemver returns 1 if a > b, -1 if a < b, 0 if equal.
-// Accepts versions with optional leading "v" and ignores pre-release/build suffixes.
+// Implements semver 2.0 precedence: numeric core compared first, then
+// pre-release identifiers per spec (a build with pre-release is lower
+// than one without; pre-release identifiers compared numerically when
+// both numeric, otherwise lexically).
 func compareSemver(a, b string) int {
-	pa := parseSemver(a)
-	pb := parseSemver(b)
+	coreA, preA := splitSemver(a)
+	coreB, preB := splitSemver(b)
+
 	for i := 0; i < 3; i++ {
-		if pa[i] > pb[i] {
+		if coreA[i] > coreB[i] {
 			return 1
 		}
-		if pa[i] < pb[i] {
+		if coreA[i] < coreB[i] {
 			return -1
 		}
 	}
-	return 0
+
+	// Pre-release rules (semver 2.0 §11.4):
+	//   - missing pre-release > any pre-release
+	//   - pre-release identifiers compared one by one
+	if preA == "" && preB == "" {
+		return 0
+	}
+	if preA == "" {
+		return 1
+	}
+	if preB == "" {
+		return -1
+	}
+	return comparePreRelease(preA, preB)
 }
 
-func parseSemver(v string) [3]int {
+func splitSemver(v string) ([3]int, string) {
 	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	pre := ""
 	if idx := strings.IndexAny(v, "-+"); idx >= 0 {
+		if v[idx] == '-' {
+			pre = v[idx+1:]
+			if plus := strings.Index(pre, "+"); plus >= 0 {
+				pre = pre[:plus]
+			}
+		}
 		v = v[:idx]
 	}
 	parts := strings.SplitN(v, ".", 3)
@@ -33,7 +57,53 @@ func parseSemver(v string) [3]int {
 		n, _ := strconv.Atoi(parts[i])
 		out[i] = n
 	}
-	return out
+	return out, pre
+}
+
+func comparePreRelease(a, b string) int {
+	idsA := strings.Split(a, ".")
+	idsB := strings.Split(b, ".")
+	for i := 0; i < len(idsA) && i < len(idsB); i++ {
+		c := comparePreReleaseIdent(idsA[i], idsB[i])
+		if c != 0 {
+			return c
+		}
+	}
+	if len(idsA) > len(idsB) {
+		return 1
+	}
+	if len(idsA) < len(idsB) {
+		return -1
+	}
+	return 0
+}
+
+func comparePreReleaseIdent(a, b string) int {
+	na, errA := strconv.Atoi(a)
+	nb, errB := strconv.Atoi(b)
+	switch {
+	case errA == nil && errB == nil:
+		if na > nb {
+			return 1
+		}
+		if na < nb {
+			return -1
+		}
+		return 0
+	case errA == nil:
+		// numeric identifiers have lower precedence than alphanumeric
+		return -1
+	case errB == nil:
+		return 1
+	default:
+		if a > b {
+			return 1
+		}
+		if a < b {
+			return -1
+		}
+		return 0
+	}
 }
 
 func formatVersion(v string) string {
