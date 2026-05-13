@@ -10,13 +10,21 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 
+	"spectra-desktop/internal/version"
+
 	_ "modernc.org/sqlite"
 )
 
-const (
-	appFolder = "Spectra"
-	dbFile    = "spectra.db"
-)
+const dbFile = "spectra.db"
+
+// appFolder returns the per-mode config folder name so the dev build never
+// shares a database with the production install.
+func appFolder() string {
+	if version.IsDev() {
+		return "Spectra-dev"
+	}
+	return "Spectra"
+}
 
 type Storage struct {
 	DB     *bun.DB
@@ -75,5 +83,5 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cfg, appFolder, dbFile), nil
+	return filepath.Join(cfg, appFolder(), dbFile), nil
 }

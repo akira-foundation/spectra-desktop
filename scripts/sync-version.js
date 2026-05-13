@@ -34,18 +34,10 @@ if (wailsJson.info.productVersion !== version) {
   changed = true
 }
 
-// internal/version/version.go
-fs.mkdirSync(path.dirname(versionGoPath), { recursive: true })
-const versionGo = `package version
-
-// Version is the application version.
-// Overridden at build time via -ldflags "-X spectra-desktop/internal/version.Version=x.y.z".
-var Version = "${version}"
-`
-const existing = fs.existsSync(versionGoPath) ? fs.readFileSync(versionGoPath, 'utf8') : ''
-if (existing !== versionGo) {
-  fs.writeFileSync(versionGoPath, versionGo)
-  changed = true
-}
+// internal/version/version.go intentionally keeps the default "dev" so that
+// any non-CI build (wails dev, local `wails build` without ldflags) is
+// recognised as dev. CI overrides via -ldflags at link time.
+// Touch nothing here.
+void versionGoPath
 
 console.log(changed ? `Synced version to ${version}` : `Version already synced (${version})`)

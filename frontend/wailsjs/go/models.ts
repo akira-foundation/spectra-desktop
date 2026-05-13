@@ -2500,6 +2500,27 @@ export namespace menu {
 
 }
 
+export namespace updater {
+	
+	export class UpdateInfo {
+	    version: string;
+	    currentVersion: string;
+	    notes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.currentVersion = source["currentVersion"];
+	        this.notes = source["notes"];
+	    }
+	}
+
+}
+
 export namespace workspace {
 	
 	export class Workspace {
