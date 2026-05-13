@@ -33,9 +33,11 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-12 shrink-0 flex-col items-center justify-between py-2">
       <div className="flex flex-col items-center gap-0.5 pt-1">
-        <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary text-[13px] font-semibold tracking-tight">
-          S
-        </div>
+        <img
+          src="/favicon.svg"
+          alt="Spectra"
+          className="mb-2 h-8 w-8 rounded-md"
+        />
         {primary.map((item) => (
           <Item
             key={item.id}
