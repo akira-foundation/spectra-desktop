@@ -152,6 +152,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.meta.outputs.dmg_path }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -306,6 +307,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.meta.outputs.dmg_path }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -329,10 +331,27 @@ jobs:
     needs: [build-aarch64, build-x86_64]
     runs-on: ubuntu-latest
     steps:
+      - name: Fetch GitHub Release body
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          NOTES=$(gh release view "v${VERSION}" --repo "${{ github.repository }}" --json body -q .body 2>/dev/null || true)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v${VERSION}"
+          fi
+          {
+            echo "value<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Generate and upload latest.json
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.value }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           AARCH64_NAME="${{ needs.build-aarch64.outputs.zip_name }}"
@@ -347,13 +366,14 @@ jobs:
           jq -n \
             --arg version "$VERSION" \
             --arg pub_date "$PUB_DATE" \
+            --arg notes "$RELEASE_NOTES" \
             --arg aarch64_sig "$AARCH64_SIG" \
             --arg aarch64_url "$AARCH64_URL" \
             --arg x86_sig "$X86_SIG" \
             --arg x86_url "$X86_URL" \
             '{
               version: $version,
-              notes: ("Release v" + $version),
+              notes: $notes,
               pub_date: $pub_date,
               platforms: {
                 "darwin-aarch64": {signature: $aarch64_sig, url: $aarch64_url},

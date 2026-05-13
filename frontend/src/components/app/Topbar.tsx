@@ -4,11 +4,10 @@ import { useProjectStore } from '@/store/projectStore'
 import { useEndpointsStore } from '@/store/endpointsStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountsStore } from '@/store/accountsStore'
-import { useUpdatesStore, isUpdateActionable } from '@/store/updatesStore'
 import type { ProjectAccount } from '@/services/accountsService'
 
 const EMPTY_ACCOUNTS: ProjectAccount[] = []
-import { Search, RefreshCw, Lock, User, Key, Shield, FileDown, Download } from 'lucide-react'
+import { Search, RefreshCw, Lock, User, Key, Shield, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SaveOpenAPIToFile } from '../../../wailsjs/go/app/App'
 import { Button } from '@/components/ui/button'
@@ -27,9 +26,6 @@ export function Topbar() {
   const activeProjectId = useProjectStore((state) => state.activeProjectId)
   const setActiveProject = useProjectStore((state) => state.setActiveProject)
   const setCurrentPage = useUIStore((state) => state.setCurrentPage)
-  const updatePhase = useUpdatesStore((state) => state.phase)
-  const updateVersion = useUpdatesStore((state) => state.info?.version ?? null)
-  const updateActionable = isUpdateActionable(updatePhase)
   const rescan = useEndpointsStore((state) => state.scan)
   const scanStatus = useEndpointsStore((state) =>
     activeProjectId ? state.status[activeProjectId] ?? 'idle' : 'idle',
@@ -130,18 +126,6 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-0.5 justify-self-end" style={noDrag}>
-        {updateActionable && (
-          <button
-            type="button"
-            onClick={() => setCurrentPage('settings')}
-            className="h-7 px-2 mr-1 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 text-primary text-[11px] hover:bg-primary/15 transition-colors"
-            title={updatePhase === 'ready' ? 'Update ready to install' : `Update available: ${updateVersion ?? ''}`}
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{updatePhase === 'ready' ? 'Install' : 'Update'}</span>
-            {updateVersion && <span className="font-mono text-[10px] opacity-80">{updateVersion}</span>}
-          </button>
-        )}
         <Button
           variant="ghost"
           size="sm"
