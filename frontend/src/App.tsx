@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { useUIStore } from '@/store/uiStore'
 import { useMenuShortcuts } from '@/hooks/useMenuShortcuts'
+import { useUpdatesStore } from '@/store/updatesStore'
 import { AppShell } from '@/components/app/AppShell'
 import { Dashboard } from '@/components/pages/Dashboard'
 import { APIInspector } from '@/components/pages/APIInspector'
@@ -21,15 +22,20 @@ function App() {
   const isLoading = useProjectStore((state) => state.isLoading)
   const currentPage = useUIStore((state) => state.currentPage)
 
+  const initUpdates = useUpdatesStore((s) => s.init)
   useEffect(() => {
     void loadFromStorage()
-  }, [loadFromStorage])
+    void initUpdates()
+  }, [loadFromStorage, initUpdates])
 
   useMenuShortcuts()
 
+  const noProjects = !isLoading && projects.length === 0
+  const pageNeedsProject = currentPage !== 'settings'
+
   return (
     <AppShell>
-      {!isLoading && projects.length === 0 ? (
+      {noProjects && pageNeedsProject ? (
         <EmptyWorkspace />
       ) : (
         <>

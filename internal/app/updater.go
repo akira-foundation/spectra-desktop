@@ -1,7 +1,9 @@
 package app
 
 import (
+	"fmt"
 	"os"
+	gort "runtime"
 	"time"
 
 	"spectra-desktop/internal/updater"
@@ -52,4 +54,18 @@ func (a *App) InstallUpdate() error {
 // AppVersion returns the running version, useful for the UI.
 func (a *App) AppVersion() string {
 	return version.Version
+}
+
+// AppPlatform returns a human-readable os/arch string, e.g. "darwin · arm64".
+func (a *App) AppPlatform() string {
+	return fmt.Sprintf("%s · %s", gort.GOOS, gort.GOARCH)
+}
+
+// AppChannel reports the build channel: "development" for unbuilt/dev binaries,
+// otherwise "stable" (CI sets the version via ldflags only for release builds).
+func (a *App) AppChannel() string {
+	if version.IsDev() {
+		return "development"
+	}
+	return "stable"
 }

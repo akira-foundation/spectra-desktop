@@ -8,6 +8,10 @@ import {httpclient} from '../models';
 import {domain} from '../models';
 import {workspace} from '../models';
 
+export function AppChannel():Promise<string>;
+
+export function AppPlatform():Promise<string>;
+
 export function AppVersion():Promise<string>;
 
 export function BackupDatabase(arg1:app.DatabaseBackupRequest):Promise<string>;

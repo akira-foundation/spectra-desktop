@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Terminal, Wand2, Save } from 'lucide-react'
+import { Terminal, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SettingsHeader } from './SettingsHeader'
-import { SettingsCard, SettingsRow } from './SettingsRow'
+import { SettingsCard } from './SettingsRow'
 import {
   GetPHPBinaryPath,
   SetPHPBinaryPath,
@@ -33,51 +33,83 @@ export function RuntimePanel() {
     }
   }
 
-  const useDetected = () => {
-    if (!detected) return
-    setValue(detected)
-  }
+  const effectivePath = value.trim() || detected
+  const status: 'ok' | 'missing' = effectivePath ? 'ok' : 'missing'
 
   return (
     <div>
       <SettingsHeader
         icon={Terminal}
         title="Runtime"
-        description="Where Spectra finds binaries it needs to scan projects."
+        description="Binaries Spectra calls when scanning projects."
       />
 
       <SettingsCard>
-        <SettingsRow
-          label="PHP binary"
-          description={
-            detected
-              ? `Auto-detected: ${detected}. Override below if you want a different version.`
-              : 'PHP not found automatically. Provide a full path so Laravel projects can be scanned.'
-          }
-          control={
-            <div className="flex items-center gap-2 w-[360px]">
-              <Input
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={detected || '/path/to/php'}
-                className="h-7 text-[12px] font-mono"
-              />
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={useDetected}
-                disabled={!detected}
-                title="Use auto-detected"
-              >
-                <Wand2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="icon-sm" onClick={save} disabled={busy} title="Save">
-                <Save className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          }
-        />
+        <div className="px-4 py-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-medium text-foreground/85">PHP binary</p>
+            <StatusPill status={status} />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={detected || '/path/to/php'}
+              className="h-7 text-[12px] font-mono flex-1"
+            />
+            <Button
+              size="sm"
+              onClick={save}
+              disabled={busy}
+              className="h-7 px-3 text-[11px] shrink-0"
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+
+          {detected ? (
+            <p className="text-[11.5px] text-muted-foreground">
+              Detected{' '}
+              <code className="font-mono text-foreground/80">{detected}</code>
+              {value.trim() && value.trim() !== detected && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    onClick={() => setValue(detected)}
+                    className="text-primary hover:underline"
+                  >
+                    revert to detected
+                  </button>
+                </>
+              )}
+              {!value.trim() && ' · used by default'}
+            </p>
+          ) : (
+            <p className="text-[11.5px] text-amber-600 dark:text-amber-400">
+              PHP not found on PATH or in your login shell. Laravel projects need a path here.
+            </p>
+          )}
+        </div>
       </SettingsCard>
     </div>
+  )
+}
+
+function StatusPill({ status }: { status: 'ok' | 'missing' }) {
+  if (status === 'ok') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" />
+        Configured
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+      <AlertCircle className="h-3 w-3" />
+      Not configured
+    </span>
   )
 }

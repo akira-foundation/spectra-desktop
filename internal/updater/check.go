@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"spectra-desktop/internal/version"
 )
 
 // UpdateInfo describes an available update to surface to the UI.
@@ -12,13 +14,15 @@ type UpdateInfo struct {
 	CurrentVersion string `json:"currentVersion"`
 	Notes          string `json:"notes"`
 	URL            string `json:"-"`
-	Signature      string `json:"-"`
 }
 
 // Check returns a non-nil UpdateInfo when a newer version is available for
 // the current platform. Returns nil when up to date.
 func Check(ctx context.Context, currentVersion string) (*UpdateInfo, error) {
-	if currentVersion == "" || currentVersion == "dev" {
+	if version.IsDev() {
+		return nil, nil
+	}
+	if currentVersion == "" {
 		return nil, nil
 	}
 
@@ -45,6 +49,5 @@ func Check(ctx context.Context, currentVersion string) (*UpdateInfo, error) {
 		CurrentVersion: currentVersion,
 		Notes:          m.Notes,
 		URL:            plat.URL,
-		Signature:      plat.Signature,
 	}, nil
 }

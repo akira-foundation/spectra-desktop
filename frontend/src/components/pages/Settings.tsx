@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Palette, Info, Package, Database, Terminal } from 'lucide-react'
+import { Palette, Info, Package, Database, Terminal, Download } from 'lucide-react'
+import { useUpdatesStore, isUpdateActionable } from '@/store/updatesStore'
 import { useUIStore } from '@/store/uiStore'
 import { Island, IslandBody } from '@/components/app/Island'
 import {
@@ -8,34 +9,45 @@ import {
 } from '@/components/settings/SettingsSidebar'
 import { AppearancePanel } from '@/components/settings/AppearancePanel'
 import { RuntimePanel } from '@/components/settings/RuntimePanel'
+import { UpdatesPanel } from '@/components/settings/UpdatesPanel'
 import { ArchivesPanel } from '@/components/settings/ArchivesPanel'
 import { DatabasePanel } from '@/components/settings/DatabasePanel'
 import { AboutPanel } from '@/components/settings/AboutPanel'
 
-type SectionId = 'appearance' | 'runtime' | 'archives' | 'database' | 'about'
+type SectionId = 'appearance' | 'runtime' | 'updates' | 'archives' | 'database' | 'about'
 
-const NAV: SettingsNavGroup[] = [
-  {
-    heading: 'Application',
-    items: [
-      { id: 'appearance', label: 'Appearance', icon: Palette },
-      { id: 'runtime', label: 'Runtime', icon: Terminal },
-      { id: 'about', label: 'About', icon: Info },
-    ],
-  },
-  {
-    heading: 'Data',
-    items: [
-      { id: 'archives', label: 'Project archives', icon: Package },
-      { id: 'database', label: 'Database backup', icon: Database },
-    ],
-  },
-]
+function buildNav(updateActionable: boolean): SettingsNavGroup[] {
+  return [
+    {
+      heading: 'Application',
+      items: [
+        { id: 'appearance', label: 'Appearance', icon: Palette },
+        { id: 'runtime', label: 'Runtime', icon: Terminal },
+        {
+          id: 'updates',
+          label: 'Updates',
+          icon: Download,
+          badge: updateActionable ? 'NEW' : undefined,
+        },
+        { id: 'about', label: 'About', icon: Info },
+      ],
+    },
+    {
+      heading: 'Data',
+      items: [
+        { id: 'archives', label: 'Project archives', icon: Package },
+        { id: 'database', label: 'Database backup', icon: Database },
+      ],
+    },
+  ]
+}
 
 export function Settings() {
   const [section, setSection] = useState<SectionId>('appearance')
   const pendingAction = useUIStore((s) => s.pendingArchiveAction)
   const clearPending = useUIStore((s) => s.setPendingArchiveAction)
+  const updatePhase = useUpdatesStore((s) => s.phase)
+  const nav = buildNav(isUpdateActionable(updatePhase))
 
   useEffect(() => {
     if (!pendingAction) return
@@ -49,11 +61,19 @@ export function Settings() {
     void clearPending
   }, [pendingAction, clearPending])
 
+  useEffect(() => {
+    if (isUpdateActionable(updatePhase) && section === 'appearance') {
+      // jump straight to the Updates panel when arriving with a pending update
+      setSection('updates')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="h-full flex gap-2 p-2 min-h-0">
       <Island as="aside" className="w-64 shrink-0">
         <SettingsSidebar
-          groups={NAV}
+          groups={nav}
           activeId={section}
           onSelect={(id) => setSection(id as SectionId)}
         />
@@ -63,6 +83,7 @@ export function Settings() {
           <div className="max-w-2xl mx-auto px-10 py-10">
             {section === 'appearance' && <AppearancePanel />}
             {section === 'runtime' && <RuntimePanel />}
+            {section === 'updates' && <UpdatesPanel />}
             {section === 'archives' && <ArchivesPanel />}
             {section === 'database' && <DatabasePanel />}
             {section === 'about' && <AboutPanel />}
