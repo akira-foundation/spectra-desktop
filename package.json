@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "release": "release-it",
-    "sync-version": "node scripts/sync-version.js"
+    "sync-version": "node scripts/sync-version.js",
+    "bump:beta": "node scripts/bump-beta.js"
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^8.0.2",
