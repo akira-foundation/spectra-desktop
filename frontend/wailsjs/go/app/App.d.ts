@@ -36,6 +36,8 @@ export function DeleteScratchRequest(arg1:string):Promise<void>;
 
 export function DetectFramework(arg1:string):Promise<string>;
 
+export function DetectPHPBinary():Promise<string>;
+
 export function DetectProject(arg1:string):Promise<core.DetectionResult>;
 
 export function Drivers():Promise<Array<string>>;
@@ -77,6 +79,8 @@ export function GetHistoryEntry(arg1:string):Promise<app.HistoryEntryDetail>;
 export function GetInsights(arg1:string,arg2:number):Promise<app.InsightsDTO>;
 
 export function GetLastCollectionRun(arg1:string):Promise<app.CollectionRunDTO>;
+
+export function GetPHPBinaryPath():Promise<string>;
 
 export function GetProjectAuth(arg1:string):Promise<app.ProjectAuthState>;
 
@@ -181,6 +185,8 @@ export function SetActiveEnvironment(arg1:string,arg2:string):Promise<void>;
 export function SetActiveProjectID(arg1:string):Promise<void>;
 
 export function SetDefaultProjectAccount(arg1:string,arg2:string):Promise<void>;
+
+export function SetPHPBinaryPath(arg1:string):Promise<void>;
 
 export function SetProjectAuthManual(arg1:app.SetProjectAuthInput):Promise<void>;
 

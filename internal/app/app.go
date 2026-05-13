@@ -125,7 +125,19 @@ func New() (*App, error) {
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	a.applyPHPBinaryOverrideFromSettings()
 	go a.migrateAuthRolesIfNeeded()
+}
+
+func (a *App) applyPHPBinaryOverrideFromSettings() {
+	if a.settings == nil {
+		return
+	}
+	value, err := a.settings.Get(a.ctx, domain.SettingPHPBinaryPath)
+	if err != nil {
+		return
+	}
+	laravel.SetPHPBinaryOverride(value)
 }
 
 func (a *App) migrateAuthRolesIfNeeded() {

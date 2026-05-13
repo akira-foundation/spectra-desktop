@@ -4,6 +4,7 @@ import "context"
 
 const (
 	SettingActiveProjectID = "active_project_id"
+	SettingPHPBinaryPath   = "php_binary_path"
 )
 
 type SettingsRepository interface {

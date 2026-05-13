@@ -58,6 +58,10 @@ export function DetectFramework(arg1) {
   return window['go']['app']['App']['DetectFramework'](arg1);
 }
 
+export function DetectPHPBinary() {
+  return window['go']['app']['App']['DetectPHPBinary']();
+}
+
 export function DetectProject(arg1) {
   return window['go']['app']['App']['DetectProject'](arg1);
 }
@@ -140,6 +144,10 @@ export function GetInsights(arg1, arg2) {
 
 export function GetLastCollectionRun(arg1) {
   return window['go']['app']['App']['GetLastCollectionRun'](arg1);
+}
+
+export function GetPHPBinaryPath() {
+  return window['go']['app']['App']['GetPHPBinaryPath']();
 }
 
 export function GetProjectAuth(arg1) {
@@ -348,6 +356,10 @@ export function SetActiveProjectID(arg1) {
 
 export function SetDefaultProjectAccount(arg1, arg2) {
   return window['go']['app']['App']['SetDefaultProjectAccount'](arg1, arg2);
+}
+
+export function SetPHPBinaryPath(arg1) {
+  return window['go']['app']['App']['SetPHPBinaryPath'](arg1);
 }
 
 export function SetProjectAuthManual(arg1) {

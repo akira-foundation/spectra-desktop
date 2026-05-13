@@ -22,7 +22,8 @@ type rawRoute struct {
 }
 
 func runArtisanRouteList(ctx context.Context, projectPath string) ([]rawRoute, error) {
-	if _, err := exec.LookPath("php"); err != nil {
+	phpPath, err := resolvePHPBinary()
+	if err != nil {
 		return nil, ErrPHPNotFound
 	}
 	artisan := filepath.Join(projectPath, "artisan")
@@ -30,8 +31,9 @@ func runArtisanRouteList(ctx context.Context, projectPath string) ([]rawRoute, e
 		return nil, ErrArtisanMissing
 	}
 
-	cmd := exec.CommandContext(ctx, "php", "artisan", "route:list", "--json")
+	cmd := exec.CommandContext(ctx, phpPath, "artisan", "route:list", "--json")
 	cmd.Dir = projectPath
+	cmd.Env = enrichedEnv()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Palette, Info, Package, Database } from 'lucide-react'
+import { Palette, Info, Package, Database, Terminal } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import { Island, IslandBody } from '@/components/app/Island'
 import {
@@ -7,17 +7,19 @@ import {
   type SettingsNavGroup,
 } from '@/components/settings/SettingsSidebar'
 import { AppearancePanel } from '@/components/settings/AppearancePanel'
+import { RuntimePanel } from '@/components/settings/RuntimePanel'
 import { ArchivesPanel } from '@/components/settings/ArchivesPanel'
 import { DatabasePanel } from '@/components/settings/DatabasePanel'
 import { AboutPanel } from '@/components/settings/AboutPanel'
 
-type SectionId = 'appearance' | 'archives' | 'database' | 'about'
+type SectionId = 'appearance' | 'runtime' | 'archives' | 'database' | 'about'
 
 const NAV: SettingsNavGroup[] = [
   {
     heading: 'Application',
     items: [
       { id: 'appearance', label: 'Appearance', icon: Palette },
+      { id: 'runtime', label: 'Runtime', icon: Terminal },
       { id: 'about', label: 'About', icon: Info },
     ],
   },
@@ -60,6 +62,7 @@ export function Settings() {
         <IslandBody>
           <div className="max-w-2xl mx-auto px-10 py-10">
             {section === 'appearance' && <AppearancePanel />}
+            {section === 'runtime' && <RuntimePanel />}
             {section === 'archives' && <ArchivesPanel />}
             {section === 'database' && <DatabasePanel />}
             {section === 'about' && <AboutPanel />}
