@@ -84,6 +84,10 @@ jobs:
         run: |
           wails build -platform darwin/arm64 -clean \
             -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+          if [ -d "build/bin/spectra-desktop.app" ]; then
+            mv "build/bin/spectra-desktop.app" "build/bin/${PRODUCT_NAME}.app"
+          fi
+          ls -la build/bin/
 
       - name: Codesign .app
         env:
@@ -234,6 +238,10 @@ jobs:
         run: |
           wails build -platform darwin/amd64 -clean \
             -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+          if [ -d "build/bin/spectra-desktop.app" ]; then
+            mv "build/bin/spectra-desktop.app" "build/bin/${PRODUCT_NAME}.app"
+          fi
+          ls -la build/bin/
 
       - name: Codesign .app
         env:
