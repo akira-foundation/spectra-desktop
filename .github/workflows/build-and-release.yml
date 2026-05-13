@@ -1,0 +1,362 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  PRODUCT_NAME: Spectra
+  BUNDLE_ID: foundation.akira.spectra
+  S3_BUCKET: akira-spectra
+  S3_ENDPOINT: https://nyc3.digitaloceanspaces.com
+  CDN_BASE: https://akira-spectra.nyc3.cdn.digitaloceanspaces.com/releases
+
+jobs:
+  build-aarch64:
+    name: Build (aarch64)
+    runs-on: macos-latest
+    outputs:
+      zip_name: ${{ steps.meta.outputs.zip_name }}
+      dmg_name: ${{ steps.meta.outputs.dmg_name }}
+      sig_b64: ${{ steps.meta.outputs.sig_b64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install create-dmg
+        run: brew install create-dmg minisign
+
+      - name: Install Apple certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Install root deps
+        run: bun install --frozen-lockfile
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Resolve version
+        id: ver
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Verify minisign public key configured
+        run: |
+          if grep -q "REPLACE_WITH_MINISIGN_PUBLIC_KEY" internal/updater/config.go; then
+            echo "::error::internal/updater/config.go still has placeholder pubkey"
+            exit 1
+          fi
+
+      - name: Build app
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          wails build -platform darwin/arm64 -clean \
+            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+
+      - name: Codesign .app
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --deep --force --options runtime --timestamp \
+            --entitlements build/darwin/entitlements.plist \
+            --sign "$IDENTITY" \
+            "build/bin/${PRODUCT_NAME}.app"
+          codesign --verify --deep --strict --verbose=2 "build/bin/${PRODUCT_NAME}.app"
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent "build/bin/${PRODUCT_NAME}.app" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "build/bin/${PRODUCT_NAME}.app"
+
+      - name: Package artifacts
+        id: meta
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+          MINISIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.MINISIGN_PRIVATE_KEY_PASSWORD }}
+        run: |
+          OUT=$RUNNER_TEMP/dist
+          mkdir -p "$OUT"
+          ZIP="${OUT}/Spectra_${VERSION}_aarch64.app.zip"
+          DMG="${OUT}/Spectra_${VERSION}_aarch64.dmg"
+
+          ditto -c -k --keepParent "build/bin/${PRODUCT_NAME}.app" "$ZIP"
+
+          create-dmg \
+            --volname "Spectra ${VERSION}" \
+            --window-size 540 380 \
+            --icon-size 96 \
+            --icon "${PRODUCT_NAME}.app" 140 180 \
+            --app-drop-link 400 180 \
+            "$DMG" \
+            "build/bin/${PRODUCT_NAME}.app" || true
+
+          echo "$MINISIGN_PRIVATE_KEY" > "$RUNNER_TEMP/minisign.key"
+          echo "$MINISIGN_PRIVATE_KEY_PASSWORD" | minisign -Sm "$ZIP" -s "$RUNNER_TEMP/minisign.key"
+          rm "$RUNNER_TEMP/minisign.key"
+          mv "${ZIP}.minisig" "${ZIP}.sig"
+
+          SIG_B64=$(base64 < "${ZIP}.sig" | tr -d '\n')
+          echo "zip_name=$(basename "$ZIP")" >> $GITHUB_OUTPUT
+          echo "zip_path=$ZIP" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename "$DMG")" >> $GITHUB_OUTPUT
+          echo "dmg_path=$DMG" >> $GITHUB_OUTPUT
+          echo "sig_b64=$SIG_B64" >> $GITHUB_OUTPUT
+
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.meta.outputs.dmg_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to DO Spaces
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          for f in \
+            "${{ steps.meta.outputs.zip_path }}" \
+            "${{ steps.meta.outputs.zip_path }}.sig" \
+            "${{ steps.meta.outputs.dmg_path }}"; do
+            [ -f "$f" ] || continue
+            aws s3 cp "$f" "s3://${S3_BUCKET}/releases/v${VERSION}/$(basename "$f")" \
+              --endpoint-url "$S3_ENDPOINT" --region us-east-1 --acl public-read
+          done
+
+  build-x86_64:
+    name: Build (x86_64)
+    runs-on: macos-latest
+    outputs:
+      zip_name: ${{ steps.meta.outputs.zip_name }}
+      dmg_name: ${{ steps.meta.outputs.dmg_name }}
+      sig_b64: ${{ steps.meta.outputs.sig_b64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install create-dmg
+        run: brew install create-dmg minisign
+
+      - name: Install Apple certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Install root deps
+        run: bun install --frozen-lockfile
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Resolve version
+        id: ver
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Verify minisign public key configured
+        run: |
+          if grep -q "REPLACE_WITH_MINISIGN_PUBLIC_KEY" internal/updater/config.go; then
+            echo "::error::internal/updater/config.go still has placeholder pubkey"
+            exit 1
+          fi
+
+      - name: Build app
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          wails build -platform darwin/amd64 -clean \
+            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+
+      - name: Codesign .app
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --deep --force --options runtime --timestamp \
+            --entitlements build/darwin/entitlements.plist \
+            --sign "$IDENTITY" \
+            "build/bin/${PRODUCT_NAME}.app"
+          codesign --verify --deep --strict --verbose=2 "build/bin/${PRODUCT_NAME}.app"
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent "build/bin/${PRODUCT_NAME}.app" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "build/bin/${PRODUCT_NAME}.app"
+
+      - name: Package artifacts
+        id: meta
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+          MINISIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.MINISIGN_PRIVATE_KEY_PASSWORD }}
+        run: |
+          OUT=$RUNNER_TEMP/dist
+          mkdir -p "$OUT"
+          ZIP="${OUT}/Spectra_${VERSION}_x86_64.app.zip"
+          DMG="${OUT}/Spectra_${VERSION}_x86_64.dmg"
+
+          ditto -c -k --keepParent "build/bin/${PRODUCT_NAME}.app" "$ZIP"
+
+          create-dmg \
+            --volname "Spectra ${VERSION}" \
+            --window-size 540 380 \
+            --icon-size 96 \
+            --icon "${PRODUCT_NAME}.app" 140 180 \
+            --app-drop-link 400 180 \
+            "$DMG" \
+            "build/bin/${PRODUCT_NAME}.app" || true
+
+          echo "$MINISIGN_PRIVATE_KEY" > "$RUNNER_TEMP/minisign.key"
+          echo "$MINISIGN_PRIVATE_KEY_PASSWORD" | minisign -Sm "$ZIP" -s "$RUNNER_TEMP/minisign.key"
+          rm "$RUNNER_TEMP/minisign.key"
+          mv "${ZIP}.minisig" "${ZIP}.sig"
+
+          SIG_B64=$(base64 < "${ZIP}.sig" | tr -d '\n')
+          echo "zip_name=$(basename "$ZIP")" >> $GITHUB_OUTPUT
+          echo "zip_path=$ZIP" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename "$DMG")" >> $GITHUB_OUTPUT
+          echo "dmg_path=$DMG" >> $GITHUB_OUTPUT
+          echo "sig_b64=$SIG_B64" >> $GITHUB_OUTPUT
+
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.meta.outputs.dmg_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to DO Spaces
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          for f in \
+            "${{ steps.meta.outputs.zip_path }}" \
+            "${{ steps.meta.outputs.zip_path }}.sig" \
+            "${{ steps.meta.outputs.dmg_path }}"; do
+            [ -f "$f" ] || continue
+            aws s3 cp "$f" "s3://${S3_BUCKET}/releases/v${VERSION}/$(basename "$f")" \
+              --endpoint-url "$S3_ENDPOINT" --region us-east-1 --acl public-read
+          done
+
+  publish:
+    name: Publish latest.json
+    needs: [build-aarch64, build-x86_64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate and upload latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          AARCH64_NAME="${{ needs.build-aarch64.outputs.zip_name }}"
+          X86_NAME="${{ needs.build-x86_64.outputs.zip_name }}"
+          AARCH64_SIG=$(echo "${{ needs.build-aarch64.outputs.sig_b64 }}" | base64 --decode)
+          X86_SIG=$(echo "${{ needs.build-x86_64.outputs.sig_b64 }}" | base64 --decode)
+
+          PUB_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          AARCH64_URL="${CDN_BASE}/v${VERSION}/${AARCH64_NAME}"
+          X86_URL="${CDN_BASE}/v${VERSION}/${X86_NAME}"
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pub_date "$PUB_DATE" \
+            --arg aarch64_sig "$AARCH64_SIG" \
+            --arg aarch64_url "$AARCH64_URL" \
+            --arg x86_sig "$X86_SIG" \
+            --arg x86_url "$X86_URL" \
+            '{
+              version: $version,
+              notes: ("Release v" + $version),
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {signature: $aarch64_sig, url: $aarch64_url},
+                "darwin-x86_64":  {signature: $x86_sig,    url: $x86_url}
+              }
+            }' > latest.json
+
+          cat latest.json
+
+          aws s3 cp latest.json "s3://${S3_BUCKET}/releases/latest.json" \
+            --endpoint-url "$S3_ENDPOINT" --region us-east-1 \
+            --acl public-read \
+            --content-type application/json \
+            --cache-control "no-cache"

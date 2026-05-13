@@ -9,3 +9,4 @@ frontend/vite.config.js
 frontend/vite.config.d.ts
 frontend/wailsjs/runtime/
 .DS_Store
+marketing/

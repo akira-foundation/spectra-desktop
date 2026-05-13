@@ -2,12 +2,19 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "spectra-desktop",
   "outputfilename": "spectra-desktop",
-  "frontend:install": "npm install",
-  "frontend:build": "npm run build",
-  "frontend:dev:watcher": "npm run dev",
+  "frontend:install": "bun install",
+  "frontend:build": "bun run build",
+  "frontend:dev:watcher": "bun run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "kid",
     "email": "kidiatoliny@gmail.com"
+  },
+  "info": {
+    "productName": "Spectra",
+    "productVersion": "0.1.0",
+    "companyName": "Akira Foundation",
+    "copyright": "© 2026 Akira Foundation",
+    "comments": "Spectra Desktop"
   }
 }

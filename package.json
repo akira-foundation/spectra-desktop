@@ -1,0 +1,14 @@
+{
+  "name": "spectra-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "release": "release-it",
+    "sync-version": "node scripts/sync-version.js"
+  },
+  "devDependencies": {
+    "@release-it/conventional-changelog": "^8.0.2",
+    "release-it": "^17.11.0"
+  }
+}
