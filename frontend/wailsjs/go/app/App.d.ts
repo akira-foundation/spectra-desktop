@@ -16,6 +16,34 @@ export function AppVersion():Promise<string>;
 
 export function BackupDatabase(arg1:app.DatabaseBackupRequest):Promise<string>;
 
+export function BillingActivateLicense(arg1:app.BillingActivationInput):Promise<app.LicenseDTO>;
+
+export function BillingCancelOauth():Promise<void>;
+
+export function BillingGetLicense():Promise<app.LicenseDTO>;
+
+export function BillingIsAuthenticated():Promise<boolean>;
+
+export function BillingIsConfigured():Promise<boolean>;
+
+export function BillingLogout():Promise<void>;
+
+export function BillingOauthLogin(arg1:string):Promise<app.OauthLoginResult>;
+
+export function BillingOauthProviders():Promise<Array<string>>;
+
+export function BillingPlans():Promise<Record<string, any>>;
+
+export function BillingPortal(arg1:string):Promise<string>;
+
+export function BillingRefreshLicense():Promise<app.LicenseDTO>;
+
+export function BillingRequestOTP(arg1:app.BillingOtpRequestInput):Promise<void>;
+
+export function BillingVerifyLicense():Promise<app.LicenseDTO>;
+
+export function BillingVerifyOTP(arg1:app.BillingOtpVerifyInput):Promise<app.LicenseDTO>;
+
 export function BuildApplicationMenu():Promise<menu.Menu>;
 
 export function CheckForUpdates():Promise<updater.UpdateInfo>;

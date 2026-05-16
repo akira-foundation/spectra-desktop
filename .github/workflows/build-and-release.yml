@@ -81,9 +81,12 @@ jobs:
       - name: Build app
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          AKIRA_BILLING_URL: ${{ secrets.AKIRA_BILLING_URL }}
+          AKIRA_BILLING_SECRET: ${{ secrets.AKIRA_BILLING_SECRET }}
+          AKIRA_LICENSE_PUBKEY: ${{ secrets.AKIRA_LICENSE_PUBKEY }}
         run: |
           wails build -platform darwin/arm64 -clean \
-            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION} -X spectra-desktop/internal/billing.BillingURL=${AKIRA_BILLING_URL} -X spectra-desktop/internal/billing.BillingSecret=${AKIRA_BILLING_SECRET} -X spectra-desktop/internal/billing.LicensePubKey=${AKIRA_LICENSE_PUBKEY}"
           if [ -d "build/bin/spectra-desktop.app" ]; then
             mv "build/bin/spectra-desktop.app" "build/bin/${PRODUCT_NAME}.app"
           fi
@@ -236,9 +239,12 @@ jobs:
       - name: Build app
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          AKIRA_BILLING_URL: ${{ secrets.AKIRA_BILLING_URL }}
+          AKIRA_BILLING_SECRET: ${{ secrets.AKIRA_BILLING_SECRET }}
+          AKIRA_LICENSE_PUBKEY: ${{ secrets.AKIRA_LICENSE_PUBKEY }}
         run: |
           wails build -platform darwin/amd64 -clean \
-            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION}"
+            -ldflags "-X spectra-desktop/internal/version.Version=${VERSION} -X spectra-desktop/internal/billing.BillingURL=${AKIRA_BILLING_URL} -X spectra-desktop/internal/billing.BillingSecret=${AKIRA_BILLING_SECRET} -X spectra-desktop/internal/billing.LicensePubKey=${AKIRA_LICENSE_PUBKEY}"
           if [ -d "build/bin/spectra-desktop.app" ]; then
             mv "build/bin/spectra-desktop.app" "build/bin/${PRODUCT_NAME}.app"
           fi

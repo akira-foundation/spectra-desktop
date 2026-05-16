@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { TabBar } from './TabBar'
 import { StatusBar } from './StatusBar'
 import { CommandPalette } from './CommandPalette'
+import { UpgradeModal } from '@/components/license/UpgradeModal'
 import { AddProjectDialog } from '@/components/projects/AddProjectDialog'
 import { AuthenticationDrawer } from '@/components/api-inspector/AuthenticationDrawer'
 import { useUIStore } from '@/store/uiStore'
@@ -40,6 +41,7 @@ export function AppShell({ children }: AppShellProps) {
     <TooltipProvider delayDuration={200}>
       <div className="h-screen w-screen flex flex-col bg-[#e5e5e5] dark:bg-transparent text-foreground overflow-hidden">
         <CommandPalette />
+        <UpgradeModal />
         <AddProjectDialog />
         <AuthenticationDrawer
           activeMethod={activeAuthMethod}

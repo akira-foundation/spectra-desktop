@@ -13,7 +13,8 @@ import { ScratchPage } from '@/components/pages/ScratchPage'
 import { AccountsPage } from '@/components/pages/AccountsPage'
 import { MockPage } from '@/components/pages/MockPage'
 import { EmptyWorkspace } from '@/components/projects/EmptyWorkspace'
-// import { OnboardingFlow } from '@/components/onboarding'
+import { OnboardingShell } from '@/components/onboarding/OnboardingShell'
+import { useOnboardingStore } from '@/store/onboardingStore'
 import '@/styles/globals.css'
 
 function App() {
@@ -32,6 +33,12 @@ function App() {
 
   const noProjects = !isLoading && projects.length === 0
   const pageNeedsProject = currentPage !== 'settings'
+  const onboardingDone = useOnboardingStore((s) => s.completed)
+  const authOnly = useOnboardingStore((s) => s.authOnly)
+
+  if (!onboardingDone || authOnly) {
+    return <OnboardingShell />
+  }
 
   return (
     <AppShell>

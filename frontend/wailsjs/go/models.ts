@@ -42,6 +42,44 @@ export namespace app {
 	        this.apiKey = source["apiKey"];
 	    }
 	}
+	export class BillingActivationInput {
+	    deviceName?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BillingActivationInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.deviceName = source["deviceName"];
+	    }
+	}
+	export class BillingOtpRequestInput {
+	    email: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BillingOtpRequestInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	    }
+	}
+	export class BillingOtpVerifyInput {
+	    email: string;
+	    code: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BillingOtpVerifyInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	        this.code = source["code"];
+	    }
+	}
 	export class CapturedValueDTO {
 	    name: string;
 	    value: string;
@@ -1066,6 +1104,46 @@ export namespace app {
 	}
 	
 	
+	export class LicenseDTO {
+	    customerId: string;
+	    customerEmail: string;
+	    customerName: string;
+	    plan: string;
+	    cycle: string;
+	    status: string;
+	    validUntil: string;
+	    activatedAt: string;
+	    lastVerifiedAt: string;
+	    features: Record<string, boolean>;
+	    deviceId: string;
+	    cancelAtPeriodEnd: boolean;
+	    cancelAt?: string;
+	    targetPlan?: string;
+	    gracePeriod: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new LicenseDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.customerId = source["customerId"];
+	        this.customerEmail = source["customerEmail"];
+	        this.customerName = source["customerName"];
+	        this.plan = source["plan"];
+	        this.cycle = source["cycle"];
+	        this.status = source["status"];
+	        this.validUntil = source["validUntil"];
+	        this.activatedAt = source["activatedAt"];
+	        this.lastVerifiedAt = source["lastVerifiedAt"];
+	        this.features = source["features"];
+	        this.deviceId = source["deviceId"];
+	        this.cancelAtPeriodEnd = source["cancelAtPeriodEnd"];
+	        this.cancelAt = source["cancelAt"];
+	        this.targetPlan = source["targetPlan"];
+	        this.gracePeriod = source["gracePeriod"];
+	    }
+	}
 	
 	export class MockOverrideDTO {
 	    id: string;
@@ -1181,6 +1259,60 @@ export namespace app {
 	        this.audience = source["audience"];
 	        this.username = source["username"];
 	    }
+	}
+	export class OauthEntitlement {
+	    planKey?: string;
+	    source: string;
+	    endsAt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OauthEntitlement(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.planKey = source["planKey"];
+	        this.source = source["source"];
+	        this.endsAt = source["endsAt"];
+	    }
+	}
+	export class OauthLoginResult {
+	    customerId: string;
+	    customerEmail: string;
+	    customerName: string;
+	    entitlement?: OauthEntitlement;
+	    requiresPlanSelection: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new OauthLoginResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.customerId = source["customerId"];
+	        this.customerEmail = source["customerEmail"];
+	        this.customerName = source["customerName"];
+	        this.entitlement = this.convertValues(source["entitlement"], OauthEntitlement);
+	        this.requiresPlanSelection = source["requiresPlanSelection"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ProjectAccountDTO {
 	    id: string;

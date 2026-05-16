@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Palette, Info, Package, Database, Terminal, Download } from 'lucide-react'
+import { Palette, Info, Package, Database, Terminal, Download, UserCircle2 } from 'lucide-react'
 import { useUpdatesStore, isUpdateActionable } from '@/store/updatesStore'
 import { useUIStore } from '@/store/uiStore'
 import { Island, IslandBody } from '@/components/app/Island'
@@ -10,11 +10,12 @@ import {
 import { AppearancePanel } from '@/components/settings/AppearancePanel'
 import { RuntimePanel } from '@/components/settings/RuntimePanel'
 import { UpdatesPanel } from '@/components/settings/UpdatesPanel'
+import { AccountPanel } from '@/components/settings/AccountPanel'
 import { ArchivesPanel } from '@/components/settings/ArchivesPanel'
 import { DatabasePanel } from '@/components/settings/DatabasePanel'
 import { AboutPanel } from '@/components/settings/AboutPanel'
 
-type SectionId = 'appearance' | 'runtime' | 'updates' | 'archives' | 'database' | 'about'
+type SectionId = 'appearance' | 'runtime' | 'updates' | 'account' | 'archives' | 'database' | 'about'
 
 function buildNav(updateActionable: boolean): SettingsNavGroup[] {
   return [
@@ -30,6 +31,12 @@ function buildNav(updateActionable: boolean): SettingsNavGroup[] {
           badge: updateActionable ? 'NEW' : undefined,
         },
         { id: 'about', label: 'About', icon: Info },
+      ],
+    },
+    {
+      heading: 'Billing',
+      items: [
+        { id: 'account', label: 'Account', icon: UserCircle2 },
       ],
     },
     {
@@ -84,6 +91,7 @@ export function Settings() {
             {section === 'appearance' && <AppearancePanel />}
             {section === 'runtime' && <RuntimePanel />}
             {section === 'updates' && <UpdatesPanel />}
+            {section === 'account' && <AccountPanel />}
             {section === 'archives' && <ArchivesPanel />}
             {section === 'database' && <DatabasePanel />}
             {section === 'about' && <AboutPanel />}

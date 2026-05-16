@@ -10,3 +10,5 @@ frontend/vite.config.d.ts
 frontend/wailsjs/runtime/
 .DS_Store
 marketing/
+.env
+.env.local

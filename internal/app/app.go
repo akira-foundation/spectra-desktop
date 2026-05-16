@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"spectra-desktop/internal/auth"
+	"spectra-desktop/internal/billing"
 	"spectra-desktop/internal/core"
 	"spectra-desktop/internal/mock"
 	"spectra-desktop/internal/domain"
@@ -48,6 +49,10 @@ type App struct {
 	mock        *mock.Manager
 	vault       *secrets.Vault
 	authResolve *auth.Resolver
+	licenseRepo domain.LicenseRepository
+	usageBuffer domain.UsageBufferRepository
+	billing     *billing.Client
+	machineID   *billing.MachineIdentity
 	history   domain.HistoryRepository
 	envs      domain.EnvironmentRepository
 	snapshots domain.SnapshotRepository
@@ -91,6 +96,8 @@ func New() (*App, error) {
 		auth:      repository.NewAuthRepository(store.DB),
 		accounts:  repository.NewAccountRepository(store.DB),
 		mockRepo:  repository.NewMockRepository(store.DB),
+		licenseRepo: repository.NewLicenseRepository(store.DB),
+		usageBuffer: repository.NewUsageBufferRepository(store.DB),
 		history:   repository.NewHistoryRepository(store.DB),
 		envs:      repository.NewEnvironmentRepository(store.DB),
 		snapshots: repository.NewSnapshotRepository(store.DB),
@@ -120,6 +127,25 @@ func New() (*App, error) {
 
 	a.mock = mock.NewManager(a.endpoints, a.history, a.mockRepo, a.newWailsEventEmitter())
 
+	if billing.IsConfigured() && a.vault != nil {
+		billingClient, err := billing.NewClient(a.licenseRepo, a.vault)
+		if err != nil {
+			log.Printf("billing init failed (continuing without): %v", err)
+		} else {
+			a.billing = billingClient
+		}
+	}
+
+	configDir, err := os.UserConfigDir()
+	if err == nil {
+		identity, err := billing.GetOrCreateMachineIdentity(configDir)
+		if err != nil {
+			log.Printf("machine identity init failed: %v", err)
+		} else {
+			a.machineID = identity
+		}
+	}
+
 	return a, nil
 }
 
@@ -127,6 +153,11 @@ func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.applyPHPBinaryOverrideFromSettings()
 	go a.migrateAuthRolesIfNeeded()
+	if a.billing != nil {
+		if err := a.billing.LoadSession(ctx); err != nil {
+			log.Printf("billing load session: %v", err)
+		}
+	}
 }
 
 func (a *App) applyPHPBinaryOverrideFromSettings() {

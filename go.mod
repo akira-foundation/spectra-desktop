@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	aead.dev/minisign v0.3.0
+	github.com/akira-io/billing-sdk-go v0.1.8
 	github.com/brianvoe/gofakeit/v7 v7.14.1
 	github.com/google/uuid v1.6.0
 	github.com/pquerna/otp v1.5.0

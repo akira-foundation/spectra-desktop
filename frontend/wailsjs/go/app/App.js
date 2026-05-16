@@ -18,6 +18,62 @@ export function BackupDatabase(arg1) {
   return window['go']['app']['App']['BackupDatabase'](arg1);
 }
 
+export function BillingActivateLicense(arg1) {
+  return window['go']['app']['App']['BillingActivateLicense'](arg1);
+}
+
+export function BillingCancelOauth() {
+  return window['go']['app']['App']['BillingCancelOauth']();
+}
+
+export function BillingGetLicense() {
+  return window['go']['app']['App']['BillingGetLicense']();
+}
+
+export function BillingIsAuthenticated() {
+  return window['go']['app']['App']['BillingIsAuthenticated']();
+}
+
+export function BillingIsConfigured() {
+  return window['go']['app']['App']['BillingIsConfigured']();
+}
+
+export function BillingLogout() {
+  return window['go']['app']['App']['BillingLogout']();
+}
+
+export function BillingOauthLogin(arg1) {
+  return window['go']['app']['App']['BillingOauthLogin'](arg1);
+}
+
+export function BillingOauthProviders() {
+  return window['go']['app']['App']['BillingOauthProviders']();
+}
+
+export function BillingPlans() {
+  return window['go']['app']['App']['BillingPlans']();
+}
+
+export function BillingPortal(arg1) {
+  return window['go']['app']['App']['BillingPortal'](arg1);
+}
+
+export function BillingRefreshLicense() {
+  return window['go']['app']['App']['BillingRefreshLicense']();
+}
+
+export function BillingRequestOTP(arg1) {
+  return window['go']['app']['App']['BillingRequestOTP'](arg1);
+}
+
+export function BillingVerifyLicense() {
+  return window['go']['app']['App']['BillingVerifyLicense']();
+}
+
+export function BillingVerifyOTP(arg1) {
+  return window['go']['app']['App']['BillingVerifyOTP'](arg1);
+}
+
 export function BuildApplicationMenu() {
   return window['go']['app']['App']['BuildApplicationMenu']();
 }
