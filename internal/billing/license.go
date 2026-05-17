@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime"
 	"time"
 
 	billingsdk "github.com/akira-io/billing-sdk-go"
+	"github.com/akira-io/desktopkit/osinfo"
 
 	"spectra-desktop/internal/domain"
 )
@@ -25,7 +25,7 @@ func (c *Client) RequestOTP(ctx context.Context, email, deviceFP, appVersion str
 	return c.SDK().RequestOTP(ctx, billingsdk.OtpRequestPayload{
 		Email:      email,
 		DeviceFP:   deviceFP,
-		Platform:   runtime.GOOS,
+		Platform:   osinfo.Current().String(),
 		AppVersion: appVersion,
 	})
 }
@@ -52,7 +52,7 @@ func (c *Client) ActivateLicense(ctx context.Context, input ActivationInput) (*d
 	if input.Fingerprint == "" {
 		return nil, errors.New("billing: fingerprint required")
 	}
-	platform := runtime.GOOS
+	platform := osinfo.Current().String()
 	deviceName := optional(input.DeviceName)
 	appVersion := optional(input.AppVersion)
 

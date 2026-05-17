@@ -9,15 +9,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/akira-io/desktopkit/osinfo"
+	"github.com/akira-io/desktopkit/shell"
 )
 
-// Install downloads, verifies, and swaps in the update for the current macOS
-// .app bundle, then relaunches. Caller should exit shortly after.
 func Install(ctx context.Context, info *UpdateInfo, progress ProgressFunc) error {
-	if runtime.GOOS != "darwin" {
-		return fmt.Errorf("auto-update not supported on %s", runtime.GOOS)
+	platform := osinfo.Current()
+	if !platform.IsDarwin() {
+		return fmt.Errorf("auto-update not supported on %s", platform.String())
 	}
 	if info == nil {
 		return errors.New("nil update info")
@@ -116,9 +117,15 @@ func swapBundle(currentApp, newApp string) error {
 	return nil
 }
 
-// relaunch detaches the new bundle via `open` and signals the caller to exit.
 func relaunch(appPath string) error {
-	cmd := exec.Command("/usr/bin/open", "-n", appPath)
+	resolved, err := shell.NewCandidates().
+		WithName("open").
+		WithCandidate("/usr/bin/open").
+		Resolve()
+	if err != nil {
+		return fmt.Errorf("relaunch: locate open: %w", err)
+	}
+	cmd := exec.Command(resolved.AbsolutePath(), "-n", appPath)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("relaunch: %w", err)
 	}

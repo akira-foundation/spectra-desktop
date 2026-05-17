@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	envelopeMagic     = "SPECTRA1"
-	envelopeSaltLen   = 16
-	envelopeNonceLen  = 12
-	envelopeKeyLen    = 32
-	envelopeKDFIters  = 100_000
+	envelopeMagic    = "SPECTRA1"
+	envelopeSaltLen  = 16
+	envelopeNonceLen = 12
+	envelopeKeyLen   = 32
+	envelopeKDFIters = 100_000
 )
 
 func IsPassphraseEnvelope(data []byte) bool {

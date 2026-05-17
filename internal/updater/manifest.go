@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"runtime"
 	"time"
+
+	"github.com/akira-io/desktopkit/osinfo"
 )
 
 // Manifest mirrors the schema used by the Tauri updater plugin so we can keep
@@ -33,7 +35,7 @@ func PlatformKey() string {
 	case "amd64":
 		arch = "x86_64"
 	}
-	return fmt.Sprintf("%s-%s", runtime.GOOS, arch)
+	return fmt.Sprintf("%s-%s", osinfo.Current().String(), arch)
 }
 
 func fetchManifest(ctx context.Context) (*Manifest, error) {

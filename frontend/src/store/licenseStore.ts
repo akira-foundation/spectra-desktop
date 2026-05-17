@@ -15,6 +15,29 @@ import {
 } from '../../wailsjs/go/app/App'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime'
 import type { app } from '../../wailsjs/go/models'
+import { useUpgradeModalStore, type FreeTierLimitType, type TargetPlan } from './upgradeModalStore'
+
+function mapFeatureToLimitType(feature: string): FreeTierLimitType {
+  switch (feature) {
+    case 'mock_server':
+      return 'mock_requires_pro'
+    case 'multi_account':
+      return 'multi_account_requires_pro'
+    case 'archives_export_import':
+    case 'database_backup_restore':
+      return 'archive_requires_pro'
+    case 'requests_per_day':
+      return 'request_limit_reached'
+    case 'projects_max':
+      return 'project_limit_reached'
+    case 'accounts_max':
+      return 'account_limit_reached'
+    case 'beta_channel':
+      return 'beta_requires_entitlement'
+    default:
+      return 'request_limit_reached'
+  }
+}
 
 export type Plan = 'free' | 'pro' | 'ultimate' | string
 export type LicenseStatus = 'inactive' | 'active' | 'expired' | 'invalid'
@@ -91,12 +114,19 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 
     const onLicense = (dto: LicenseDTO | null) => set({ license: dto })
     const onSession = () => void get().load()
+    const onUpsell = (payload: { feature: string; reason?: string; plan?: string }) => {
+      const limit = mapFeatureToLimitType(payload?.feature ?? '')
+      const target: TargetPlan = payload?.plan === 'ultimate' ? 'ultimate' : 'pro'
+      useUpgradeModalStore.getState().show(limit, target)
+    }
     EventsOn('billing:license-changed', onLicense)
     EventsOn('billing:session-changed', onSession)
+    EventsOn('billing:upsell-required', onUpsell)
     set({
       unsubscribe: () => {
         EventsOff('billing:license-changed')
         EventsOff('billing:session-changed')
+        EventsOff('billing:upsell-required')
       },
     })
 

@@ -26,6 +26,14 @@ export function BillingCancelOauth() {
   return window['go']['app']['App']['BillingCancelOauth']();
 }
 
+export function BillingCheckFeature(arg1) {
+  return window['go']['app']['App']['BillingCheckFeature'](arg1);
+}
+
+export function BillingFlushUsage() {
+  return window['go']['app']['App']['BillingFlushUsage']();
+}
+
 export function BillingGetLicense() {
   return window['go']['app']['App']['BillingGetLicense']();
 }
@@ -64,6 +72,10 @@ export function BillingRefreshLicense() {
 
 export function BillingRequestOTP(arg1) {
   return window['go']['app']['App']['BillingRequestOTP'](arg1);
+}
+
+export function BillingTrackUsage(arg1) {
+  return window['go']['app']['App']['BillingTrackUsage'](arg1);
 }
 
 export function BillingVerifyLicense() {

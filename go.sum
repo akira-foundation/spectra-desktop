@@ -4,6 +4,8 @@ git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 h1:N3IGoHHp9pb6mj1cbXbuaSXV/UMKwmbKLf
 git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3/go.mod h1:QtOLZGz8olr4qH2vWK0QH0w0O4T9fEIjMuWpKUsH7nc=
 github.com/akira-io/billing-sdk-go v0.1.8 h1:SE5Th0DAE1l/MeL3Q9YD6ICqjjMMbawC0I8Zhp0C5xk=
 github.com/akira-io/billing-sdk-go v0.1.8/go.mod h1:78l6P4txmXbwqa7Kt2Ju8srFMSmmZ60IfuT1MxxZIow=
+github.com/akira-io/desktopkit v0.2.0 h1:pDoV6At8O7fl8SEpRARpHbaJSwbAkgYtHS4XE03RqsE=
+github.com/akira-io/desktopkit v0.2.0/go.mod h1:+JW8vHNZjoPJILB+zoTlb9H5gK8SH6NigVSottreffU=
 github.com/bep/debounce v1.2.1 h1:v67fRdBA9UQu2NhLFXrSg0Brw7CexQekrBwDMM8bzeY=
 github.com/bep/debounce v1.2.1/go.mod h1:H8yggRPQKLUhUoqrJC1bO2xNya7vanpDl7xR3ISbCJ0=
 github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc h1:biVzkmvwrH8WK8raXaxBx6fRVTlJILwEwQGL1I/ByEI=

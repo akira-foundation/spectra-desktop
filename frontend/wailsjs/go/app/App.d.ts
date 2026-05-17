@@ -20,6 +20,10 @@ export function BillingActivateLicense(arg1:app.BillingActivationInput):Promise<
 
 export function BillingCancelOauth():Promise<void>;
 
+export function BillingCheckFeature(arg1:string):Promise<app.FeatureAccessDTO>;
+
+export function BillingFlushUsage():Promise<void>;
+
 export function BillingGetLicense():Promise<app.LicenseDTO>;
 
 export function BillingIsAuthenticated():Promise<boolean>;
@@ -39,6 +43,8 @@ export function BillingPortal(arg1:string):Promise<string>;
 export function BillingRefreshLicense():Promise<app.LicenseDTO>;
 
 export function BillingRequestOTP(arg1:app.BillingOtpRequestInput):Promise<void>;
+
+export function BillingTrackUsage(arg1:app.BillingTrackUsageInput):Promise<void>;
 
 export function BillingVerifyLicense():Promise<app.LicenseDTO>;
 

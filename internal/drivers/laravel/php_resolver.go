@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/akira-io/desktopkit/shell"
 )
 
 var (
@@ -49,16 +51,20 @@ func resolvePHPBinary() (string, error) {
 }
 
 func findPHPBinary() (string, error) {
-	if path, err := exec.LookPath("php"); err == nil {
-		return path, nil
+	resolved, err := shell.NewCandidates().
+		WithName("php").
+		Resolve()
+	if err == nil {
+		return resolved.AbsolutePath(), nil
 	}
 	if path := lookupPHPViaLoginShell(); path != "" {
 		return path, nil
 	}
-	for _, candidate := range systemPHPCandidates() {
-		if isExecutableFile(candidate) {
-			return candidate, nil
-		}
+	resolved, err = shell.NewCandidates().
+		WithCandidates(systemPHPCandidates()).
+		Resolve()
+	if err == nil {
+		return resolved.AbsolutePath(), nil
 	}
 	return "", ErrPHPNotFound
 }

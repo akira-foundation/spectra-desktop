@@ -80,6 +80,20 @@ export namespace app {
 	        this.code = source["code"];
 	    }
 	}
+	export class BillingTrackUsageInput {
+	    feature: string;
+	    amount?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BillingTrackUsageInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.feature = source["feature"];
+	        this.amount = source["amount"];
+	    }
+	}
 	export class CapturedValueDTO {
 	    name: string;
 	    value: string;
@@ -839,6 +853,32 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class FeatureAccessDTO {
+	    allowed: boolean;
+	    reason?: string;
+	    plan?: string;
+	    status?: string;
+	    grace: boolean;
+	    remaining: number;
+	    unlimited: boolean;
+	    hasFeature: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FeatureAccessDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.allowed = source["allowed"];
+	        this.reason = source["reason"];
+	        this.plan = source["plan"];
+	        this.status = source["status"];
+	        this.grace = source["grace"];
+	        this.remaining = source["remaining"];
+	        this.unlimited = source["unlimited"];
+	        this.hasFeature = source["hasFeature"];
+	    }
 	}
 	export class FlakyEndpointDTO {
 	    endpointID: string;

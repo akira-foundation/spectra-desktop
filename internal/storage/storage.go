@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/akira-io/desktopkit/paths"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 
@@ -17,8 +18,6 @@ import (
 
 const dbFile = "spectra.db"
 
-// appFolder returns the per-mode config folder name so the dev build never
-// shares a database with the production install.
 func appFolder() string {
 	if version.IsDev() {
 		return "Spectra-dev"
@@ -79,9 +78,9 @@ func (s *Storage) Migrate(ctx context.Context) error {
 }
 
 func DefaultPath() (string, error) {
-	cfg, err := os.UserConfigDir()
+	cfg, err := paths.For(appFolder()).Config()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cfg, appFolder(), dbFile), nil
+	return filepath.Join(cfg, dbFile), nil
 }

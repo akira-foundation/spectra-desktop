@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/akira-io/desktopkit/paths"
 	"github.com/zalando/go-keyring"
 )
 
@@ -140,9 +141,9 @@ func keyFilePath() string {
 	if override := os.Getenv(keyfileEnv); override != "" {
 		return override
 	}
-	dir, err := os.UserConfigDir()
+	dir, err := paths.For("spectra").Config()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "spectra", "vault.key")
+	return filepath.Join(dir, "vault.key")
 }

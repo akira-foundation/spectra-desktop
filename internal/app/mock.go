@@ -23,16 +23,16 @@ type MockStatusDTO struct {
 }
 
 type MockOverrideDTO struct {
-	ID          string            `json:"id"`
-	ProjectID   string            `json:"projectID"`
-	EndpointID  string            `json:"endpointId"`
-	Enabled     bool              `json:"enabled"`
-	Status      int               `json:"status"`
-	LatencyMs   int               `json:"latencyMs"`
-	Body        string            `json:"body"`
-	Headers     map[string]string `json:"headers,omitempty"`
-	Source      string            `json:"source"`
-	UpdatedAt   time.Time         `json:"updatedAt"`
+	ID         string            `json:"id"`
+	ProjectID  string            `json:"projectID"`
+	EndpointID string            `json:"endpointId"`
+	Enabled    bool              `json:"enabled"`
+	Status     int               `json:"status"`
+	LatencyMs  int               `json:"latencyMs"`
+	Body       string            `json:"body"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	Source     string            `json:"source"`
+	UpdatedAt  time.Time         `json:"updatedAt"`
 }
 
 type SaveMockOverrideInput struct {
@@ -50,6 +50,12 @@ type SaveMockOverrideInput struct {
 func (a *App) StartMockServer(projectID string, port int) (*MockStatusDTO, error) {
 	if a.mock == nil {
 		return nil, fmt.Errorf("mock subsystem not initialized")
+	}
+	if a.billingGate != nil {
+		if err := a.billingGate.Require(a.ctx, "mock_server"); err != nil {
+			a.emitUpsell("mock_server", err)
+			return nil, err
+		}
 	}
 	status, err := a.mock.Start(a.ctx, projectID, port)
 	if err != nil {
