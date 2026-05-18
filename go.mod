@@ -4,7 +4,8 @@ go 1.25.0
 
 require (
 	aead.dev/minisign v0.3.0
-	github.com/akira-io/billing-sdk-go v0.1.8
+	github.com/akira-io/billing-sdk-go v0.3.6
+	github.com/akira-io/desktopkit v0.2.0
 	github.com/brianvoe/gofakeit/v7 v7.14.1
 	github.com/google/uuid v1.6.0
 	github.com/pquerna/otp v1.5.0
@@ -18,7 +19,6 @@ require (
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
-	github.com/akira-io/desktopkit v0.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
@@ -52,7 +52,7 @@ require (
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

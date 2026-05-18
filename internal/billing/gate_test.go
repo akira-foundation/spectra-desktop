@@ -108,14 +108,11 @@ func TestGateCheck_DeniedWhenBoolFeatureDisabled(t *testing.T) {
 	if access.Allowed {
 		t.Fatalf("expected denied")
 	}
-	if access.Reason != "" {
-		// bool-disabled lands in the default branch as limit_reached because remaining=0
-		if access.Reason != "limit_reached" {
-			t.Fatalf("unexpected reason %q", access.Reason)
-		}
+	if access.Reason != "feature_disabled" {
+		t.Fatalf("unexpected reason %q", access.Reason)
 	}
-	if !access.HasFeature {
-		t.Fatalf("expected HasFeature true for known feature")
+	if access.HasFeature {
+		t.Fatalf("expected HasFeature false for disabled feature")
 	}
 }
 

@@ -19,31 +19,42 @@ type UsageTracker struct {
 	licenseRepo domain.LicenseRepository
 	fingerprint string
 
+	buffer *repoBuffer
+	inner  *billingsdk.UsageTracker
+
 	stopOnce sync.Once
 	stopCh   chan struct{}
 }
 
 func NewUsageTracker(client *Client, repo domain.UsageBufferRepository, licenseRepo domain.LicenseRepository, fingerprint string) *UsageTracker {
-	return &UsageTracker{
+	u := &UsageTracker{
 		client:      client,
 		repo:        repo,
 		licenseRepo: licenseRepo,
 		fingerprint: fingerprint,
 		stopCh:      make(chan struct{}),
 	}
+	u.buffer = &repoBuffer{repo: repo}
+	u.inner, _ = billingsdk.NewUsageTracker(billingsdk.TrackerOptions{
+		Buffer:        u.buffer,
+		Sync:          u.sync,
+		Serial:        u.currentSerial,
+		OnRefresh:     u.onRefresh,
+		FlushInterval: 5 * time.Minute,
+	})
+	return u
 }
 
 func (u *UsageTracker) Track(ctx context.Context, feature string, amount int) error {
 	if u.repo == nil || amount <= 0 {
 		return nil
 	}
-	entry := domain.UsageBufferEntry{
+	return u.repo.Append(ctx, domain.UsageBufferEntry{
 		ID:         uuid.NewString(),
 		Feature:    feature,
 		Amount:     amount,
 		OccurredAt: time.Now().UTC(),
-	}
-	return u.repo.Append(ctx, entry)
+	})
 }
 
 func (u *UsageTracker) StartFlusher(ctx context.Context, interval time.Duration) {
@@ -81,29 +92,10 @@ func (u *UsageTracker) Flush(ctx context.Context) error {
 	if !u.client.HasCustomerToken() {
 		return nil
 	}
+	return u.inner.Flush(ctx)
+}
 
-	rows, err := u.repo.PendingBatch(ctx, 500)
-	if err != nil {
-		return err
-	}
-	if len(rows) == 0 {
-		return nil
-	}
-
-	deltas := map[string]uint64{}
-	ids := make([]string, 0, len(rows))
-	for _, row := range rows {
-		if row.Amount > 0 {
-			deltas[row.Feature] += uint64(row.Amount)
-		}
-		ids = append(ids, row.ID)
-	}
-	if len(deltas) == 0 {
-		return u.repo.MarkFlushed(ctx, ids)
-	}
-
-	serial := u.currentSerial(ctx)
-
+func (u *UsageTracker) sync(ctx context.Context, deltas map[string]uint64, serial uint64) (*billingsdk.LicenseSyncUsageResponse, error) {
 	resp, err := u.client.SDK().LicenseSyncUsage(ctx, billingsdk.LicenseSyncUsagePayload{
 		Product:     ProductSlug,
 		Fingerprint: u.fingerprint,
@@ -111,22 +103,18 @@ func (u *UsageTracker) Flush(ctx context.Context) error {
 		Deltas:      deltas,
 	})
 	if err != nil {
-		return fmt.Errorf("billing: sync usage: %w", err)
+		return nil, fmt.Errorf("billing: sync usage: %w", err)
 	}
-
-	if err := u.persistRefreshedSnapshot(ctx, resp); err != nil {
-		return err
-	}
-	return u.repo.MarkFlushed(ctx, ids)
+	return resp, nil
 }
 
-func (u *UsageTracker) currentSerial(ctx context.Context) uint64 {
+func (u *UsageTracker) currentSerial(ctx context.Context) (uint64, error) {
 	if u.licenseRepo == nil {
-		return 0
+		return 0, nil
 	}
 	license, err := u.licenseRepo.Get(ctx)
 	if err != nil || license == nil || license.LicensePayload == "" {
-		return 0
+		return 0, err
 	}
 	signed := billingsdk.SignedLicense{
 		KeyID:     license.LicenseKeyID,
@@ -136,9 +124,20 @@ func (u *UsageTracker) currentSerial(ctx context.Context) uint64 {
 	}
 	decoded, err := billingsdk.DecodeLicense(signed)
 	if err != nil {
-		return 0
+		return 0, nil
 	}
-	return decoded.Payload.Serial
+	return decoded.Payload.Serial, nil
+}
+
+func (u *UsageTracker) onRefresh(ctx context.Context, resp *billingsdk.LicenseSyncUsageResponse) error {
+	if err := u.persistRefreshedSnapshot(ctx, resp); err != nil {
+		return err
+	}
+	ids := u.buffer.takePendingIDs()
+	if len(ids) == 0 {
+		return nil
+	}
+	return u.repo.MarkFlushed(ctx, ids)
 }
 
 func (u *UsageTracker) persistRefreshedSnapshot(ctx context.Context, resp *billingsdk.LicenseSyncUsageResponse) error {
@@ -163,4 +162,57 @@ func (u *UsageTracker) persistRefreshedSnapshot(ctx context.Context, resp *billi
 	license.ValidUntil = payload.ValidUntil
 	license.LastVerifiedAt = time.Now().UTC().Format(time.RFC3339)
 	return u.licenseRepo.Save(ctx, *license)
+}
+
+type repoBuffer struct {
+	repo domain.UsageBufferRepository
+
+	mu         sync.Mutex
+	pendingIDs []string
+}
+
+func (b *repoBuffer) Add(ctx context.Context, feature string, delta uint64) error {
+	if delta == 0 {
+		return nil
+	}
+	return b.repo.Append(ctx, domain.UsageBufferEntry{
+		ID:         uuid.NewString(),
+		Feature:    feature,
+		Amount:     int(delta),
+		OccurredAt: time.Now().UTC(),
+	})
+}
+
+func (b *repoBuffer) Drain(ctx context.Context) (map[string]uint64, error) {
+	rows, err := b.repo.PendingBatch(ctx, 500)
+	if err != nil {
+		return nil, err
+	}
+	deltas := map[string]uint64{}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.Amount > 0 {
+			deltas[row.Feature] += uint64(row.Amount)
+		}
+		ids = append(ids, row.ID)
+	}
+	b.mu.Lock()
+	b.pendingIDs = ids
+	b.mu.Unlock()
+	return deltas, nil
+}
+
+func (b *repoBuffer) Restore(ctx context.Context, deltas map[string]uint64) error {
+	b.mu.Lock()
+	b.pendingIDs = nil
+	b.mu.Unlock()
+	return nil
+}
+
+func (b *repoBuffer) takePendingIDs() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ids := b.pendingIDs
+	b.pendingIDs = nil
+	return ids
 }

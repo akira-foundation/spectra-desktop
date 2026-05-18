@@ -11,7 +11,7 @@ import (
 	"spectra-desktop/internal/domain"
 )
 
-const offlineGraceWindow int64 = 7 * 24 * 60 * 60
+const offlineGraceWindow = 7 * 24 * time.Hour
 
 type FeatureAccess struct {
 	Allowed    bool
@@ -27,58 +27,28 @@ type FeatureAccess struct {
 type Gate struct {
 	client *Client
 	usage  domain.UsageBufferRepository
+	inner  *billingsdk.Gate
 }
 
 func NewGate(client *Client, usage domain.UsageBufferRepository) *Gate {
-	return &Gate{client: client, usage: usage}
+	g := &Gate{client: client, usage: usage}
+	g.inner = billingsdk.NewGate(billingsdk.GateOptions{
+		Loader:           g.loadLicense,
+		LocalConsumption: g.localConsumption,
+		GraceWindow:      offlineGraceWindow,
+	})
+	return g
 }
 
 func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error) {
 	if g.client == nil {
-		return FeatureAccess{Allowed: true, Unlimited: true}, nil
+		return FeatureAccess{Allowed: true, Unlimited: true, HasFeature: true}, nil
 	}
-
-	license, payload, err := g.client.VerifyLocal(ctx)
+	access, err := g.inner.Check(ctx, feature)
 	if err != nil {
 		return FeatureAccess{}, err
 	}
-	if license == nil || payload == nil {
-		return FeatureAccess{Allowed: false, Reason: "no_license"}, nil
-	}
-
-	access := FeatureAccess{
-		Plan:   license.Plan,
-		Status: license.Status,
-		Grace:  license.GracePeriod,
-	}
-
-	now := time.Now().UTC()
-	if billingsdk.IsExpired(*payload, now) && !billingsdk.IsInGrace(*payload, offlineGraceWindow, now) {
-		access.Reason = "license_expired"
-		return access, nil
-	}
-
-	consumed, err := g.localConsumption(ctx, feature)
-	if err != nil {
-		return access, err
-	}
-
-	remaining, unlimited, ok := billingsdk.ComputeRemaining(*payload, feature, consumed)
-	access.HasFeature = ok
-	access.Remaining = remaining
-	access.Unlimited = unlimited
-
-	switch {
-	case !ok:
-		access.Reason = "feature_not_in_plan"
-	case unlimited:
-		access.Allowed = true
-	case remaining > 0:
-		access.Allowed = true
-	default:
-		access.Reason = "limit_reached"
-	}
-	return access, nil
+	return adaptAccess(access), nil
 }
 
 func (g *Gate) Require(ctx context.Context, feature string) error {
@@ -104,6 +74,24 @@ func (e *GateDenied) Error() string {
 
 var ErrFeatureNotAllowed = errors.New("billing: feature not allowed")
 
+func (g *Gate) loadLicense(ctx context.Context) (*billingsdk.SignedLicense, *billingsdk.LicenseSnapshotPayload, error) {
+	license, payload, err := g.client.VerifyLocal(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if license == nil || license.LicensePayload == "" || payload == nil {
+		return nil, nil, nil
+	}
+	signed := &billingsdk.SignedLicense{
+		KeyID:      license.LicenseKeyID,
+		Algorithm:  license.LicenseAlgorithm,
+		Payload:    license.LicensePayload,
+		Signature:  license.LicenseSignature,
+		ValidUntil: license.ValidUntil,
+	}
+	return signed, payload, nil
+}
+
 func (g *Gate) localConsumption(ctx context.Context, feature string) (uint64, error) {
 	if g.usage == nil {
 		return 0, nil
@@ -119,4 +107,32 @@ func (g *Gate) localConsumption(ctx context.Context, feature string) (uint64, er
 		}
 	}
 	return total, nil
+}
+
+func adaptAccess(a billingsdk.FeatureAccess) FeatureAccess {
+	status, grace := mapLicenseState(a.State)
+	return FeatureAccess{
+		Allowed:    a.Allowed,
+		Reason:     a.Reason,
+		Plan:       a.Plan,
+		Status:     status,
+		Grace:      grace,
+		Remaining:  a.Remaining,
+		Unlimited:  a.Unlimited,
+		HasFeature: a.HasFeature,
+	}
+}
+
+func mapLicenseState(state billingsdk.LicenseState) (string, bool) {
+	switch state {
+	case billingsdk.LicenseStateActive:
+		return "active", false
+	case billingsdk.LicenseStateGrace:
+		return "active", true
+	case billingsdk.LicenseStateExpired:
+		return "expired", false
+	case billingsdk.LicenseStateInvalid:
+		return "invalid", false
+	}
+	return "", false
 }
