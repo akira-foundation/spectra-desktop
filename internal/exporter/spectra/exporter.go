@@ -105,7 +105,7 @@ func Export(ctx context.Context, sourceDBPath, projectID, outPath string, opts E
 }
 
 func buildExportDB(ctx context.Context, sourceDBPath, targetPath, projectID string, opts ExportOptions) error {
-	dsn := fmt.Sprintf("file:%s?_journal=WAL&_foreign_keys=off", targetPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(0)", targetPath)
 	rawDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return fmt.Errorf("open target db: %w", err)
@@ -241,7 +241,7 @@ func stripSecretColumns(ctx context.Context, db *sql.DB, spec tableSpec) error {
 }
 
 func buildManifest(ctx context.Context, dbPath, projectID string, opts ExportOptions) (*Manifest, error) {
-	dsn := fmt.Sprintf("file:%s?mode=ro&_journal=WAL", dbPath)
+	dsn := fmt.Sprintf("file:%s?mode=ro&_pragma=journal_mode(WAL)", dbPath)
 	rawDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -278,7 +278,7 @@ type shardPayload struct {
 }
 
 func dumpJSONShards(ctx context.Context, dbPath string, tables []string) ([]shardPayload, error) {
-	dsn := fmt.Sprintf("file:%s?mode=ro&_journal=WAL", dbPath)
+	dsn := fmt.Sprintf("file:%s?mode=ro&_pragma=journal_mode(WAL)", dbPath)
 	rawDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err

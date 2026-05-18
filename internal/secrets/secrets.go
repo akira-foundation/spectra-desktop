@@ -44,6 +44,15 @@ func Default() (*Vault, error) {
 	return &Vault{key: cachedKey}, nil
 }
 
+func NewVault(key []byte) (*Vault, error) {
+	if len(key) != 32 {
+		return nil, errors.New("secrets: key must be 32 bytes")
+	}
+	dup := make([]byte, 32)
+	copy(dup, key)
+	return &Vault{key: dup}, nil
+}
+
 func MustDefault() *Vault {
 	v, err := Default()
 	if err != nil {

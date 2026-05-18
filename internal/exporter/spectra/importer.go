@@ -124,7 +124,7 @@ func extractZipFileTo(file *zip.File, dest string) error {
 }
 
 func remapProjectIDInExportDB(ctx context.Context, dbPath, oldID, newID string) error {
-	dsn := fmt.Sprintf("file:%s?_journal=WAL&_foreign_keys=off", dbPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(0)", dbPath)
 	rawDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return err
@@ -190,7 +190,7 @@ func tableHasColumn(ctx context.Context, db *sql.DB, table, column string) (bool
 }
 
 func mergeIntoMainDB(ctx context.Context, mainDBPath, importDBPath string, tables []string) error {
-	dsn := fmt.Sprintf("file:%s?_journal=WAL&_foreign_keys=off", mainDBPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(0)", mainDBPath)
 	rawDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return err

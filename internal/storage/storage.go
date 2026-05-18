@@ -47,7 +47,7 @@ func (s *Storage) Open(path string) error {
 		return fmt.Errorf("create db dir: %w", err)
 	}
 
-	dsn := fmt.Sprintf("file:%s?cache=shared&_journal=WAL&_busy_timeout=5000&_foreign_keys=on", path)
+	dsn := fmt.Sprintf("file:%s?cache=shared&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)", path)
 	sqldb, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return fmt.Errorf("open sqlite: %w", err)
