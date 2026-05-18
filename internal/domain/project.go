@@ -19,22 +19,22 @@ const (
 )
 
 type Project struct {
-	ID               string        `json:"id"`
-	Name             string        `json:"name"`
-	Path             string        `json:"path"`
-	Framework        string        `json:"framework"`
-	FrameworkVersion string        `json:"frameworkVersion"`
-	Status           ProjectStatus `json:"status"`
-	APIFilterMode    string        `json:"apiFilterMode"`
-	APIFilterValue   string        `json:"apiFilterValue"`
-	BaseURL          string        `json:"baseUrl"`
-	LoginEndpointID  string        `json:"loginEndpointId,omitempty"`
-	LoginTokenPath   string        `json:"loginTokenPath,omitempty"`
-	LogoutEndpointID string        `json:"logoutEndpointId,omitempty"`
-	ActiveEnvironmentID string     `json:"activeEnvironmentId,omitempty"`
-	CreatedAt        time.Time     `json:"createdAt"`
-	UpdatedAt        time.Time     `json:"updatedAt"`
-	LastSyncedAt     *time.Time    `json:"lastSyncedAt,omitempty"`
+	ID                  string        `json:"id"`
+	Name                string        `json:"name"`
+	Path                string        `json:"path"`
+	Framework           string        `json:"framework"`
+	FrameworkVersion    string        `json:"frameworkVersion"`
+	Status              ProjectStatus `json:"status"`
+	APIFilterMode       string        `json:"apiFilterMode"`
+	APIFilterValue      string        `json:"apiFilterValue"`
+	BaseURL             string        `json:"baseUrl"`
+	LoginEndpointID     string        `json:"loginEndpointId,omitempty"`
+	LoginTokenPath      string        `json:"loginTokenPath,omitempty"`
+	LogoutEndpointID    string        `json:"logoutEndpointId,omitempty"`
+	ActiveEnvironmentID string        `json:"activeEnvironmentId,omitempty"`
+	CreatedAt           time.Time     `json:"createdAt"`
+	UpdatedAt           time.Time     `json:"updatedAt"`
+	LastSyncedAt        *time.Time    `json:"lastSyncedAt,omitempty"`
 }
 
 type ProjectInput struct {

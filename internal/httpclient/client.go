@@ -76,10 +76,10 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 	}
 
 	var (
-		dnsStart, dnsDone           time.Time
-		connectStart, connectDone   time.Time
-		tlsStart, tlsDone           time.Time
-		gotFirstByte                time.Time
+		dnsStart, dnsDone         time.Time
+		connectStart, connectDone time.Time
+		tlsStart, tlsDone         time.Time
+		gotFirstByte              time.Time
 	)
 	trace := &httptrace.ClientTrace{
 		DNSStart:             func(httptrace.DNSStartInfo) { dnsStart = time.Now() },
@@ -87,7 +87,7 @@ func (c *Client) Send(ctx context.Context, req Request) (*Response, error) {
 		ConnectStart:         func(string, string) { connectStart = time.Now() },
 		ConnectDone:          func(string, string, error) { connectDone = time.Now() },
 		TLSHandshakeStart:    func() { tlsStart = time.Now() },
-		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) { tlsDone = time.Now() },
+		TLSHandshakeDone:     func(_ tls.ConnectionState, _ error) { tlsDone = time.Now() },
 		GotFirstResponseByte: func() { gotFirstByte = time.Now() },
 	}
 	httpReq = httpReq.WithContext(httptrace.WithClientTrace(httpReq.Context(), trace))

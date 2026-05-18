@@ -12,27 +12,27 @@ import (
 type Endpoint struct {
 	bun.BaseModel `bun:"table:endpoints"`
 
-	ID         string    `bun:"id,pk"`
-	ProjectID  string    `bun:"project_id,notnull"`
-	Method     string    `bun:"method,notnull"`
-	Path       string    `bun:"path,notnull"`
-	Name       string    `bun:"name,notnull,default:''"`
-	Handler    string    `bun:"handler,notnull,default:''"`
-	Middleware string    `bun:"middleware,notnull,default:'[]'"`
-	Parameters string    `bun:"parameters,notnull,default:'[]'"`
-	Tags       string    `bun:"tags,notnull,default:'[]'"`
-	SourceFile string    `bun:"source_file,notnull,default:''"`
-	SourceLine int       `bun:"source_line,notnull,default:0"`
-	Framework     string    `bun:"framework,notnull,default:''"`
-	Confidence    float64   `bun:"confidence,notnull,default:0"`
-	RequestSchema string    `bun:"request_schema,notnull,default:''"`
+	ID                string    `bun:"id,pk"`
+	ProjectID         string    `bun:"project_id,notnull"`
+	Method            string    `bun:"method,notnull"`
+	Path              string    `bun:"path,notnull"`
+	Name              string    `bun:"name,notnull,default:''"`
+	Handler           string    `bun:"handler,notnull,default:''"`
+	Middleware        string    `bun:"middleware,notnull,default:'[]'"`
+	Parameters        string    `bun:"parameters,notnull,default:'[]'"`
+	Tags              string    `bun:"tags,notnull,default:'[]'"`
+	SourceFile        string    `bun:"source_file,notnull,default:''"`
+	SourceLine        int       `bun:"source_line,notnull,default:0"`
+	Framework         string    `bun:"framework,notnull,default:''"`
+	Confidence        float64   `bun:"confidence,notnull,default:0"`
+	RequestSchema     string    `bun:"request_schema,notnull,default:''"`
 	AuthRole          string    `bun:"auth_role,notnull,default:''"`
 	AuthHint          string    `bun:"auth_hint,notnull,default:''"`
 	AuthRoleOverride  string    `bun:"auth_role_override,notnull,default:''"`
 	TokenPathOverride string    `bun:"token_path_override,notnull,default:''"`
 	ScannedAt         time.Time `bun:"scanned_at,notnull"`
-	CreatedAt  time.Time `bun:"created_at,notnull"`
-	UpdatedAt  time.Time `bun:"updated_at,notnull"`
+	CreatedAt         time.Time `bun:"created_at,notnull"`
+	UpdatedAt         time.Time `bun:"updated_at,notnull"`
 }
 
 func (e Endpoint) ToCore() core.Endpoint {
@@ -49,9 +49,9 @@ func (e Endpoint) ToCore() core.Endpoint {
 			File: e.SourceFile,
 			Line: e.SourceLine,
 		},
-		Framework:     e.Framework,
-		Confidence:    e.Confidence,
-		RequestSchema: e.RequestSchema,
+		Framework:         e.Framework,
+		Confidence:        e.Confidence,
+		RequestSchema:     e.RequestSchema,
 		AuthRole:          core.AuthRole(e.AuthRole),
 		AuthHint:          e.AuthHint,
 		AuthRoleOverride:  core.AuthRole(e.AuthRoleOverride),
@@ -61,27 +61,27 @@ func (e Endpoint) ToCore() core.Endpoint {
 
 func EndpointFromCore(projectID string, ep core.Endpoint, scannedAt time.Time, now time.Time) Endpoint {
 	return Endpoint{
-		ID:         ep.ID,
-		ProjectID:  projectID,
-		Method:     string(ep.Method),
-		Path:       ep.Path,
-		Name:       ep.Name,
-		Handler:    ep.Handler,
-		Middleware: encodeStringSlice(ep.Middleware),
-		Parameters: encodeParameters(ep.Parameters),
-		Tags:       encodeStringSlice(ep.Tags),
-		SourceFile: ep.Source.File,
-		SourceLine: ep.Source.Line,
-		Framework:     ep.Framework,
-		Confidence:    ep.Confidence,
-		RequestSchema: ep.RequestSchema,
+		ID:                ep.ID,
+		ProjectID:         projectID,
+		Method:            string(ep.Method),
+		Path:              ep.Path,
+		Name:              ep.Name,
+		Handler:           ep.Handler,
+		Middleware:        encodeStringSlice(ep.Middleware),
+		Parameters:        encodeParameters(ep.Parameters),
+		Tags:              encodeStringSlice(ep.Tags),
+		SourceFile:        ep.Source.File,
+		SourceLine:        ep.Source.Line,
+		Framework:         ep.Framework,
+		Confidence:        ep.Confidence,
+		RequestSchema:     ep.RequestSchema,
 		AuthRole:          string(ep.AuthRole),
 		AuthHint:          ep.AuthHint,
 		AuthRoleOverride:  string(ep.AuthRoleOverride),
 		TokenPathOverride: ep.TokenPathOverride,
 		ScannedAt:         scannedAt,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 }
 

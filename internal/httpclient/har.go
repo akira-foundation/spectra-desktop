@@ -7,16 +7,16 @@ import (
 )
 
 type HAREntry struct {
-	Method  string            `json:"method"`
-	URL     string            `json:"url"`
-	BaseURL string            `json:"baseURL,omitempty"`
-	Path    string            `json:"path,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Body    string            `json:"body,omitempty"`
-	Query   map[string]string `json:"query,omitempty"`
-	Status  int               `json:"status,omitempty"`
-	Size    int               `json:"size,omitempty"`
-	StartedAt string          `json:"startedAt,omitempty"`
+	Method    string            `json:"method"`
+	URL       string            `json:"url"`
+	BaseURL   string            `json:"baseURL,omitempty"`
+	Path      string            `json:"path,omitempty"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	Body      string            `json:"body,omitempty"`
+	Query     map[string]string `json:"query,omitempty"`
+	Status    int               `json:"status,omitempty"`
+	Size      int               `json:"size,omitempty"`
+	StartedAt string            `json:"startedAt,omitempty"`
 }
 
 func ParseHAR(raw string) ([]HAREntry, error) {
@@ -28,9 +28,9 @@ func ParseHAR(raw string) ([]HAREntry, error) {
 			Entries []struct {
 				StartedAt string `json:"startedDateTime"`
 				Request   struct {
-					Method      string `json:"method"`
-					URL         string `json:"url"`
-					Headers     []struct {
+					Method  string `json:"method"`
+					URL     string `json:"url"`
+					Headers []struct {
 						Name  string `json:"name"`
 						Value string `json:"value"`
 					} `json:"headers"`

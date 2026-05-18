@@ -11,9 +11,9 @@ type Response struct {
 }
 
 type Timeline struct {
-	DNSMs     int64 `json:"dnsMs"`
-	ConnectMs int64 `json:"connectMs"`
-	TLSMs     int64 `json:"tlsMs"`
-	TTFBMs    int64 `json:"ttfbMs"`
+	DNSMs      int64 `json:"dnsMs"`
+	ConnectMs  int64 `json:"connectMs"`
+	TLSMs      int64 `json:"tlsMs"`
+	TTFBMs     int64 `json:"ttfbMs"`
 	DownloadMs int64 `json:"downloadMs"`
 }

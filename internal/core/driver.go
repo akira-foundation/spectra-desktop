@@ -23,12 +23,12 @@ type ExceptionFormatter interface {
 }
 
 type FormattedException struct {
-	Message string                 `json:"message"`
-	Class   string                 `json:"class,omitempty"`
-	File    string                 `json:"file,omitempty"`
-	Line    int                    `json:"line,omitempty"`
-	Trace   []FormattedTraceFrame  `json:"trace,omitempty"`
-	Extra   map[string]any         `json:"extra,omitempty"`
+	Message string                `json:"message"`
+	Class   string                `json:"class,omitempty"`
+	File    string                `json:"file,omitempty"`
+	Line    int                   `json:"line,omitempty"`
+	Trace   []FormattedTraceFrame `json:"trace,omitempty"`
+	Extra   map[string]any        `json:"extra,omitempty"`
 }
 
 type FormattedTraceFrame struct {

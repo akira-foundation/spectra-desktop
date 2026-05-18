@@ -13,23 +13,23 @@ const (
 )
 
 type Endpoint struct {
-	ID         string            `json:"id"`
-	Method     HTTPMethod        `json:"method"`
-	Path       string            `json:"path"`
-	Name       string            `json:"name,omitempty"`
-	Handler    string            `json:"handler,omitempty"`
-	Middleware []string          `json:"middleware,omitempty"`
-	Parameters []Parameter       `json:"parameters,omitempty"`
-	Tags       []string          `json:"tags,omitempty"`
-	Source     EndpointSource    `json:"source"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
-	Framework     string            `json:"framework,omitempty"`
-	Confidence    float64           `json:"confidence,omitempty"`
-	RequestSchema string            `json:"requestSchema,omitempty"`
-	AuthRole         AuthRole `json:"authRole,omitempty"`
-	AuthHint         string   `json:"authHint,omitempty"`
-	AuthRoleOverride AuthRole `json:"authRoleOverride,omitempty"`
-	TokenPathOverride string  `json:"tokenPathOverride,omitempty"`
+	ID                string            `json:"id"`
+	Method            HTTPMethod        `json:"method"`
+	Path              string            `json:"path"`
+	Name              string            `json:"name,omitempty"`
+	Handler           string            `json:"handler,omitempty"`
+	Middleware        []string          `json:"middleware,omitempty"`
+	Parameters        []Parameter       `json:"parameters,omitempty"`
+	Tags              []string          `json:"tags,omitempty"`
+	Source            EndpointSource    `json:"source"`
+	Metadata          map[string]string `json:"metadata,omitempty"`
+	Framework         string            `json:"framework,omitempty"`
+	Confidence        float64           `json:"confidence,omitempty"`
+	RequestSchema     string            `json:"requestSchema,omitempty"`
+	AuthRole          AuthRole          `json:"authRole,omitempty"`
+	AuthHint          string            `json:"authHint,omitempty"`
+	AuthRoleOverride  AuthRole          `json:"authRoleOverride,omitempty"`
+	TokenPathOverride string            `json:"tokenPathOverride,omitempty"`
 }
 
 func (e Endpoint) EffectiveAuthRole() AuthRole {

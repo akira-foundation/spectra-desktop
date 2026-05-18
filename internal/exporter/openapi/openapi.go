@@ -10,10 +10,10 @@ import (
 )
 
 type Spec struct {
-	OpenAPI string                 `json:"openapi"`
-	Info    Info                   `json:"info"`
-	Servers []Server               `json:"servers,omitempty"`
-	Paths   map[string]PathItem    `json:"paths"`
+	OpenAPI    string              `json:"openapi"`
+	Info       Info                `json:"info"`
+	Servers    []Server            `json:"servers,omitempty"`
+	Paths      map[string]PathItem `json:"paths"`
 	Components *Components         `json:"components,omitempty"`
 }
 
@@ -39,13 +39,13 @@ type PathItem struct {
 }
 
 type Operation struct {
-	OperationID string                  `json:"operationId,omitempty"`
-	Summary     string                  `json:"summary,omitempty"`
-	Tags        []string                `json:"tags,omitempty"`
-	Parameters  []Parameter             `json:"parameters,omitempty"`
-	RequestBody *RequestBody            `json:"requestBody,omitempty"`
-	Responses   map[string]Response     `json:"responses"`
-	Security    []map[string][]string   `json:"security,omitempty"`
+	OperationID string                `json:"operationId,omitempty"`
+	Summary     string                `json:"summary,omitempty"`
+	Tags        []string              `json:"tags,omitempty"`
+	Parameters  []Parameter           `json:"parameters,omitempty"`
+	RequestBody *RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]Response   `json:"responses"`
+	Security    []map[string][]string `json:"security,omitempty"`
 }
 
 type Parameter struct {
@@ -57,8 +57,8 @@ type Parameter struct {
 }
 
 type RequestBody struct {
-	Required bool                   `json:"required,omitempty"`
-	Content  map[string]MediaType   `json:"content"`
+	Required bool                 `json:"required,omitempty"`
+	Content  map[string]MediaType `json:"content"`
 }
 
 type MediaType struct {
@@ -67,8 +67,8 @@ type MediaType struct {
 }
 
 type Response struct {
-	Description string                 `json:"description"`
-	Content     map[string]MediaType   `json:"content,omitempty"`
+	Description string               `json:"description"`
+	Content     map[string]MediaType `json:"content,omitempty"`
 }
 
 type Schema struct {
